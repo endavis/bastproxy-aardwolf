@@ -108,13 +108,13 @@ Interactively prompts for project information and replaces all placeholder value
 
 | Prompt | Default | Description |
 |--------|---------|-------------|
-| Project name | Package Name | Display name for the project |
-| Package name | package_name | Python import name (snake_case) |
-| PyPI name | package-name | Name on PyPI (typically hyphenated) |
-| Author name | Your Name | Author for package metadata |
-| Author email | your.email@example.com | Contact email |
+| Project name | bastproxy-aardwolf | Display name for the project |
+| Package name | aardwolf | Python import name (snake_case) |
+| PyPI name | bastproxy-aardwolf | Name on PyPI (typically hyphenated) |
+| Author name | Bast | Author for package metadata |
+| Author email | bast@bastproxy.com | Contact email |
 | GitHub username | username | Your GitHub username |
-| Description | A short description of your package | One-line project description |
+| Description | Aardwolf plugins for bastproxy | One-line project description |
 
 ### Files Modified
 
@@ -132,7 +132,7 @@ Interactively prompts for project information and replaces all placeholder value
 ### Actions Performed
 
 1. Replaces placeholder strings with provided values
-2. Renames `src/package_name/` to `src/your_package_name/`
+2. Renames `src/aardwolf/` to `src/your_aardwolf/`
 3. Updates all URLs and badge links
 4. Updates documentation references
 
@@ -143,7 +143,7 @@ Interactively prompts for project information and replaces all placeholder value
 
 ### Placeholder Markers
 
-Prose files in the template (`README.md`, `CHANGELOG.md`, `docs/**/*.md`, most files under `.github/`) use explicit marker tokens like `__PACKAGE_NAME__`, `__GH_OWNER__`, `__AUTHOR_NAME__`, `__PYPI_NAME__`, `__PROJECT_NAME__`, `__AUTHOR_EMAIL__`, and `__DESCRIPTION__`. The spawn flow (`setup_repo.py` / `configure.py`) substitutes these at placeholder-replacement time. Markers are used instead of bare identifier literals (`package_name`, `username`) so substring collisions cannot corrupt identifiers like `validate_package_name`. Runtime-critical files (`pyproject.toml`, `mkdocs.yml`, `dodo.py`, workflows, `LICENSE`, `.envrc`, `.pre-commit-config.yaml`) keep literal placeholder values so the template repo itself remains runnable. Python source and test files keep literal identifiers but get word-boundary regex protection during substitution.
+Prose files in the template (`README.md`, `CHANGELOG.md`, `docs/**/*.md`, most files under `.github/`) use explicit marker tokens like `aardwolf`, `endavis`, `Bast`, `bastproxy-aardwolf`, `bastproxy-aardwolf`, `bast@bastproxy.com`, and `Aardwolf plugins for bastproxy`. The spawn flow (`setup_repo.py` / `configure.py`) substitutes these at placeholder-replacement time. Markers are used instead of bare identifier literals (`aardwolf`, `username`) so substring collisions cannot corrupt identifiers like `validate_aardwolf`. Runtime-critical files (`pyproject.toml`, `mkdocs.yml`, `dodo.py`, workflows, `LICENSE`, `.envrc`, `.pre-commit-config.yaml`) keep literal placeholder values so the template repo itself remains runnable. Python source and test files keep literal identifiers but get word-boundary regex protection during substitution.
 
 ---
 

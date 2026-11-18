@@ -1,0 +1,24 @@
+# Template paths bastproxy-aardwolf deliberately does not have.
+#
+# Hand-managed: no tool rewrites this file. Matching paths are left out of the
+# `manage.py check` drift report, and the doc-scanning tests
+# (test_documented_paths, test_markdown_links, test_instruction_pointers) accept
+# references to them from adopted template files. Patterns are fnmatch globs
+# against repository-relative POSIX paths.
+#
+# Review with `python tools/pyproject_template/manage.py --yes check --show-excluded`
+# on each sync: an excluded path never shows as drift again.
+#
+# Decisions: #2 (configuration).
+
+exclude = [
+    # The template's example package, named in the deprecate-api skill's worked example.
+    # This project's package is src/aardwolf/.
+    "src/package_name/*",
+
+    # Template-owned tests that configuration sheds (ADR-9017), still named in the
+    # template's own ADRs.
+    "tests/template/test_utils.py",
+    "tests/template/test_utils_properties.py",
+    "tests/template/test_check_template_updates.py",
+]

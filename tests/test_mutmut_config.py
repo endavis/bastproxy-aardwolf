@@ -199,10 +199,10 @@ def test_the_import_scanner_sees_every_absolute_import() -> None:
         "from tools.doit import github\n"
         "from . import sibling\n"
         "def test_x():\n"
-        "    import package_name.core\n"
+        "    import aardwolf.core\n"
     )
 
-    assert _imported_names(source) == {"os", "tools", "package_name"}
+    assert _imported_names(source) == {"os", "tools", "aardwolf"}
 
 
 def test_tools_is_left_behind_and_the_tests_are_not() -> None:
