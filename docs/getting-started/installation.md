@@ -23,13 +23,13 @@ tags:
 ### Using pip
 
 ```bash
-pip install __PYPI_NAME__
+pip install bastproxy-aardwolf
 ```
 
 ### Using uv (recommended)
 
 ```bash
-uv pip install __PYPI_NAME__
+uv pip install bastproxy-aardwolf
 ```
 
 ## Install from Source
@@ -37,8 +37,8 @@ uv pip install __PYPI_NAME__
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/username/package_name.git
-cd __PACKAGE_NAME__
+git clone https://github.com/endavis/bastproxy-aardwolf.git
+cd bastproxy-aardwolf
 ```
 
 ### Install in Development Mode
@@ -64,8 +64,8 @@ The development setup above installs both extras:
 Check that the package is installed correctly:
 
 ```python
-import __PACKAGE_NAME__
-print(__PACKAGE_NAME__.__version__)
+import aardwolf
+print(aardwolf.__version__)
 ```
 
 Or from the command line (if CLI is available):
@@ -79,13 +79,13 @@ package-cli --version
 ### From PyPI
 
 ```bash
-pip install --upgrade __PYPI_NAME__
+pip install --upgrade bastproxy-aardwolf
 ```
 
 ### From Source
 
 ```bash
-cd __PACKAGE_NAME__
+cd bastproxy-aardwolf
 git pull
 doit install_dev
 ```
@@ -93,7 +93,7 @@ doit install_dev
 ## Uninstallation
 
 ```bash
-pip uninstall __PYPI_NAME__
+pip uninstall bastproxy-aardwolf
 ```
 
 ## Troubleshooting
@@ -109,7 +109,7 @@ python --version
 If you have multiple Python versions:
 
 ```bash
-python3.12 -m pip install __PYPI_NAME__
+python3.12 -m pip install bastproxy-aardwolf
 ```
 
 ### Virtual Environment Issues
@@ -120,7 +120,7 @@ If you encounter issues, try creating a fresh virtual environment:
 rm -rf .venv
 uv venv
 source .venv/bin/activate
-uv pip install __PYPI_NAME__
+uv pip install bastproxy-aardwolf
 ```
 
 ### Permission Errors
@@ -130,7 +130,7 @@ If you get permission errors, use a virtual environment instead of installing gl
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install __PYPI_NAME__
+uv pip install bastproxy-aardwolf
 ```
 
 ## Next Steps

@@ -229,7 +229,7 @@ def task_profile():
     """Profile the application."""
     return {
         "actions": [
-            "uv run py-spy record -o tmp/profile.svg -- python -m __PACKAGE_NAME__",
+            "uv run py-spy record -o tmp/profile.svg -- python -m aardwolf",
         ],
         "title": title_with_actions,
     }
@@ -238,7 +238,7 @@ def task_profile_memory():
     """Profile memory usage."""
     return {
         "actions": [
-            "memray run -o tmp/memray.bin python -m __PACKAGE_NAME__",
+            "memray run -o tmp/memray.bin python -m aardwolf",
             "memray flamegraph tmp/memray.bin -o tmp/memray.html",
         ],
         "title": title_with_actions,
@@ -452,7 +452,7 @@ Entry points are ideal when you want to:
 Create a protocol or abstract base class that all plugins must implement:
 
 ```python
-# src/__PACKAGE_NAME__/plugin_interface.py
+# src/aardwolf/plugin_interface.py
 from typing import Protocol
 
 class PluginInterface(Protocol):
@@ -478,7 +478,7 @@ class PluginInterface(Protocol):
 Load and validate plugins from entry points:
 
 ```python
-# src/__PACKAGE_NAME__/plugin_loader.py
+# src/aardwolf/plugin_loader.py
 from importlib.metadata import entry_points
 from typing import Dict
 from .plugin_interface import PluginInterface
@@ -487,8 +487,8 @@ def discover_plugins() -> Dict[str, PluginInterface]:
     """Discover and load all plugins."""
     plugins = {}
 
-    # Find all entry points in '__PACKAGE_NAME__.plugins' group
-    eps = entry_points(group='__PACKAGE_NAME__.plugins')
+    # Find all entry points in 'aardwolf.plugins' group
+    eps = entry_points(group='aardwolf.plugins')
 
     for ep in eps:
         try:
@@ -514,7 +514,7 @@ def discover_plugins() -> Dict[str, PluginInterface]:
 **3. Use Plugins in Your Application**
 
 ```python
-# src/__PACKAGE_NAME__/main.py
+# src/aardwolf/main.py
 from .plugin_loader import discover_plugins
 
 def main():
@@ -534,9 +534,9 @@ def main():
 Register your own plugins in `pyproject.toml`:
 
 ```toml
-[project.entry-points."__PACKAGE_NAME__.plugins"]
-default = "__PACKAGE_NAME__.plugins.default:DefaultPlugin"
-csv_export = "__PACKAGE_NAME__.plugins.csv_export:CSVExportPlugin"
+[project.entry-points."aardwolf.plugins"]
+default = "aardwolf.plugins.default:DefaultPlugin"
+csv_export = "aardwolf.plugins.csv_export:CSVExportPlugin"
 ```
 
 **5. Enable Third-Party Plugins**
@@ -564,15 +564,15 @@ class AnalyticsPlugin:
 And register it in their `pyproject.toml`:
 
 ```toml
-[project.entry-points."__PACKAGE_NAME__.plugins"]
+[project.entry-points."aardwolf.plugins"]
 analytics = "myplugin.analytics:AnalyticsPlugin"
 ```
 
 When users install both packages:
 
 ```bash
-pip install __PYPI_NAME__
-pip install __PYPI_NAME__-analytics
+pip install bastproxy-aardwolf
+pip install bastproxy-aardwolf-analytics
 ```
 
 Your application automatically discovers and loads the third-party plugin!
@@ -585,24 +585,24 @@ For complex systems, you can have different types of plugins with different entr
 
 ```toml
 # Your core package
-[project.entry-points."__PACKAGE_NAME__.plugin_types"]
-processor = "__PACKAGE_NAME__.plugin_types.processor:ProcessorPluginType"
-exporter = "__PACKAGE_NAME__.plugin_types.exporter:ExporterPluginType"
+[project.entry-points."aardwolf.plugin_types"]
+processor = "aardwolf.plugin_types.processor:ProcessorPluginType"
+exporter = "aardwolf.plugin_types.exporter:ExporterPluginType"
 
 # Register built-in plugins by type
-[project.entry-points."__PACKAGE_NAME__.processors"]
-csv = "__PACKAGE_NAME__.plugins.csv_processor:CSVProcessor"
-json = "__PACKAGE_NAME__.plugins.json_processor:JSONProcessor"
+[project.entry-points."aardwolf.processors"]
+csv = "aardwolf.plugins.csv_processor:CSVProcessor"
+json = "aardwolf.plugins.json_processor:JSONProcessor"
 
-[project.entry-points."__PACKAGE_NAME__.exporters"]
-s3 = "__PACKAGE_NAME__.plugins.s3_exporter:S3Exporter"
-local = "__PACKAGE_NAME__.plugins.local_exporter:LocalExporter"
+[project.entry-points."aardwolf.exporters"]
+s3 = "aardwolf.plugins.s3_exporter:S3Exporter"
+local = "aardwolf.plugins.local_exporter:LocalExporter"
 ```
 
 **Plugin Type Manager:**
 
 ```python
-# src/__PACKAGE_NAME__/plugin_types/processor.py
+# src/aardwolf/plugin_types/processor.py
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -627,7 +627,7 @@ class ProcessorPluginType:
 
     @property
     def entry_point_group(self) -> str:
-        return "__PACKAGE_NAME__.processors"
+        return "aardwolf.processors"
 
     @property
     def type_name(self) -> str:
@@ -653,10 +653,10 @@ class ProcessorPluginType:
 
 ```toml
 # third-party-package/pyproject.toml
-[project.entry-points."__PACKAGE_NAME__.processors"]
+[project.entry-points."aardwolf.processors"]
 xml = "thirdparty_plugin.xml:XMLProcessor"
 
-[project.entry-points."__PACKAGE_NAME__.exporters"]
+[project.entry-points."aardwolf.exporters"]
 ftp = "thirdparty_plugin.ftp:FTPExporter"
 ```
 
@@ -665,7 +665,7 @@ ftp = "thirdparty_plugin.ftp:FTPExporter"
 A common use case is auto-registering CLI commands from plugins:
 
 ```python
-# src/__PACKAGE_NAME__/cli.py
+# src/aardwolf/cli.py
 import click
 from importlib.metadata import entry_points
 
@@ -675,7 +675,7 @@ def cli():
     pass
 
 # Discover and register all plugin commands
-for ep in entry_points(group='__PACKAGE_NAME__.cli_plugins'):
+for ep in entry_points(group='aardwolf.cli_plugins'):
     try:
         command = ep.load()
         cli.add_command(command)
@@ -702,7 +702,7 @@ def export(output):
 Register in their pyproject.toml:
 
 ```toml
-[project.entry-points."__PACKAGE_NAME__.cli_plugins"]
+[project.entry-points."aardwolf.cli_plugins"]
 export = "myplugin.commands:export"
 ```
 
@@ -719,7 +719,7 @@ Exporting to data.csv
 
 ```python
 # tests/test_plugins.py
-from __PACKAGE_NAME__.plugin_loader import discover_plugins
+from aardwolf.plugin_loader import discover_plugins
 
 def test_discovers_built_in_plugins():
     plugins = discover_plugins()
@@ -874,7 +874,7 @@ RUN uv sync --no-dev
 COPY src/ ./src/
 
 # Run the application
-CMD ["uv", "run", "python", "-m", "__PACKAGE_NAME__"]
+CMD ["uv", "run", "python", "-m", "aardwolf"]
 ```
 
 ### Docker Compose for development

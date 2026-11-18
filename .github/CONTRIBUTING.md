@@ -1,4 +1,4 @@
-# Contributing to __PROJECT_NAME__
+# Contributing to bastproxy-aardwolf
 
 Thank you for your interest in contributing to this project! We welcome contributions from everyone.
 
@@ -46,8 +46,8 @@ This project adheres to the Contributor Covenant [Code of Conduct](CODE_OF_CONDU
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/__PACKAGE_NAME__.git
-cd __PACKAGE_NAME__
+git clone https://github.com/YOUR_USERNAME/aardwolf.git
+cd bastproxy-aardwolf
 
 # Set up direnv
 direnv allow
@@ -184,7 +184,7 @@ import click
 import pytest
 
 # Local
-from __PACKAGE_NAME__ import module
+from aardwolf import module
 ```
 
 ## Testing Guidelines
@@ -598,7 +598,7 @@ steps here — see [Release Automation — Downstream opt-ins](../docs/developme
 **Testing a pre-release from TestPyPI:**
 
 ```bash
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ __PYPI_NAME__==1.0.1a0
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ bastproxy-aardwolf==1.0.1a0
 ```
 
 ### Workflow Triggers
@@ -1128,7 +1128,7 @@ ADRs provide context for why decisions were made, helping future contributors un
 
 ```bash
 # Add upstream remote (one-time setup)
-git remote add upstream https://github.com/original-owner/__PACKAGE_NAME__.git
+git remote add upstream https://github.com/original-owner/aardwolf.git
 
 # Fetch and merge upstream changes
 git checkout main
@@ -1142,7 +1142,7 @@ git push origin main
 If you have questions:
 
 1. Check the [README.md](../README.md) and [AGENTS.md](../AGENTS.md)
-2. Search existing [Issues](https://github.com/username/package_name/issues)
+2. Search existing [Issues](https://github.com/endavis/bastproxy-aardwolf/issues)
 3. Open a new issue with the "question" label
 4. Join our discussions (if available)
 
