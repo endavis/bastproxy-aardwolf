@@ -105,6 +105,8 @@ nav:
   - Usage:
       - Basics: usage/basics.md
       - CLI Guide: usage/cli.md
+  - Plugins:
+      - a102: plugins/a102.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - CI/CD & Testing: development/ci-cd-testing.md
