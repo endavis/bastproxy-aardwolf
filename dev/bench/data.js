@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795107389997,
+  "lastUpdate": 1795114967247,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -472,6 +472,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.5193567943403796e-7",
             "extra": "mean: 1.78278328868562 usec\nrounds: 61222"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "866c2f68f80fc5cb2145f1218a42930d936f2735",
+          "message": "feat: turn a102 option toggles off when the plugin unloads (merges PR #17, addresses #16)\n\nbastproxy now keeps a plugin-owned telnet option on with the MUD when\nits owner unregisters (endavis/bastproxy#586), so turning MUD-side\nfeatures off is the owning plugin's job.\n\na102 gets an uninitialize hook at priority 10, before the base hook that\nunregisters option 102. On a real unload, while option 102 is enabled,\nit sends \"off\" for every option with a count above 0. On a reload\n(is_reloading_f) it sends nothing: the counts are kept and the state is\nre-sent after the plugin loads again.\n\nAddresses #16\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T19:01:59Z",
+          "tree_id": "c0970fc2c8b97750b3ebf4d1f8203f598f99adf0",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/866c2f68f80fc5cb2145f1218a42930d936f2735"
+        },
+        "date": 1795114966876,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 12659399.219157023,
+            "unit": "iter/sec",
+            "range": "stddev: 9.494751373471524e-9",
+            "extra": "mean: 78.99269014968225 nsec\nrounds: 131528"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 12652687.213249132,
+            "unit": "iter/sec",
+            "range": "stddev: 9.426029624213433e-9",
+            "extra": "mean: 79.03459424436416 nsec\nrounds: 135833"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 9444073.975859795,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3007844713306183e-8",
+            "extra": "mean: 105.88650645432492 nsec\nrounds: 99701"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 3338079.7927677156,
+            "unit": "iter/sec",
+            "range": "stddev: 5.0737297874157104e-8",
+            "extra": "mean: 299.5734260656682 nsec\nrounds: 194138"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 762012.9323636632,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3369164684231353e-7",
+            "extra": "mean: 1.3123136859346105 usec\nrounds: 83078"
           }
         ]
       }
