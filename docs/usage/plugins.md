@@ -30,7 +30,7 @@ It does three things:
 - Presses return at each `[ Press Return to continue ]` prompt until the character is first
   active.
 - Detects when the character is first active: the character, room and quest GMCP data have
-  arrived and `Char.Status.state` is 3. It then sends `look` and `map` and sets the
+  arrived and `char.status.state` is 3. It then sends `look` and `map` and sets the
   character active, which raises the bastproxy event `ev_libs.api_character_active`. A
   disconnect resets this, so the next login detects it again.
 

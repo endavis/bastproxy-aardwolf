@@ -9,15 +9,15 @@ PRESS_RETURN_TRIGGER = "press_return"
 PRESS_RETURN_REGEX = r"^\s*\[ Press Return to continue \]"
 GMCP_MODULES = ["Char 1", "Room 1", "Comm 1", "Group 1", "Core 1"]
 CHAR_PATHS = (
-    "Char.Base.redos",
-    "Char.Vitals.hp",
-    "Char.Stats.str",
-    "Char.Maxstats.maxhp",
-    "Char.Worth.gold",
+    "char.base.redos",
+    "char.vitals.hp",
+    "char.stats.str",
+    "char.maxstats.maxhp",
+    "char.worth.gold",
 )
-ROOM_PATH = "Room.Info.num"
-QUEST_PATH = "Comm.Quest.action"
-STATE_PATH = "Char.Status.state"
+ROOM_PATH = "room.info.num"
+QUEST_PATH = "comm.quest.action"
+STATE_PATH = "char.status.state"
 ACTIVE_STATES = (3, "3")
 
 EVENT_GMCP = "ev_libs.net.mud_gmcp"

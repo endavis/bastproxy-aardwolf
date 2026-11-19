@@ -17,17 +17,17 @@ if TYPE_CHECKING:
     from aardwolf.connect.plugin._connect import ConnectPlugin
 
 CHAR_VALUES = {
-    "Char.Base.redos": 1,
-    "Char.Vitals.hp": 10,
-    "Char.Stats.str": 5,
-    "Char.Maxstats.maxhp": 10,
-    "Char.Worth.gold": 3,
+    "char.base.redos": 1,
+    "char.vitals.hp": 10,
+    "char.stats.str": 5,
+    "char.maxstats.maxhp": 10,
+    "char.worth.gold": 3,
 }
 FULL_GMCP: dict[str, Any] = {
     **CHAR_VALUES,
-    "Room.Info.num": 1,
-    "Comm.Quest.action": "ready",
-    "Char.Status.state": 3,
+    "room.info.num": 1,
+    "comm.quest.action": "ready",
+    "char.status.state": 3,
 }
 
 
@@ -50,7 +50,7 @@ class FakeApi:
         """Return the fake for an API name."""
         table: dict[str, Callable[..., Any]] = {
             "libs.net.protocols:gmcp.modules.add": self.modules_added.append,
-            "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "libs.net.protocols:gmcp.value.get": self._gmcp_get,
             "libs.net.protocols:gmcp.send": self._gmcp_send,
             "plugins.core.proxy:mud.is.connected": lambda: self.mud_connected,
             "libs.api:character.is.active": lambda: self.character_active,
@@ -60,6 +60,22 @@ class FakeApi:
             "plugins.core.events:event.register": self._event_register,
         }
         return table[name]
+
+    def _gmcp_get(self, path: str) -> object:
+        """Resolve a dotted path case-sensitively in a nested dict, like the real API."""
+        nested: dict[str, Any] = {}
+        for key, value in self.gmcp.items():
+            *parents, leaf = key.split(".")
+            node = nested
+            for part in parents:
+                node = node.setdefault(part, {})
+            node[leaf] = value
+        current: Any = nested
+        for part in path.split("."):
+            if not isinstance(current, dict) or part not in current:
+                return None
+            current = current[part]
+        return current
 
     def _gmcp_send(self, package: str) -> bool:
         if self.gmcp_send_ok:
@@ -184,9 +200,9 @@ def test_client_login_requests(env: Env) -> None:
 @pytest.mark.parametrize(
     ("missing", "request_name"),
     [
-        ("Char.Vitals.hp", "request char"),
-        ("Room.Info.num", "request room"),
-        ("Comm.Quest.action", "request quest"),
+        ("char.vitals.hp", "request char"),
+        ("room.info.num", "request room"),
+        ("comm.quest.action", "request quest"),
     ],
 )
 def test_missing_data_requested_once(env: Env, missing: str, request_name: str) -> None:
@@ -201,7 +217,7 @@ def test_missing_data_requested_once(env: Env, missing: str, request_name: str) 
 
 def test_all_missing_requested_in_one_pass(env: Env) -> None:
     """Every check runs, so each request goes out once in one pass."""
-    env.fake.gmcp = {"Char.Status.state": 3}
+    env.fake.gmcp = {"char.status.state": 3}
     env.plugin._eventcb_check()
     assert sorted(env.fake.sent_gmcp) == ["request char", "request quest", "request room"]
 
@@ -209,7 +225,7 @@ def test_all_missing_requested_in_one_pass(env: Env) -> None:
 @pytest.mark.parametrize(("state", "fires"), [(2, False), (None, False), ("3", True), (3, True)])
 def test_state_gates_first_active(env: Env, state: object, fires: bool) -> None:
     """Only state 3 (or "3") makes the character first active."""
-    env.fake.gmcp = {**FULL_GMCP, "Char.Status.state": state}
+    env.fake.gmcp = {**FULL_GMCP, "char.status.state": state}
     env.plugin._eventcb_check()
     assert env.plugin._first_active is fires
 
@@ -267,8 +283,17 @@ def test_reload_does_not_set_active_twice(env: Env) -> None:
 
 def test_mid_session_state_not_active_does_nothing(env: Env) -> None:
     """Mid-session with state 2 only registers; nothing is sent."""
-    env.fake.gmcp = {**FULL_GMCP, "Char.Status.state": 2}
+    env.fake.gmcp = {**FULL_GMCP, "char.status.state": 2}
     env.plugin._phook_initialize()
     assert not env.plugin._first_active
     assert env.fake.sent_gmcp == []
     assert env.lines == []
+
+
+def test_gmcp_stub_is_case_sensitive(env: Env) -> None:
+    """A capitalised lookup misses, as in the real gmcp.value.get."""
+    env.fake.gmcp = dict(FULL_GMCP)
+    get = env.fake("libs.net.protocols:gmcp.value.get")
+    assert get("char.status.state") == 3
+    assert get("Char.Status.state") is None
+    assert get("char.vitals.hp") == 10
