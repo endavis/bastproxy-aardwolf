@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795103407605,
+  "lastUpdate": 1795103924103,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -354,6 +354,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.7095034889868726e-7",
             "extra": "mean: 2.158437128568095 usec\nrounds: 47990"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "93df27f6869c9ffd9e4d8fef6e6ac060d8c286c2",
+          "message": "feat: add the connect plugin that detects first active (merges PR #13, addresses #10)\n\nAdd plugins.aardwolf.connect: a Press Return trigger, GMCP module setup\n(Char, Room, Comm, Group, Core, rawcolor on, group on), one-time package\nrequests, and first-active detection that sets character.active and so\nraises ev_libs.api_character_active. Exposes character.is.first.active.\n\nAddresses #10\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T15:57:52Z",
+          "tree_id": "ca8f6364c698fb5bf7f4834e5038222f4c62dad1",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/93df27f6869c9ffd9e4d8fef6e6ac060d8c286c2"
+        },
+        "date": 1795103923322,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 12583486.213436441,
+            "unit": "iter/sec",
+            "range": "stddev: 9.434507466774544e-9",
+            "extra": "mean: 79.46923317102825 nsec\nrounds: 130668"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 13141459.529641055,
+            "unit": "iter/sec",
+            "range": "stddev: 8.674740940954845e-9",
+            "extra": "mean: 76.09504847954388 nsec\nrounds: 137893"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 9758907.827208407,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0625686042518107e-8",
+            "extra": "mean: 102.47048314278993 nsec\nrounds: 101647"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 3469942.2667702045,
+            "unit": "iter/sec",
+            "range": "stddev: 6.796437598590398e-8",
+            "extra": "mean: 288.18923288046295 nsec\nrounds: 193912"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 772036.8458002092,
+            "unit": "iter/sec",
+            "range": "stddev: 1.332925969353295e-7",
+            "extra": "mean: 1.2952749670431976 usec\nrounds: 83438"
           }
         ]
       }
