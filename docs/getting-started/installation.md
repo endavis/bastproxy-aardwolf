@@ -52,6 +52,40 @@ The development tools, `doit` included, live in the `dev` and `security` extras,
 `uv sync` uninstalls them. Every sync after this first one is `doit install_dev`, which runs the
 same command.
 
+## Running as a bastproxy Plugin Source
+
+This package is a bastproxy plugin source. It registers itself in the `bastproxy.plugins`
+entry-point group (`aardwolf = "aardwolf"` in `pyproject.toml`), so bastproxy loads its plugins
+with IDs of the form `plugins.aardwolf.*`.
+
+```bash
+# Start bastproxy from this repo, with this package installed and discovered
+uv run bastproxy
+```
+
+bastproxy is not on PyPI yet, so the dependency is a direct git reference to its `main` branch
+(`bastproxy @ git+https://github.com/endavis/bastproxy@main`, with hatch's
+`allow-direct-references` enabled), which keeps the built wheel installable. `uv.lock` pins the
+commit. To pick up newer bastproxy commits:
+
+```bash
+uv lock --upgrade-package bastproxy
+```
+
+When bastproxy is published on PyPI, the git reference is replaced by a version floor. Until then
+PyPI does not accept an upload of this package, because PyPI rejects direct references.
+
+To work on both repositories at once, install a local bastproxy checkout in editable mode:
+
+```bash
+uv pip install -e ../bastproxy
+```
+
+The next `uv sync` or `doit install_dev` undoes this and restores the locked commit.
+
+A symlink at `$BASTPROXY_HOME/plugins/aardwolf` overrides the installed copy, and bastproxy logs
+a warning while it exists. Remove it; the entry point replaces it.
+
 ## Optional Dependencies
 
 The development setup above installs both extras:
