@@ -105,6 +105,7 @@ nav:
   - Usage:
       - Basics: usage/basics.md
       - CLI Guide: usage/cli.md
+      - Plugins: usage/plugins.md
   - Plugins:
       - a102: plugins/a102.md
   - Development:
