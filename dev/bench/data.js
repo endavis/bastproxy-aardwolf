@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795101172816,
+  "lastUpdate": 1795103407605,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -295,6 +295,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.2013925612745023e-7",
             "extra": "mean: 1.676803268253424 usec\nrounds: 61562"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da1c45c4807e9cb931f80a81e0505fb32d58e8b5",
+          "message": "feat: add the a102 plugin for telnet option 102 (merges PR #12, addresses #9)\n\nOwn option 102 through the generic telnet-option hook. Reference-counted\noption toggles (option.toggle) send on at 0->1 and off at 1->0, re-send\nthe counted state when the option is enabled or the MUD reconnects, and\naccept client toggles through the same counts. Two-byte MUD messages\nraise a per-message and a per-option event. payload.send wraps\ntelopt.send for raw payloads.\n\nAddresses #9\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T15:49:21Z",
+          "tree_id": "2a0b2abe66bc9bce543768685b144b72389a1a74",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/da1c45c4807e9cb931f80a81e0505fb32d58e8b5"
+        },
+        "date": 1795103406909,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 7968809.708532444,
+            "unit": "iter/sec",
+            "range": "stddev: 2.6328231124715986e-8",
+            "extra": "mean: 125.4892558080876 nsec\nrounds: 85529"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 8397866.898031898,
+            "unit": "iter/sec",
+            "range": "stddev: 1.4410658544629404e-8",
+            "extra": "mean: 119.07785776342291 nsec\nrounds: 87474"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 5437409.025813367,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3556459426762972e-8",
+            "extra": "mean: 183.91112297284144 nsec\nrounds: 56297"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 2112540.967553275,
+            "unit": "iter/sec",
+            "range": "stddev: 8.670938919491199e-8",
+            "extra": "mean: 473.3636011604502 nsec\nrounds: 198847"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 463298.18309945345,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7095034889868726e-7",
+            "extra": "mean: 2.158437128568095 usec\nrounds: 47990"
           }
         ]
       }
