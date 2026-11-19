@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795003738278,
+  "lastUpdate": 1795096664190,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -118,6 +118,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.2095763504884015e-7",
             "extra": "mean: 1.2224429757740294 usec\nrounds: 88629"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f4b05922897a9ef48ef337ea3f7b1ec8be5dfbd2",
+          "message": "feat: register the package as a bastproxy plugin source (merges PR #5, addresses #4)\n\nDepend on bastproxy through a direct git reference to its main branch,\nsince bastproxy is not on PyPI yet; a [tool.uv.sources] entry would\nleave the built wheel uninstallable, which wheel_check caught. uv.lock\npins the commit.\n\nRegister aardwolf = \"aardwolf\" in the bastproxy.plugins entry-point\ngroup, so bastproxy discovers the package and its plugins get\nplugins.aardwolf.* IDs. A test checks the entry point and bastproxy's\nsearch path for it, and the installation guide documents the\ndevelopment workflow.\n\nAddresses #4\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T13:57:00Z",
+          "tree_id": "de070b46667d08e9691ff737025dc2ab34cccd6e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/f4b05922897a9ef48ef337ea3f7b1ec8be5dfbd2"
+        },
+        "date": 1795096663844,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 16820846.91288535,
+            "unit": "iter/sec",
+            "range": "stddev: 5.577275944191737e-9",
+            "extra": "mean: 59.45003870369722 nsec\nrounds: 169234"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 16973167.261015378,
+            "unit": "iter/sec",
+            "range": "stddev: 2.2320479894705266e-8",
+            "extra": "mean: 58.91652304027183 nsec\nrounds: 176430"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 12838972.994965555,
+            "unit": "iter/sec",
+            "range": "stddev: 6.5053806763497035e-9",
+            "extra": "mean: 77.88784978301007 nsec\nrounds: 130345"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 4625596.631606525,
+            "unit": "iter/sec",
+            "range": "stddev: 1.413473853439342e-8",
+            "extra": "mean: 216.18832761314252 nsec\nrounds: 48075"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 878978.244849869,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3818588076195455e-7",
+            "extra": "mean: 1.1376845853230435 usec\nrounds: 91601"
           }
         ]
       }
