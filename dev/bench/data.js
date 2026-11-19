@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795098737893,
+  "lastUpdate": 1795101172816,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -236,6 +236,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.8217844536133113e-7",
             "extra": "mean: 2.1651787347048335 usec\nrounds: 48384"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a6660b57c39365af3dc9cf5ee472337a017c81ca",
+          "message": "feat: port the aardu helpers as a library module (merges PR #11, addresses #8)\n\nAdd aardwolf.libs.aardu with the class, reward and damage tables and\nactual_level, convert_level and parse_damage_line. It is a plain module,\nnot a plugin, so plugins import it directly.\n\nconvert_level fixes the old remort divisor (202 instead of 201), which\nmis-converted 45 totals in 1..4220. parse_damage_line no longer raises on\ndegenerate lines and always returns all five keys.\n\nAddresses #8\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T15:12:15Z",
+          "tree_id": "749ccf32e6238ba192b5506b18117fbf4246a103",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a6660b57c39365af3dc9cf5ee472337a017c81ca"
+        },
+        "date": 1795101172362,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 11073232.612228477,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0598622749911974e-8",
+            "extra": "mean: 90.30786537398954 nsec\nrounds: 102313"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 10753738.600117326,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0174754581102304e-8",
+            "extra": "mean: 92.99091573502538 nsec\nrounds: 107957"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 8205445.150985274,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3307683453266018e-8",
+            "extra": "mean: 121.87029242160304 nsec\nrounds: 85493"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 2998631.7549640257,
+            "unit": "iter/sec",
+            "range": "stddev: 4.849850655458608e-8",
+            "extra": "mean: 333.48542992802294 nsec\nrounds: 190549"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 596372.8834102348,
+            "unit": "iter/sec",
+            "range": "stddev: 1.2013925612745023e-7",
+            "extra": "mean: 1.676803268253424 usec\nrounds: 61562"
           }
         ]
       }
