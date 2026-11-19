@@ -11,6 +11,7 @@ from ..libs import (
     A102_OPTION,
     OPTION_NAMES,
     apply_toggle,
+    off_payloads,
     option_number,
     parse_pair,
     parse_toggle,
@@ -57,6 +58,16 @@ class A102Plugin(BasePlugin):
         info = self.api("libs.net.protocols:telopt.get")(A102_OPTION)
         if info and info.get("mud_enabled"):
             self._eventcb_mud_enabled()
+
+    # Runs before the base uninitialize hook (priority 100), which unregisters option 102
+    # and would make telopt.send refuse the sends.
+    @RegisterPluginHook("uninitialize", priority=10)
+    def _phook_turn_options_off(self) -> None:
+        """On a real unload, turn off every counted option; a reload keeps them on."""
+        if self.is_reloading_f or not self.enabled:
+            return
+        for payload in off_payloads(self.option_counts):
+            self.api("libs.net.protocols:telopt.send")(A102_OPTION, payload)
 
     def _toggle_number(self, number: int, enable: bool) -> bool:
         """Count a toggle and tell the MUD when its state changed and it can hear it."""

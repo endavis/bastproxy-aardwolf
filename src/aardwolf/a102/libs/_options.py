@@ -65,6 +65,11 @@ def state_payloads(counts: dict[int, int]) -> list[bytes]:
     return [bytes([number, ON if count > 0 else OFF]) for number, count in sorted(counts.items())]
 
 
+def off_payloads(counts: dict[int, int]) -> list[bytes]:
+    """Return an "off" payload for every option with a count above 0, sorted by option number."""
+    return [bytes([number, OFF]) for number, count in sorted(counts.items()) if count > 0]
+
+
 def parse_pair(data: bytes) -> tuple[int, int] | None:
     """Return ``(option, flag)`` for a two-byte payload, else None.
 
