@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795096664190,
+  "lastUpdate": 1795098737893,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -177,6 +177,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.3818588076195455e-7",
             "extra": "mean: 1.1376845853230435 usec\nrounds: 91601"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c1b843e1fcd474677a71a9afcffd176c9159ccc0",
+          "message": "chore: default BASTPROXY_HOME in .envrc and document it (merges PR #7, addresses #6)\n\nbastproxy will not import without BASTPROXY_HOME, so uv run bastproxy\nfrom this repo failed until each developer set it in .envrc.local.\n.envrc now defaults it to ~/bastproxy, as the bastproxy repo does,\nkeeping any value already set, and the installation guide documents\nthe requirement, the default and the override.\n\nAddresses #6\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T14:31:37Z",
+          "tree_id": "f8c2b5d2dbc058b3cc5155e5d29af730b3ef6532",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/c1b843e1fcd474677a71a9afcffd176c9159ccc0"
+        },
+        "date": 1795098737125,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 8137686.608328219,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1463503812190357e-8",
+            "extra": "mean: 122.88504683586443 nsec\nrounds: 81348"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 8439912.841890687,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1797107086280355e-8",
+            "extra": "mean: 118.48463588825197 nsec\nrounds: 87789"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 5461545.7297058925,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3079637772591247e-8",
+            "extra": "mean: 183.09834788362204 nsec\nrounds: 56013"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 2051815.117396837,
+            "unit": "iter/sec",
+            "range": "stddev: 8.391043852950857e-8",
+            "extra": "mean: 487.3733464195898 nsec\nrounds: 194138"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 461855.63527452823,
+            "unit": "iter/sec",
+            "range": "stddev: 1.8217844536133113e-7",
+            "extra": "mean: 2.1651787347048335 usec\nrounds: 48384"
           }
         ]
       }
