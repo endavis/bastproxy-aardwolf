@@ -39,6 +39,15 @@ Centralized logging configuration with console and structured file output.
       show_root_heading: true
       show_root_full_path: true
 
+## Aardwolf Utilities Module
+
+Pure helpers for levels, class abbreviations and combat damage lines.
+
+::: aardwolf.libs.aardu
+    options:
+      show_root_heading: true
+      show_root_full_path: true
+
 ---
 
 ## Extending the Package
