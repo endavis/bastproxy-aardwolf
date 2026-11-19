@@ -28,3 +28,15 @@ def test_bastproxy_loader_finds_the_package(
     assert Path(str(entry["path"])).resolve() == Path(aardwolf.__file__).resolve().parent
     assert entry["import_prefix"] == "aardwolf."
     assert entry["source"] == "installed"
+
+
+def test_libs_package_is_not_a_plugin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``aardwolf.libs`` is a plain package: the loader must not treat it as a plugin."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    from bastproxy.libs.plugins.imputils import find_packages_and_plugins
+
+    root = Path(aardwolf.__file__).resolve().parent
+    result = find_packages_and_plugins(root, "aardwolf.")
+
+    assert "aardwolf.libs" in {p["package_id"] for p in result.packages}
+    assert not any(p["package_import_location"].startswith("aardwolf.libs") for p in result.plugins)
