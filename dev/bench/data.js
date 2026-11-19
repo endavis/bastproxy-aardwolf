@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795103924103,
+  "lastUpdate": 1795107389997,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -413,6 +413,65 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.332925969353295e-7",
             "extra": "mean: 1.2952749670431976 usec\nrounds: 83438"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "95f43acc179d877c52ec226ab91aadbf94c1bc15",
+          "message": "fix: look up Aardwolf GMCP values with lower-case paths (merges PR #15, addresses #14)\n\nAardwolf sends lower-case GMCP package names (char.status, comm.quest)\nand gmcp.value.get is case-sensitive, so the capitalised paths the\nconnect plugin used (Char.Status.state, ...) always returned None and\nfirst active never fired. The paths are now lower-case, and the test\nstub resolves paths case-sensitively against Aardwolf-shaped data, so\na capitalised lookup misses as it does live.\n\nAddresses #14\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-19T16:55:51Z",
+          "tree_id": "8b0cb15b4fca835fad7399c3bd27b1bda74bf40d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/95f43acc179d877c52ec226ab91aadbf94c1bc15"
+        },
+        "date": 1795107389469,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_default",
+            "value": 9454294.61299162,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7759657257624483e-8",
+            "extra": "mean: 105.77203704080152 nsec\nrounds: 98864"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_with_name",
+            "value": 9743513.965363797,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0837228837804859e-8",
+            "extra": "mean: 102.63237714389243 nsec\nrounds: 101277"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_core.py::test_bench_greet_long_name",
+            "value": 6680685.649961958,
+            "unit": "iter/sec",
+            "range": "stddev: 4.2105083406979196e-8",
+            "extra": "mean: 149.685234779112 nsec\nrounds: 73665"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_get_logger",
+            "value": 2578191.5082398355,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0238156542601316e-7",
+            "extra": "mean: 387.8687819752819 nsec\nrounds: 188751"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_setup_logging",
+            "value": 560920.671820557,
+            "unit": "iter/sec",
+            "range": "stddev: 3.5193567943403796e-7",
+            "extra": "mean: 1.78278328868562 usec\nrounds: 61222"
           }
         ]
       }
