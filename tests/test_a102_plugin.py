@@ -271,3 +271,63 @@ def test_discovery_finds_the_plugin(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     result = find_packages_and_plugins(Path(aardwolf.__file__).resolve().parent, "aardwolf.")
     assert "aardwolf.a102" in {plugin["plugin_id"] for plugin in result.plugins}
     assert "aardwolf.a102" not in {p["package_id"] for p in result.packages}
+
+
+def test_unload_turns_counted_options_off(enabled: A102Plugin, api: FakeApi) -> None:
+    """A real unload sends off for options with a count above 0 and nothing for 0."""
+    enabled.option_counts = {52: 2, 7: 1, 5: 0}
+    enabled.is_reloading_f = False
+    enabled._phook_turn_options_off()
+    assert api.sent == [(102, bytes([7, 2])), (102, bytes([52, 2]))]
+
+
+def test_reload_sends_nothing_on_unload(enabled: A102Plugin, api: FakeApi) -> None:
+    """A reload leaves the toggles on."""
+    enabled.option_counts = {7: 1}
+    enabled.is_reloading_f = True
+    enabled._phook_turn_options_off()
+    assert api.sent == []
+
+
+def test_unload_not_enabled_sends_nothing(plugin: A102Plugin, api: FakeApi) -> None:
+    """Without option 102 enabled on the MUD link, nothing is sent."""
+    plugin.option_counts = {7: 1}
+    plugin.is_reloading_f = False
+    plugin._phook_turn_options_off()
+    assert api.sent == []
+
+
+def test_unload_sends_before_the_option_is_unregistered(enabled: A102Plugin, api: FakeApi) -> None:
+    """The full uninitialize run sends the offs before telopt.unregister.for.owner."""
+    events: list[str] = []
+    stubs: dict[str, Callable[..., Any]] = {}
+
+    def record(name: str) -> Callable[..., Any]:
+        def stub(*args: object, **kwargs: object) -> None:
+            events.append(name)
+
+        return stub
+
+    for name in (
+        f"{PLUGIN_ID}:plugin.state.save",
+        "plugins.core.events:event.raise",
+        "libs.api:api.toplevel.remove",
+        "libs.net.protocols:gmcp.modules.remove.for.owner",
+        "libs.net.protocols:telopt.unregister.for.owner",
+    ):
+        stubs[name] = record(name)
+
+    def send(option: int, payload: bytes) -> bool:
+        events.append("send")
+        return True
+
+    stubs["libs.net.protocols:telopt.send"] = send
+    enabled.api = lambda name: stubs[name]  # type: ignore[assignment]
+    enabled.option_counts = {7: 1, 52: 1}
+    enabled.is_reloading_f = False
+    enabled.uninitialize()
+    unregister = events.index("libs.net.protocols:telopt.unregister.for.owner")
+    assert events[:2] == ["send", "send"]
+    assert events.count("send") == 2
+    assert events.index("send") < unregister
+    assert max(i for i, e in enumerate(events) if e == "send") < unregister

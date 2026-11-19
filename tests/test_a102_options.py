@@ -9,6 +9,7 @@ from aardwolf.a102.libs import (
     OPTION_NAMES,
     OPTIONS,
     apply_toggle,
+    off_payloads,
     option_number,
     parse_pair,
     parse_toggle,
@@ -94,3 +95,9 @@ def test_parse_pair(data: bytes, expected: tuple[int, int] | None) -> None:
 def test_parse_toggle(data: bytes, expected: tuple[int, bool] | None) -> None:
     """A toggle needs a known option and a flag of 1 or 2."""
     assert parse_toggle(data) == expected
+
+
+def test_off_payloads_only_counted_options() -> None:
+    """Only options with a count above 0 get an off payload, sorted by number."""
+    assert off_payloads({52: 1, 7: 0, 5: 3}) == [bytes([5, OFF]), bytes([52, OFF])]
+    assert off_payloads({}) == []
