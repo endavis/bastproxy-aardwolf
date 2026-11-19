@@ -58,6 +58,10 @@ This package is a bastproxy plugin source. It registers itself in the `bastproxy
 entry-point group (`aardwolf = "aardwolf"` in `pyproject.toml`), so bastproxy loads its plugins
 with IDs of the form `plugins.aardwolf.*`.
 
+bastproxy will not start unless `BASTPROXY_HOME` points at an existing, writable directory, where
+it keeps settings, data and logs. The tracked `.envrc` defaults it to `~/bastproxy`; override it
+in `.envrc.local`. Without direnv, export it in the shell before running bastproxy.
+
 ```bash
 # Start bastproxy from this repo, with this package installed and discovered
 uv run bastproxy
