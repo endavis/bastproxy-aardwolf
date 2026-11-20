@@ -104,7 +104,6 @@ nav:
       - Installation: getting-started/installation.md
   - Usage:
       - Basics: usage/basics.md
-      - CLI Guide: usage/cli.md
       - Plugins: usage/plugins.md
   - Plugins:
       - a102: plugins/a102.md
@@ -182,7 +181,6 @@ nav:
       - API Reference: reference/api.md
   - Examples:
       - Overview: examples/README.md
-      - Add a Feature: examples/add-a-feature.md
       - API Development: examples/api.md
   - All Documents: TABLE_OF_CONTENTS.md
 

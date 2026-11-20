@@ -16,7 +16,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCHMARK = "tests/benchmarks/test_bench_core.py::test_bench_greet_default"
+BENCHMARK = "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level"
 # The child would inherit these from this run. Under xdist, PYTEST_XDIST_WORKER makes
 # pytest-benchmark disable itself and refuse --benchmark-only, as PYTEST_ADDOPTS with -n
 # would; under pytest-cov, COV_CORE_* would add the child's lines to this run's coverage.

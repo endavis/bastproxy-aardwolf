@@ -21,24 +21,6 @@ Complete API documentation for bastproxy-aardwolf, auto-generated from source co
       show_source: false
       members: false
 
-## Core Module
-
-The core module provides the main functionality of the package.
-
-::: aardwolf.core
-    options:
-      show_root_heading: true
-      show_root_full_path: true
-
-## Logging Module
-
-Centralized logging configuration with console and structured file output.
-
-::: aardwolf.logging
-    options:
-      show_root_heading: true
-      show_root_full_path: true
-
 ## Aardwolf Utilities Module
 
 Pure helpers for levels, class abbreviations and combat damage lines.
@@ -81,7 +63,7 @@ The package provides a starting point. To add your own functionality:
    ```python
    from .new_module import new_function
 
-   __all__ = ["__version__", "greet", "new_function"]
+   __all__ = ["__version__", "new_function"]
    ```
 
 3. Add documentation to this file:
@@ -128,10 +110,10 @@ def example_function(param1: str, param2: int = 10) -> dict[str, Any]:
 All public APIs include type hints for better IDE support and type checking:
 
 ```python
-from aardwolf import greet
+from aardwolf.libs.aardu import LevelInfo, convert_level
 
 # Type checkers will infer the correct types
-message: str = greet("Python")
+info: LevelInfo = convert_level(500)
 ```
 
 Run mypy to verify type hints:
