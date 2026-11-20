@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795182071432,
+  "lastUpdate": 1795184400175,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -569,6 +569,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.092415297324394e-7",
             "extra": "mean: 3.6876414020234725 usec\nrounds: 143679"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce177d6a24174bc57b42d024dea41e1133e118be",
+          "message": "docs: consolidate the plugin docs under one Plugins section (merges PR #23, addresses #18)\n\nThe plugin docs were split: docs/usage/plugins.md held the entry-point\noverview and the whole connect plugin, while a102 had its own page under\nPlugins.\n\nAdds docs/plugins/index.md (overview, loading, a table of plugins) and\ndocs/plugins/connect.md (moved from usage/plugins.md, laid out like\na102.md), and removes docs/usage/plugins.md. A new Adding a Plugin page\nstates the one-page-plus-index-row rule for new and migrated plugins.\n\nThe template's docs/usage/basics.md is rewritten, as the maintainer\nchose, into this project's usage page: running bastproxy with the\nplugins, loading them, and working against a local bastproxy checkout.\nREADME and docs/index.md links point at the new pages.\n\nAddresses #18\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-20T14:19:31Z",
+          "tree_id": "756a03786fd55973e72d1b7b0433316d5aa859c4",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/ce177d6a24174bc57b42d024dea41e1133e118be"
+        },
+        "date": 1795184399829,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4287467.95593538,
+            "unit": "iter/sec",
+            "range": "stddev: 1.730640833004296e-8",
+            "extra": "mean: 233.23789478487978 nsec\nrounds: 43872"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 221839.97146045614,
+            "unit": "iter/sec",
+            "range": "stddev: 4.988382196791122e-7",
+            "extra": "mean: 4.507753915656512 usec\nrounds: 115434"
           }
         ]
       }
