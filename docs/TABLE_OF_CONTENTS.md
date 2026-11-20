@@ -20,17 +20,19 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Keeping Up to Date](template/updates.md) - Stay in sync with improvements to the pyproject-template
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
-- [Plugins](usage/plugins.md) - The Aardwolf plugins this package adds to bastproxy
+- [Plugins](plugins/index.md) - The Aardwolf plugins this package adds to bastproxy, and how to load them
 - [Production Deployment Guide](deployment/production.md) - Comprehensive guide for deploying Python applications to production
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
-- [Usage Guide](usage/basics.md) - Package usage and development workflows
+- [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
+- [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 <!-- END:audience=users -->
 
 ### For Contributors
 <!-- BEGIN:audience=contributors -->
+- [Adding a Plugin](development/adding-a-plugin.md) - Where a new or migrated Aardwolf plugin's code, tests and documentation go
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -85,6 +87,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
+- [Plugins](plugins/index.md) - The Aardwolf plugins this package adds to bastproxy, and how to load them
 - [Production Deployment Guide](deployment/production.md) - Comprehensive guide for deploying Python applications to production
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation
 - [Release Automation & Security](development/release-and-automation.md) - Automated versioning, release management, and security tooling
@@ -93,6 +96,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
+- [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 <!-- END:audience=contributors -->
 
@@ -118,6 +122,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 
 ## Complete Index
 <!-- BEGIN:all -->
+- [Adding a Plugin](development/adding-a-plugin.md) - Where a new or migrated Aardwolf plugin's code, tests and documentation go
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -178,7 +183,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
-- [Plugins](usage/plugins.md) - The Aardwolf plugins this package adds to bastproxy
+- [Plugins](plugins/index.md) - The Aardwolf plugins this package adds to bastproxy, and how to load them
 - [Production Deployment Guide](deployment/production.md) - Comprehensive guide for deploying Python applications to production
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation
 - [Release Automation & Security](development/release-and-automation.md) - Automated versioning, release management, and security tooling
@@ -188,8 +193,9 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
+- [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
-- [Usage Guide](usage/basics.md) - Package usage and development workflows
+- [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 <!-- END:all -->
 

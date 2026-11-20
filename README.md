@@ -38,7 +38,8 @@ doit docs_serve  # Opens at http://127.0.0.1:8000
 
 Key documentation files:
 - [Installation Guide](docs/getting-started/installation.md) - Setup instructions
-- [Usage Guide](docs/usage/basics.md) - Development workflows and commands
+- [Usage Guide](docs/usage/basics.md) - Run bastproxy with the plugins and load them
+- [Plugins](docs/plugins/index.md) - What each Aardwolf plugin does
 - [API Reference](docs/reference/api.md) - Complete API documentation
 - [Extensions Guide](docs/development/extensions.md) - Optional tools and extensions
 
@@ -193,7 +194,7 @@ doit cleanup       # Clean build artifacts and caches
 doit update_deps   # Update dependencies and run tests
 ```
 
-See the [Usage Guide](docs/usage/basics.md) for comprehensive documentation of all development workflows.
+See the [Doit Tasks Reference](docs/development/doit-tasks-reference.md) for every development task.
 
 ## Running Tests
 
