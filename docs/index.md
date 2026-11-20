@@ -22,7 +22,7 @@ bastproxy-aardwolf is a modern Python project template with comprehensive toolin
 - [Installation Guide](getting-started/installation.md)
 - [User Guide](usage/basics.md)
 - [API Reference](reference/api.md)
-- [The a102 plugin](plugins/a102.md)
+- [Plugins](plugins/index.md)
 - [Contributing](https://github.com/endavis/pyproject-template/blob/main/.github/CONTRIBUTING.md)
 
 ## Features
@@ -55,7 +55,8 @@ convert_level(500)  # {'tier': 0, 'redos': 0, 'remort': 3, 'level': 98}
 ### For Users
 
 - **[Installation](getting-started/installation.md)** - How to install the package
-- **[Usage Guide](usage/basics.md)** - How to use the package
+- **[Usage Guide](usage/basics.md)** - Run bastproxy with the plugins and load them
+- **[Plugins](plugins/index.md)** - What each Aardwolf plugin does
 - **[API Reference](reference/api.md)** - Complete API documentation
 
 ### For Contributors

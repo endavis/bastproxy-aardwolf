@@ -104,11 +104,13 @@ nav:
       - Installation: getting-started/installation.md
   - Usage:
       - Basics: usage/basics.md
-      - Plugins: usage/plugins.md
   - Plugins:
+      - Overview: plugins/index.md
+      - connect: plugins/connect.md
       - a102: plugins/a102.md
   - Development:
       - Coding Standards: development/coding-standards.md
+      - Adding a Plugin: development/adding-a-plugin.md
       - CI/CD & Testing: development/ci-cd-testing.md
       - GitHub Repository Settings: development/github-repository-settings.md
       - Doit Tasks Reference: development/doit-tasks-reference.md
