@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795184400175,
+  "lastUpdate": 1795188562498,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -607,6 +607,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.988382196791122e-7",
             "extra": "mean: 4.507753915656512 usec\nrounds: 115434"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6dd88f5565011d403a60225fa5aba19b71bc6e33",
+          "message": "feat: add a GMCP-backed total level helper to aardu (merges PR #25, addresses #24)\n\nThe old aardu.getactuallevel filled missing arguments from GMCP; the\nmigrated actual_level is pure, so each caller would have to read and\nconvert char.status.level and char.base.remorts/tier/redos itself.\n\nactual_level_from_gmcp(gmcp_get, level=None) reads those values through\na passed-in gmcp.value.get callable, converts each to int (0 when missing\nor not numeric, as the old code defaulted), and returns actual_level.\naardu still imports nothing from bastproxy.\n\nAddresses #24\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-20T15:28:38Z",
+          "tree_id": "591ca37f19d4a25ae165ccf1743e34b68bf426b1",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6dd88f5565011d403a60225fa5aba19b71bc6e33"
+        },
+        "date": 1795188561924,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5010935.544465211,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5182192839150864e-8",
+            "extra": "mean: 199.56353282263666 nsec\nrounds: 52417"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 270276.31065427297,
+            "unit": "iter/sec",
+            "range": "stddev: 5.141434789280039e-7",
+            "extra": "mean: 3.699917308991099 usec\nrounds: 143885"
           }
         ]
       }
