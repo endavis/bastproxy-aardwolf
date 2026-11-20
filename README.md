@@ -22,11 +22,9 @@ pip install bastproxy-aardwolf
 ## Quick Start
 
 ```python
-from aardwolf import greet
+from aardwolf.libs.aardu import convert_level
 
-# Example usage
-message = greet("Python")
-print(message)  # Output: Hello, Python!
+convert_level(500)  # {'tier': 0, 'redos': 0, 'remort': 3, 'level': 98}
 ```
 
 ## Documentation
@@ -210,7 +208,7 @@ doit coverage
 open tmp/htmlcov/index.html
 
 # Advanced: Run specific test directly
-uv run pytest tests/test_example.py::test_version -v
+uv run pytest tests/test_aardu.py::test_convert_level_regressions -v
 ```
 
 ## Code Quality

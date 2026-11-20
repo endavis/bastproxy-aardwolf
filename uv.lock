@@ -170,7 +170,6 @@ name = "bastproxy-aardwolf"
 source = { editable = "." }
 dependencies = [
     { name = "bastproxy" },
-    { name = "click" },
     { name = "rich" },
 ]
 
@@ -210,7 +209,6 @@ security = [
 requires-dist = [
     { name = "bandit", marker = "extra == 'security'", specifier = ">=1.7" },
     { name = "bastproxy", git = "https://github.com/endavis/bastproxy?rev=main" },
-    { name = "click", specifier = ">=8.5.1" },
     { name = "codespell", marker = "extra == 'dev'", specifier = ">=2.4.3" },
     { name = "commitizen", marker = "extra == 'dev'", specifier = ">=4.19.3" },
     { name = "cyclonedx-bom", marker = "extra == 'security'", specifier = ">=8.0.1" },

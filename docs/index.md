@@ -45,11 +45,9 @@ bastproxy-aardwolf is a modern Python project template with comprehensive toolin
 ## Quick Start
 
 ```python
-from aardwolf import greet
+from aardwolf.libs.aardu import convert_level
 
-# Simple greeting example
-message = greet("Python")
-print(message)  # Output: Hello, Python!
+convert_level(500)  # {'tier': 0, 'redos': 0, 'remort': 3, 'level': 98}
 ```
 
 ## Documentation Sections
@@ -58,14 +56,12 @@ print(message)  # Output: Hello, Python!
 
 - **[Installation](getting-started/installation.md)** - How to install the package
 - **[Usage Guide](usage/basics.md)** - How to use the package
-- **[CLI Guide](usage/cli.md)** - Command-line interface reference and how to add subcommands
 - **[API Reference](reference/api.md)** - Complete API documentation
 
 ### For Contributors
 
 - **[Contributing Guide](https://github.com/endavis/pyproject-template/blob/main/.github/CONTRIBUTING.md)** - Development workflow, coding standards, and best practices (**source of truth**)
 - **[Code of Conduct](https://github.com/endavis/pyproject-template/blob/main/.github/CODE_OF_CONDUCT.md)** - Community guidelines
-- **[Add a Feature Walkthrough](examples/add-a-feature.md)** - End-to-end example of adding a module, CLI subcommand, tests, and docs
 - **[AI First 5 Minutes](development/ai/first-5-minutes.md)** - Narrative walkthrough of the AI agent workflow (primary agent: Claude Code)
 - **[AI Agent Setup](development/AI_SETUP.md)** - Setup guide for AI coding assistants (Claude Code is the primary agent; Copilot, Codex and Antigravity have narrower roles)
 

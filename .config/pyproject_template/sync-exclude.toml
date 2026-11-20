@@ -9,7 +9,7 @@
 # Review with `python tools/pyproject_template/manage.py --yes check --show-excluded`
 # on each sync: an excluded path never shows as drift again.
 #
-# Decisions: #2 (configuration).
+# Decisions: #2 (configuration), #21 (template scaffold removal).
 
 exclude = [
     # The template's example package, named in the deprecate-api skill's worked example.
@@ -21,4 +21,23 @@ exclude = [
     "tests/template/test_utils.py",
     "tests/template/test_utils_properties.py",
     "tests/template/test_check_template_updates.py",
+
+    # The template's example code, removed by #21: the greet/CLI/logging scaffold,
+    # its tests, benchmarks, example scripts, FastAPI sample app and docs.
+    # src/package_name/* above already covers the drift check; the
+    # src/aardwolf/* entries let the doc scans accept the template ADRs and
+    # consumer notes that name the configured paths.
+    "src/aardwolf/core.py",
+    "src/aardwolf/cli.py",
+    "src/aardwolf/logging.py",
+    "tests/test_core.py",
+    "tests/test_cli.py",
+    "tests/test_example.py",
+    "tests/test_logging.py",
+    "tests/template/test_properties.py",
+    "tests/benchmarks/test_bench_core.py",
+    "tests/benchmarks/test_bench_logging.py",
+    "examples/*",
+    "docs/usage/cli.md",
+    "docs/examples/add-a-feature.md",
 ]
