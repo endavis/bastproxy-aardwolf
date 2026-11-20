@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795114967247,
+  "lastUpdate": 1795182071432,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -531,6 +531,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 1.3369164684231353e-7",
             "extra": "mean: 1.3123136859346105 usec\nrounds: 83078"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "205a5821044bea6913b99fa8f7e2ea8b3c92fda3",
+          "message": "chore: remove the template scaffold from src/aardwolf (merges PR #22, addresses #21)\n\n* chore: remove the template scaffold from src/aardwolf\n\nThe project template's example code (greet, the click CLI and the\ntemplate logging module) was never used by the Aardwolf plugins, which\nlog through bastproxy.libs.logger.\n\nRemoves src/aardwolf/core.py, cli.py and logging.py, the\nbastproxy-aardwolf console script, the click runtime dependency, the\nscaffold's tests and benchmarks, the examples/ tree, docs/usage/cli.md\nand docs/examples/add-a-feature.md. __init__.py keeps only __version__.\n\nA new benchmark of aardu.convert_level and parse_damage_line keeps the\nbenchmark job and test_benchmark_settings meaningful; that test now\ntargets it, with the maintainer's approval. The removed paths are in\nsync-exclude.toml so a template sync does not restore them, and the\ntemplate's own skill and ADR text that names them stays as is.\n\nAddresses #21\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* chore: finish removing the template scaffold from src/aardwolf\n\nThe first commit carried only the file deletions. This adds the rest of\nthe change: __init__.py without the scaffold imports, pyproject.toml and\nuv.lock without the console script and the click dependency, the mutmut\nselection, the aardu benchmark and the test_benchmark_settings target,\nthe sync-exclude entries, and the README, docs and nav updates.\n\nAddresses #21\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* chore: record the scaffold removal as a breaking change\n\nThe two previous commits remove the template scaffold's public API\n(aardwolf.greet, aardwolf.get_logger, aardwolf.setup_logging and the\naardwolf.core, aardwolf.logging and aardwolf.cli modules) and the\nbastproxy-aardwolf console script. This commit carries the footer.\n\nAddresses #21\n\nBREAKING CHANGE: aardwolf.greet, aardwolf.get_logger,\naardwolf.setup_logging, the aardwolf.core, aardwolf.logging and\naardwolf.cli modules, and the bastproxy-aardwolf console script are\nremoved. greet has no replacement; log through\nbastproxy.libs.logger.get_logger; the plugins load through bastproxy's\nbastproxy.plugins entry point.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-20T13:40:21Z",
+          "tree_id": "bb78f34ea73e6392f94e1c46abc772e090eef507",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/205a5821044bea6913b99fa8f7e2ea8b3c92fda3"
+        },
+        "date": 1795182071103,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5097645.873481111,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5171183554866766e-8",
+            "extra": "mean: 196.16898168666117 nsec\nrounds: 53186"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 271176.0420769988,
+            "unit": "iter/sec",
+            "range": "stddev: 5.092415297324394e-7",
+            "extra": "mean: 3.6876414020234725 usec\nrounds: 143679"
           }
         ]
       }
