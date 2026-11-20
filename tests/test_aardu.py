@@ -1,5 +1,7 @@
 """Tests for the aardu helper library."""
 
+from collections.abc import Callable
+
 import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
@@ -10,6 +12,7 @@ from aardwolf.libs.aardu import (
     DAMAGES,
     REWARDTABLE,
     actual_level,
+    actual_level_from_gmcp,
     convert_level,
     parse_damage_line,
 )
@@ -190,3 +193,81 @@ def test_parts_round_trip(tier: int, remort: int, level: int, redos: int) -> Non
 def test_below_one_is_all_minus_one(total: int) -> None:
     """Any total below 1 gives -1s."""
     assert set(convert_level(total).values()) == {-1}
+
+
+def _fake_gmcp(data: dict[str, object]) -> Callable[[str], object]:
+    """Return a dict-backed gmcp_get."""
+    return data.get
+
+
+def test_actual_level_from_gmcp_all_present() -> None:
+    """All four values are read from GMCP."""
+    gmcp = _fake_gmcp(
+        {
+            "char.status.level": 5,
+            "char.base.remorts": 2,
+            "char.base.tier": 1,
+            "char.base.redos": 0,
+        }
+    )
+    assert actual_level_from_gmcp(gmcp) == actual_level(5, 2, 1, 0)
+
+
+def test_actual_level_from_gmcp_string_values() -> None:
+    """Numbers sent as strings are converted."""
+    gmcp = _fake_gmcp(
+        {
+            "char.status.level": "5",
+            "char.base.remorts": "2",
+            "char.base.tier": "1",
+            "char.base.redos": "0",
+        }
+    )
+    assert actual_level_from_gmcp(gmcp) == actual_level(5, 2, 1, 0)
+
+
+def test_actual_level_from_gmcp_missing_values() -> None:
+    """Missing values fall back to 0, as the old code did."""
+    assert actual_level_from_gmcp(_fake_gmcp({})) == actual_level(0, 0, 0, 0)
+    gmcp = _fake_gmcp({"char.status.level": 7})
+    assert actual_level_from_gmcp(gmcp) == actual_level(7, 0, 0, 0)
+
+
+def test_actual_level_from_gmcp_non_numeric_values() -> None:
+    """Non-numeric and wrong-typed values fall back to 0."""
+    gmcp = _fake_gmcp(
+        {
+            "char.status.level": "abc",
+            "char.base.remorts": [1],
+            "char.base.tier": "2",
+            "char.base.redos": "",
+        }
+    )
+    assert actual_level_from_gmcp(gmcp) == actual_level(0, 0, 2, 0)
+
+
+def test_actual_level_from_gmcp_level_override() -> None:
+    """An explicit level overrides char.status.level."""
+    gmcp = _fake_gmcp(
+        {
+            "char.status.level": 5,
+            "char.base.remorts": 2,
+            "char.base.tier": 1,
+            "char.base.redos": 0,
+        }
+    )
+    assert actual_level_from_gmcp(gmcp, 10) == actual_level(10, 2, 1, 0)
+    assert actual_level_from_gmcp(gmcp, 0) == actual_level(0, 2, 1, 0)
+
+
+def test_actual_level_from_gmcp_with_redos() -> None:
+    """Redos count as extra tiers."""
+    gmcp = _fake_gmcp(
+        {
+            "char.status.level": 1,
+            "char.base.remorts": 1,
+            "char.base.tier": 9,
+            "char.base.redos": 2,
+        }
+    )
+    assert actual_level_from_gmcp(gmcp) == 11 * TIER + 1

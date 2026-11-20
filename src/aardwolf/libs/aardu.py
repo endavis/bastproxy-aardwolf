@@ -1,7 +1,9 @@
 """Pure helpers for Aardwolf levels, classes and combat damage lines.
 
 Ported from the old ``plugins/aardwolf/aardu.py``. There is no plugin class, no API
-registration and no GMCP access: callers pass every value in.
+registration and no GMCP access: callers pass every value in. The one exception is
+``actual_level_from_gmcp``, which takes a plain ``gmcp_get`` callable, so this module still
+imports nothing from bastproxy.
 
 Correction to the old behaviour: the old ``convert_level`` computed the remort as
 ``floor((total - tier * 1407) / 202) + 1``. A remort spans 201 levels, so the divisor 202
@@ -12,6 +14,7 @@ table; use ``CLASSABBREV`` for that.
 """
 
 import re
+from collections.abc import Callable
 from typing import TypedDict
 
 LEVELS_PER_REMORT = 201
@@ -137,6 +140,43 @@ def actual_level(level: int, remort: int, tier: int, redos: int) -> int:
 
     """
     return (tier + redos) * LEVELS_PER_TIER + (remort - 1) * LEVELS_PER_REMORT + level
+
+
+def _gmcp_int(gmcp_get: Callable[[str], object], path: str) -> int:
+    """Read a GMCP value as an int, using 0 when it is missing or not numeric."""
+    value = gmcp_get(path)
+    if not isinstance(value, int | float | str | bytes):
+        return 0
+    try:
+        return int(value)
+    except ValueError:
+        return 0
+
+
+def actual_level_from_gmcp(gmcp_get: Callable[[str], object], level: int | None = None) -> int:
+    """Return the total level from GMCP char data.
+
+    Reads ``char.status.level`` (unless ``level`` is given), ``char.base.remorts``,
+    ``char.base.tier`` and ``char.base.redos``, converting each to ``int``. A missing or
+    non-numeric value counts as 0.
+
+    Args:
+        gmcp_get: Returns the GMCP value for a path such as ``char.base.tier``, or ``None``.
+            Pass bastproxy's ``libs.net.protocols:gmcp.value.get``.
+        level: Overrides ``char.status.level`` when not ``None``.
+
+    Returns:
+        The total level, as ``actual_level`` computes it.
+
+    """
+    if level is None:
+        level = _gmcp_int(gmcp_get, "char.status.level")
+    return actual_level(
+        level,
+        _gmcp_int(gmcp_get, "char.base.remorts"),
+        _gmcp_int(gmcp_get, "char.base.tier"),
+        _gmcp_int(gmcp_get, "char.base.redos"),
+    )
 
 
 def convert_level(total: int) -> LevelInfo:
