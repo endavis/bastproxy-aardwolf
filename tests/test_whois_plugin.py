@@ -1,0 +1,371 @@
+"""Tests for the Aardwolf whois plugin, with a stubbed API that drives its triggers."""
+
+import re
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
+
+import pytest
+from statdb_support import make_db
+
+import aardwolf
+
+if TYPE_CHECKING:
+    from aardwolf.whois.plugin._whois import WhoisPlugin
+
+PLUGIN_ID = "plugins.aardwolf.whois"
+DASHES = "-" * 74
+HEADER = "[ 201 Hero ]  Bast the Tester (Male Human)"
+SINGLE = [
+    DASHES,
+    HEADER,
+    "Quests Complete   : [ 12 ]   Campaigns Fld   : [ 3 ]",
+    "Monsters Killed   : [ 456 ]",
+    "Powerups Taken   : [ 5 ]   Powerups   : [ 3 ] [ 2 ]",
+    DASHES,
+]
+MULTI = [
+    DASHES,
+    HEADER,
+    "[Multiclass Player: Mage/Thief/Ranger ]",
+    "Monsters Killed   : [ 456 ]",
+    DASHES,
+]
+GMCP: dict[str, Any] = {
+    "char.base.name": "Bast",
+    "char.status.level": 50,
+    "char.base.tier": 2,
+    "char.base.redos": 1,
+    "char.base.race": "Human",
+    "char.base.subclass": "Sorcerer",
+    "char.base.remorts": 1,
+    "char.base.class": "Mage",
+}
+
+
+class FakeApi:
+    """A stand-in for the bastproxy API that records the calls and drives the triggers."""
+
+    def __init__(self) -> None:
+        self.gmcp: dict[str, Any] = dict(GMCP)
+        self.events_added: list[tuple[str, str]] = []
+        self.registered: dict[str, Callable[..., Any]] = {}
+        self.watches: list[tuple[str, str]] = []
+        self.types: dict[str, dict[str, Any]] = {}
+        self.finished: list[str] = []
+        self.raised: list[tuple[str, dict[str, Any]]] = []
+        self.triggers: dict[str, dict[str, Any]] = {}
+        self.callbacks: dict[str, Callable[..., Any]] = {}
+        self.group_toggles: list[tuple[str, bool]] = []
+        self.trigger_toggles: list[tuple[str, bool]] = []
+        self.add_ok = True
+        self.record: dict[str, Any] = {}
+
+    def __call__(self, name: str) -> Callable[..., Any]:
+        """Return the fake for an API name."""
+        table: dict[str, Callable[..., Any]] = {
+            "plugins.core.events:event.add": self._event_add,
+            "plugins.core.events:event.register": self._event_register,
+            "plugins.core.events:event.raise": self._event_raise,
+            "plugins.core.events:event.current.record.get": lambda: self.record,
+            "plugins.core.watch:watch.add": lambda wname, regex: self.watches.append(
+                (wname, regex)
+            ),
+            "plugins.core.mudcmds:type.add": self._type_add,
+            "plugins.core.mudcmds:command.finish": self.finished.append,
+            "plugins.core.triggers:trigger.add": self._trigger_add,
+            "plugins.core.triggers:trigger.register": self._trigger_register,
+            "plugins.core.triggers:trigger.toggle.enable": self._trigger_toggle,
+            "plugins.core.triggers:group.toggle.enable": self._group_toggle,
+            "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+        }
+        return table[name]
+
+    def _event_add(self, name: str, created_by: str, **kwargs: object) -> None:
+        self.events_added.append((name, created_by))
+
+    def _event_register(self, name: str, func: Callable[..., Any]) -> None:
+        self.registered[name] = func
+
+    def _event_raise(self, name: str, event_args: dict[str, Any] | None = None) -> None:
+        self.raised.append((name, event_args or {}))
+
+    def _type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: object) -> None:
+        self.types[cmdtype] = {"cmd": cmd, "regex": regex, **kwargs}
+
+    def _trigger_add(self, name: str, regex: str, **kwargs: object) -> SimpleNamespace:
+        self.triggers[name] = {
+            "regex": regex,
+            "enabled": kwargs.get("enabled", True),
+            "group": kwargs.get("group"),
+        }
+        return SimpleNamespace(success=self.add_ok, trigger=SimpleNamespace(trigger_id=name))
+
+    def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
+        self.callbacks[trigger_id] = func
+        return True
+
+    def _trigger_toggle(self, name: str, flag: bool) -> bool:
+        assert name in self.triggers, f"unknown trigger {name}"
+        self.trigger_toggles.append((name, flag))
+        self.triggers[name]["enabled"] = flag
+        return True
+
+    def _group_toggle(self, group: str, flag: bool) -> bool:
+        assert any(t["group"] == group for t in self.triggers.values()), f"unknown group {group}"
+        self.group_toggles.append((group, flag))
+        for trigger in self.triggers.values():
+            if trigger["group"] == group:
+                trigger["enabled"] = flag
+        return True
+
+    def feed(self, lines: list[str]) -> None:
+        """Run each line through the enabled triggers, as the triggers plugin does."""
+        for line in lines:
+            for name, trigger in list(self.triggers.items()):
+                if not trigger["enabled"]:
+                    continue
+                match = re.match(trigger["regex"], line)
+                if match and name in self.callbacks:
+                    self.record = {"matches": match.groupdict()}
+                    self.callbacks[name]()
+
+    def enabled(self) -> set[str]:
+        """The names of the enabled triggers."""
+        return {name for name, trigger in self.triggers.items() if trigger["enabled"]}
+
+
+class Env:
+    """The plugin under test with its fake API."""
+
+    def __init__(self, plugin: "WhoisPlugin", fake: FakeApi, home: Path) -> None:
+        self.plugin = plugin
+        self.fake = fake
+        self.home = home
+
+    def typed_whois(self) -> None:
+        """A client types whois: the watch event fires."""
+        self.fake.registered["watch_whois"]()
+
+    def queued_whois(self) -> None:
+        """A queued whois: mudcmds calls the type's beforef before it sends the line."""
+        self.fake.types["whois"]["beforef"]()
+
+
+@pytest.fixture
+def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
+    """Build a WhoisPlugin with a fake API and load it."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    from aardwolf.whois.plugin import _whois
+
+    fake = FakeApi()
+    plugin = _whois.WhoisPlugin.__new__(_whois.WhoisPlugin)
+    plugin.plugin_id = PLUGIN_ID
+    plugin.plugin_info = SimpleNamespace(data_directory=tmp_path)  # type: ignore[assignment]
+    plugin.api = MagicMock(side_effect=fake)
+    plugin._phook_init_plugin()
+    plugin._phook_initialize()
+    yield Env(plugin, fake, tmp_path)
+
+
+def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The loader's discovery finds the plugin without errors."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    from bastproxy.libs.plugins.imputils import find_packages_and_plugins
+
+    result = find_packages_and_plugins(Path(aardwolf.__file__).resolve().parent, "aardwolf.")
+    assert not result.errors
+    assert "aardwolf.whois" in {p["plugin_id"] for p in result.plugins}
+
+
+def test_after_load(env: Env) -> None:
+    """after_load adds the event, the watch, the command type and seven disabled triggers."""
+    fake = env.fake
+    assert fake.events_added == [("ev_plugins.aardwolf.whois_received", PLUGIN_ID)]
+    assert fake.watches == [("whois", r"^(whoi|whois)$")]
+    assert "watch_whois" in fake.registered
+    assert fake.types["whois"]["cmd"] == "whois"
+    assert fake.types["whois"]["regex"] == r"^(whoi|whois)$"
+    assert fake.types["whois"]["beforef"] == env.plugin._start_whois
+    assert set(fake.triggers) == {
+        "whoisheader",
+        "whoisclasses",
+        "whois1",
+        "whois2",
+        "whois3",
+        "whoispowerup",
+        "whoisend",
+    }
+    assert not fake.enabled()
+    assert {n for n, t in fake.triggers.items() if t["group"] == PLUGIN_ID} == set(
+        fake.triggers
+    ) - {"whoisend"}
+    assert set(fake.callbacks) == set(fake.triggers)
+
+
+def test_failed_trigger_add_is_logged_and_not_toggled(env: Env) -> None:
+    """When no trigger could be added, no toggle is attempted for the unknown group."""
+    env.fake.add_ok = False
+    env.fake.triggers.clear()
+    env.fake.callbacks.clear()
+    env.plugin._group_ready = env.plugin._end_ready = False
+    env.plugin._phook_initialize()
+    assert env.fake.callbacks == {}
+    env.plugin._start_whois()
+    env.plugin._eventcb_disconnect()
+    assert env.fake.group_toggles == []
+    assert env.fake.trigger_toggles == []
+
+
+def test_single_class_typed_whois(env: Env) -> None:
+    """A typed whois: the watch starts it, the fixture is parsed and the event raised once."""
+    env.typed_whois()
+    assert env.fake.enabled() == {
+        "whoisheader",
+        "whoisclasses",
+        "whois1",
+        "whois2",
+        "whois3",
+        "whoispowerup",
+    }
+    env.fake.feed(SINGLE)
+    assert len(env.fake.raised) == 1
+    name, payload = env.fake.raised[0]
+    assert name == "ev_plugins.aardwolf.whois_received"
+    assert payload["classes"] == [{"remort": 1, "class": "mag"}]
+    assert payload["questscomplete"] == "12"
+    assert payload["campaignsfld"] == "3"
+    assert payload["monsterskilled"] == "456"
+    assert payload["powerupsall"] == "3"
+    assert payload["powerupsmort"] == "2"
+    assert payload["sex"] == "male"
+    assert payload["race"] == "human"
+    assert payload["name"] == "Bast"
+    assert payload["totallevels"] == (2 + 1) * 1407 + 50
+    assert env.fake.finished == ["whois"]
+
+
+def test_queued_whois_calls_finish(env: Env) -> None:
+    """A queued whois: beforef starts it, and the end line finishes the command."""
+    env.queued_whois()
+    env.fake.feed(SINGLE)
+    assert len(env.fake.raised) == 1
+    assert env.fake.finished == ["whois"]
+
+
+def test_multiclass(env: Env) -> None:
+    """The multiclass line sets the classes, overrides the remorts and feeds the total level."""
+    env.fake.gmcp["char.base.remorts"] = 3
+    env.typed_whois()
+    env.fake.feed(MULTI)
+    payload = env.fake.raised[0][1]
+    assert payload["classes"] == [
+        {"remort": 1, "class": "mag"},
+        {"remort": 2, "class": "thi"},
+        {"remort": 3, "class": "ran"},
+    ]
+    assert payload["remorts"] == 3
+    assert payload["totallevels"] == 3 * 1407 + 2 * 201 + 50
+    assert payload["monsterskilled"] == "456"
+
+
+def test_multiclass_line_overrides_gmcp_remorts(env: Env) -> None:
+    """The class count replaces the GMCP remorts."""
+    env.fake.gmcp["char.base.remorts"] = 2
+    env.typed_whois()
+    env.fake.feed(MULTI)
+    assert env.fake.raised[0][1]["remorts"] == 3
+
+
+def test_triggers_follow_the_whois_lifecycle(env: Env) -> None:
+    """Triggers are off before the whois, on during it and off after the end line."""
+    env.fake.feed(SINGLE)
+    assert env.fake.raised == []
+    env.typed_whois()
+    env.fake.feed(SINGLE)
+    assert len(env.fake.raised) == 1
+    assert not env.fake.enabled()
+    env.fake.feed(SINGLE)
+    assert len(env.fake.raised) == 1
+
+
+def test_dashed_line_before_the_header_does_not_end_the_whois(env: Env) -> None:
+    """The end trigger is only on from the header."""
+    env.typed_whois()
+    env.fake.feed([DASHES])
+    assert env.fake.raised == []
+    assert "whoisend" not in env.fake.enabled()
+    env.fake.feed([HEADER])
+    assert "whoisend" in env.fake.enabled()
+
+
+def test_payload_is_a_plain_copy(env: Env) -> None:
+    """The raised payload is a plain dict that does not change the saved state."""
+    env.typed_whois()
+    env.fake.feed(SINGLE)
+    payload = env.fake.raised[0][1]
+    assert type(payload) is dict
+    payload["name"] = "changed"
+    assert env.plugin.whois["name"] == "Bast"
+
+
+def test_disconnect_turns_the_triggers_off(env: Env) -> None:
+    """A disconnect in the middle of a whois turns the group and whoisend off."""
+    env.typed_whois()
+    env.fake.feed(SINGLE[:2])
+    assert "whoisend" in env.fake.enabled()
+    env.plugin._eventcb_disconnect()
+    assert not env.fake.enabled()
+
+
+def test_start_clears_the_old_state(env: Env) -> None:
+    """A new whois starts from an empty state."""
+    env.plugin.whois["old"] = "x"
+    env.typed_whois()
+    assert "old" not in env.plugin.whois
+
+
+def test_missing_gmcp_does_not_raise(env: Env) -> None:
+    """A whois with no GMCP values still ends and raises."""
+    env.fake.gmcp.clear()
+    env.typed_whois()
+    env.fake.feed(SINGLE)
+    payload = env.fake.raised[0][1]
+    assert payload["name"] == ""
+    assert payload["classes"] == []
+
+
+def test_state_is_persisted(env: Env) -> None:
+    """After a whois a new dict on the same file has the state, and the save hook syncs."""
+    from bastproxy.libs.persistentdict import PersistentDict
+
+    env.typed_whois()
+    env.fake.feed(SINGLE)
+    again = PersistentDict(PLUGIN_ID, env.home / "whois.txt", "c")
+    assert again["name"] == "Bast"
+    assert again["monsterskilled"] == "456"
+    env.plugin.whois["extra"] = 1
+    env.plugin._phook_save()
+    assert PersistentDict(PLUGIN_ID, env.home / "whois.txt", "c")["extra"] == 1
+
+
+def test_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
+    """The raised payload feeds statdb's save_whois."""
+    from aardwolf.statdb.libs import StatStore
+
+    env.fake.gmcp["char.base.remorts"] = 3
+    env.typed_whois()
+    env.fake.feed(MULTI)
+    database = make_db(tmp_path / "db")
+    try:
+        store = StatStore(database)
+        store.save_whois(env.fake.raised[0][1])
+        row = database.select("SELECT * FROM stats WHERE milestone = 'current'")[0]
+        assert row["name"] == "Bast"
+        assert row["totallevels"] == 3 * 1407 + 2 * 201 + 50
+        assert row["monsterskilled"] == 456
+        assert store.get_classes() == ["mage", "thief", "ranger"]
+    finally:
+        database.close()

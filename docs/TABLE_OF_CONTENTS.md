@@ -27,6 +27,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 <!-- END:audience=users -->
@@ -99,6 +100,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 <!-- END:audience=contributors -->
 
@@ -197,6 +199,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects

@@ -37,7 +37,9 @@ can be upgraded, the plugin logs the error and loads without a database. Its com
 
 - **Whois.** On the first GMCP `char.status` update where the state is 3 (active), the plugin
   checks the `stats` table. When the current row has no kills (a new database, or a new
-  character) it sends `whois` once. The whois plugin raises the whois event with the result, and
+  character) it queues `whois` once with `plugins.core.mudcmds:command.queue`, when the
+  [whois plugin](whois.md) is loaded; when it is not, nothing is sent (the plugin logs that at
+  debug level). The whois plugin raises the whois event with the result, and
   that fills the `stats` table. `char.status` itself is never written to `stats`. The plugin checks
   once per connection; a MUD disconnect allows it again.
 - **Stats.** The `stats` table has a `current` row, kept up to date by the events, and a milestone
@@ -178,7 +180,7 @@ plugin adds no SQL triggers, because the file must stay as the old plugin wrote 
 | `stats.select`, `stats.modify`, `stats.modifymany`, `stats.getrow` | `plugins.aardwolf.statdb:stats.select`, `.modify`, `.modify.many`, `.row.get` |
 | events `aard_quest_comp`, `aard_quest_failed`, `aard_cp_comp`, `aard_cp_failed`, `aard_whois`, `aard_level_*`, `aard_mobkill`, `aard_gq_*` | the events in the table above, with the `ev_plugins.aardwolf.` prefix |
 | event `GMCP:char.status`, unregistered after the first active state | `ev_libs.net.mud_gmcp_char.status`, checked once per connection |
-| `send.execute('whois')` | the whois is sent straight to the MUD |
+| `send.execute('whois')` | the whois is queued with `plugins.core.mudcmds:command.queue` when the whois plugin is loaded, and not sent otherwise |
 | event `trigger_dead` | a trigger on `^You die\.$` |
 | timer `stats_backup` at local time | UTC, with a one-time timer that adds the interval timer |
 | plugin version 2, which moved the files from the old `data/db` layout | dropped; copy the file as above |
