@@ -33,6 +33,7 @@ lists every discovered plugin, loaded or not.
 | [connect](connect.md) | `plugins.aardwolf.connect` | Sets up Aardwolf GMCP, presses return at login prompts and detects when the character is first active. |
 | [a102](a102.md) | `plugins.aardwolf.a102` | Toggles Aardwolf telnet option 102 features with shared counts and publishes the MUD's option 102 reports. |
 | [statdb](statdb.md) | `plugins.aardwolf.statdb` | Records character stats, quests, campaigns, global quests, levels and mob kills in a database, and reports on them. |
+| [quest](quest.md) | `plugins.aardwolf.quest` | Turns the GMCP quest messages into quest events and keeps the current quest. |
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 
 Libraries that plugins share, such as `aardwolf.libs.aardu`, are documented in the
