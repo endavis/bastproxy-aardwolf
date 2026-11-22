@@ -27,6 +27,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
@@ -104,6 +105,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
@@ -207,6 +209,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest

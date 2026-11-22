@@ -114,6 +114,7 @@ nav:
       - level: plugins/level.md
       - mobk: plugins/mobk.md
       - cp: plugins/cp.md
+      - gq: plugins/gq.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md
