@@ -392,11 +392,17 @@ class GqPlugin(BasePlugin):
         self._toggle_group(GROUP_REW, True)
 
     def _trigger_wonannounce(self) -> None:
-        """The MUD announced who won the gquest."""
+        """The MUD announced who won the gquest: raise it when it is ours and the one joined."""
         matches = self._matches()
+        gqnum = int(matches["gqnum"])
+        if gqnum != self._joined():
+            log_to(
+                [self.plugin_id], logging.DEBUG, "win announced for gquest %s, not joined", gqnum
+            )
+            return
         if self._gmcp_value("char.base.name") == matches.get("winner"):
             self._raise(EVENT_WON, self._state_payload())
-            self._gq_reset(int(matches["gqnum"]))
+            self._gq_reset(gqnum)
 
     def _trigger_reward(self) -> None:
         """A reward of the gquest."""

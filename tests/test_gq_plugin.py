@@ -514,6 +514,24 @@ def test_announce_of_another_winner_does_nothing(env: Env) -> None:
     assert env.fake.settings["joined"] == 12
 
 
+def test_announce_of_another_gquest_does_nothing(env: Env) -> None:
+    """A win announced for a gquest other than the one joined leaves the state alone."""
+    env.join(RAT)
+    env.fake.raised.clear()
+    env.fake.feed(ANNOUNCE.replace("#12", "#13"))
+    assert env.fake.raised == []
+    assert env.fake.settings["joined"] == 12
+
+
+def test_quoted_announce_does_not_match(env: Env) -> None:
+    """An announce quoted inside another line, such as a channel, raises nothing."""
+    env.join(RAT)
+    env.fake.raised.clear()
+    env.fake.feed(f"(Gossip) Other: {ANNOUNCE}")
+    assert env.fake.raised == []
+    assert env.fake.settings["joined"] == 12
+
+
 def test_unknown_reward_type_is_ignored(env: Env) -> None:
     """A reward of an unknown type changes nothing."""
     env.join(RAT)

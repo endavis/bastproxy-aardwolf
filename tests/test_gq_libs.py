@@ -117,6 +117,12 @@ def test_in_group_lines() -> None:
         "gqnum": "12",
         "winner": "Bast",
     }
+    for line in (
+        f"(Gossip) Other: {announce}",
+        "Global Quest: Global Quest #x has been won by Bast - 1st win.",
+        "Global Quest: Global Quest #12 has been won by Bast - 1st win!",
+    ):
+        assert not re.match(SPECS["gq_wonannounce"].regex, line), line
 
 
 def test_reward_line() -> None:

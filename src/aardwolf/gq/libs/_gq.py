@@ -226,8 +226,8 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
     ),
     TriggerSpec(
         "gq_wonannounce",
-        r"Global Quest: Global Quest \#(?P<gqnum>.*) has been won "
-        r"by (?P<winner>.*) - (.*) win.$",
+        r"^Global Quest: Global Quest \# *(?P<gqnum>\d+) has been won "
+        r"by (?P<winner>\w+) - (\d+\w*) win\.$",
         GROUP_IN,
         False,
         {"gqnum": int},
