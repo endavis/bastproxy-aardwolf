@@ -8,7 +8,6 @@ from collections.abc import Callable
 from typing import Any
 
 from bastproxy.libs.logger import log_to
-from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -37,6 +36,7 @@ EVENT_QUEST_FAILED = f"{PREFIX}quest_failed"
 EVENT_CP_COMP = f"{PREFIX}cp_comp"
 EVENT_CP_FAILED = f"{PREFIX}cp_failed"
 EVENT_WHOIS = f"{PREFIX}whois_received"
+WHOIS_PLUGIN_ID = "plugins.aardwolf.whois"
 EVENT_LEVEL_GAIN = f"{PREFIX}level_gain"
 EVENT_LEVEL_HERO = f"{PREFIX}level_hero"
 EVENT_LEVEL_SUPERHERO = f"{PREFIX}level_superhero"
@@ -261,16 +261,23 @@ class StatdbPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=EVENT_GMCP_STATUS)
     def _eventcb_char_status(self) -> None:
-        """Send a whois once the character is active, when there are no stats yet."""
+        """Queue a whois once the character is active, when there are no stats yet."""
         if self._whois_sent or self.statdb is None:
             return
         if self.api("libs.net.protocols:gmcp.value.get")(STATE_PATH) not in ACTIVE_STATES:
             return
         self._whois_sent = True
-        if not self.statdb.get_stat("monsterskilled"):
-            SendDataDirectlyToMud(
-                NetworkData(["whois"], owner_id=f"{self.plugin_id}:_send_whois")
-            )()
+        if self.statdb.get_stat("monsterskilled"):
+            return
+        if self.api("libs.plugins.loader:plugin.is.loaded")(WHOIS_PLUGIN_ID):
+            self.api("plugins.core.mudcmds:command.queue")("whois")
+        else:
+            log_to(
+                self.plugin_id,
+                logging.DEBUG,
+                "no whois sent: %s is not loaded",
+                WHOIS_PLUGIN_ID,
+            )
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
     def _eventcb_mud_disconnected(self) -> None:

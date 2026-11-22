@@ -16,13 +16,12 @@ from statdb_support import make_db
 import aardwolf
 
 if TYPE_CHECKING:
-    from bastproxy.libs.records import NetworkData
-
     from aardwolf.statdb.libs import StatStore
     from aardwolf.statdb.plugin._statdb import StatdbPlugin
 
 PLUGIN_ID = "plugins.aardwolf.statdb"
 PREFIX = "ev_plugins.aardwolf."
+WHOIS_PLUGIN_ID = "plugins.aardwolf.whois"
 
 
 class FakeApi:
@@ -41,6 +40,8 @@ class FakeApi:
         self.record: dict[str, Any] = {}
         self.gmcp: dict[str, Any] = {}
         self.args: dict[str, Any] = {}
+        self.whois_loaded = True
+        self.queued: list[str] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -59,6 +60,10 @@ class FakeApi:
             "plugins.core.utils:timelength.format": lambda seconds: f"{int(seconds)}s",
             "plugins.core.utils:number.to.readable": lambda number: f"<{number}>",
             "plugins.core.proxy:line.length.get": lambda: 40,
+            "libs.plugins.loader:plugin.is.loaded": lambda plugin_id: (
+                self.whois_loaded and plugin_id == WHOIS_PLUGIN_ID
+            ),
+            "plugins.core.mudcmds:command.queue": self.queued.append,
         }
         return table[name]
 
@@ -96,12 +101,16 @@ class FakeApi:
 
 
 class Env:
-    """The plugin under test with its fake API and the lines sent to the MUD."""
+    """The plugin under test with its fake API, which records the commands it queued."""
 
-    def __init__(self, plugin: "StatdbPlugin", fake: FakeApi, lines: list[str]) -> None:
+    def __init__(self, plugin: "StatdbPlugin", fake: FakeApi) -> None:
         self.plugin = plugin
         self.fake = fake
-        self.lines = lines
+
+    @property
+    def lines(self) -> list[str]:
+        """The command types the plugin queued for the MUD."""
+        return self.fake.queued
 
     @property
     def store(self) -> "StatStore":
@@ -122,23 +131,13 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     monkeypatch.setenv("BASTPROXY_HOME", str(home))
     from aardwolf.statdb.plugin import _statdb
 
-    lines: list[str] = []
-
-    class FakeSend:
-        def __init__(self, message: "NetworkData") -> None:
-            self.message = message
-
-        def __call__(self) -> None:
-            lines.extend(str(item.line) for item in self.message)
-
-    monkeypatch.setattr(_statdb, "SendDataDirectlyToMud", FakeSend)
     fake = FakeApi(tmp_path / "db")
     plugin = _statdb.StatdbPlugin.__new__(_statdb.StatdbPlugin)
     plugin.plugin_id = PLUGIN_ID
     plugin.api = MagicMock(side_effect=fake)
     plugin._phook_init_plugin()
     plugin._phook_initialize()
-    yield Env(plugin, fake, lines)
+    yield Env(plugin, fake)
     if plugin.statdb is not None:
         plugin.statdb.db.close()  # type: ignore[attr-defined]
 
@@ -370,7 +369,7 @@ def test_save_failure_is_logged(env: Env, monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_whois_sent_once_when_active_with_no_stats(env: Env) -> None:
-    """In state 3 with no stats a whois goes out once, and a disconnect allows it again."""
+    """In state 3 with no stats a whois is queued once, and a disconnect allows it again."""
     env.fake.gmcp = {"char.status.state": 3}
     env.plugin._eventcb_char_status()
     env.plugin._eventcb_char_status()
@@ -378,6 +377,15 @@ def test_whois_sent_once_when_active_with_no_stats(env: Env) -> None:
     env.plugin._eventcb_mud_disconnected()
     env.plugin._eventcb_char_status()
     assert env.lines == ["whois", "whois"]
+
+
+def test_no_whois_queued_when_the_whois_plugin_is_not_loaded(env: Env) -> None:
+    """Without the whois plugin nothing is queued, and the check is still spent."""
+    env.fake.whois_loaded = False
+    env.fake.gmcp = {"char.status.state": 3}
+    env.plugin._eventcb_char_status()
+    assert env.lines == []
+    assert env.plugin._whois_sent
 
 
 def test_whois_accepts_state_as_text(env: Env) -> None:
