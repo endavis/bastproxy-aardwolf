@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795389146171,
+  "lastUpdate": 1795390009776,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -797,6 +797,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.987346499219525e-7",
             "extra": "mean: 5.8609547720333275 usec\nrounds: 178540"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b2194c9b2afec7fecde40a9e8337bf57168cbf72",
+          "message": "feat: add the mobk plugin, which raises an event for each kill (merges PR #35, addresses #27)\n\nPort the mobk plugin from the old bastproxy as plugins.aardwolf.mobk.\nIt follows the combat output and GMCP char.status to build a kill\nrecord and raises ev_plugins.aardwolf.mobk_kill once per kill, when the\ncorpse is sacrificed or consumed, or on a slit, disintegrate or banish.\nstatdb already saves that event to the mobkills table.\n\nFixes from the old plugin: summed experience (123+45) is stored and the\nkill raised; the unused immunity handler and the unused instatext and\ninstaback settings are dropped; the blessing bonus no longer stops other\ntriggers on its line; debug echoes go to the log.\n\nAddresses #27\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T23:26:15Z",
+          "tree_id": "d3dd57945dca4f83943e4277e3114151856385a7",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/b2194c9b2afec7fecde40a9e8337bf57168cbf72"
+        },
+        "date": 1795390009521,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4989814.927092794,
+            "unit": "iter/sec",
+            "range": "stddev: 1.857422703956487e-7",
+            "extra": "mean: 200.40823449590908 nsec\nrounds: 56001"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 274526.6238133387,
+            "unit": "iter/sec",
+            "range": "stddev: 4.18832878144176e-7",
+            "extra": "mean: 3.642633949703686 usec\nrounds: 146178"
           }
         ]
       }
