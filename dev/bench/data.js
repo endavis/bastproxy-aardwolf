@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795390009776,
+  "lastUpdate": 1795391067339,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -835,6 +835,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.18832878144176e-7",
             "extra": "mean: 3.642633949703686 usec\nrounds: 146178"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bdf73ef6ea9280e0ebe8561ca91b65fabf16b88e",
+          "message": "feat: add the cp plugin, which follows Aardwolf campaigns (merges PR #36, addresses #29)\n\nPort the cp plugin from the old bastproxy as plugins.aardwolf.cp. It\nqueues a campaign check through the core mudcmds plugin, reads the\ntarget mobs, rewards and completion, keeps its state in a\nPersistentDict, and raises cp_mobsorig, cp_mobsleft, cp_comp and\ncp_failed. A target kill is matched against the mobk plugin's\nmobk_kill event. statdb already saves cp_comp and cp_failed.\n\nFixes from the old plugin: a kill of the first mob in the list removes\nit; the level comes from actual_level_from_gmcp; cp_comp is raised at\nthe next prompt when neither line follows the completion summary.\nDebug echoes go to the log. cpcheck is added to the codespell ignore\nlist.\n\nAddresses #29\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T23:43:43Z",
+          "tree_id": "b90deb4463ee4f3486464e4edaf02a6901208e8a",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/bdf73ef6ea9280e0ebe8561ca91b65fabf16b88e"
+        },
+        "date": 1795391066664,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3084839.6547023607,
+            "unit": "iter/sec",
+            "range": "stddev: 5.205537142612677e-8",
+            "extra": "mean: 324.16595737015206 nsec\nrounds: 195734"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 174332.42184602685,
+            "unit": "iter/sec",
+            "range": "stddev: 8.339591110281754e-7",
+            "extra": "mean: 5.736167658378634 usec\nrounds: 180832"
           }
         ]
       }
