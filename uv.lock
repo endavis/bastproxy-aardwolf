@@ -152,8 +152,8 @@ wheels = [
 
 [[package]]
 name = "bastproxy"
-version = "0.0.1.dev1406+gc8b9bd779"
-source = { git = "https://github.com/endavis/bastproxy?rev=main#c8b9bd779937ca50f804db5169d2cf45ed07c2bf" }
+version = "0.0.1.dev1465+gd6b01433f"
+source = { git = "https://github.com/endavis/bastproxy?rev=main#d6b01433f4bf179e0383e1077e7a645f98b8a8aa" }
 dependencies = [
     { name = "dumper" },
     { name = "humanize" },
