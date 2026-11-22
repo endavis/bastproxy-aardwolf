@@ -255,7 +255,7 @@ skips = [
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
-ignore-words-list = "crate,thi"
+ignore-words-list = "crate,thi,remorted"  # thi: thief abbreviation; remorted: Aardwolf game text
 
 [tool.vulture]
 min_confidence = 80
@@ -301,6 +301,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_aardu.py",
     "tests/test_bastproxy_entry_point.py",
     "tests/test_connect_plugin.py",
+    "tests/test_level_libs.py",
+    "tests/test_level_plugin.py",
     "tests/test_quest_libs.py",
     "tests/test_quest_plugin.py",
     "tests/test_statdb_plugin.py",

@@ -111,6 +111,7 @@ nav:
       - statdb: plugins/statdb.md
       - quest: plugins/quest.md
       - whois: plugins/whois.md
+      - level: plugins/level.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md
