@@ -112,6 +112,7 @@ nav:
       - quest: plugins/quest.md
       - whois: plugins/whois.md
       - level: plugins/level.md
+      - mobk: plugins/mobk.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md
