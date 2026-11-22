@@ -1,0 +1,202 @@
+---
+title: The statdb Plugin
+description: Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+audience:
+  - users
+  - contributors
+tags:
+  - aardwolf
+  - plugin
+  - database
+---
+
+# The statdb Plugin
+
+The `statdb` plugin keeps a SQLite database of what a character does: stats and milestones,
+quests, campaigns, global quests, levels and power-ups, and mob kills. Commands report on it. It
+is a port of the old proxy's `statdb` plugin and keeps its schema, so a database written by the
+old plugin is used as it is.
+
+The plugin never imports another plugin. It listens to events that the other Aardwolf plugins
+raise (whois, level, mobk, cp, gq and quest), so until those are loaded its tables get no new
+rows. It loads and runs with none of them present.
+
+## Loading
+
+The plugin id is `plugins.aardwolf.statdb`:
+
+```text
+#bp.core.pluginm.load plugins.aardwolf.statdb
+```
+
+If the database cannot be opened, for example because it is older than the oldest version that
+can be upgraded, the plugin logs the error and loads without a database. Its commands then say
+"The stats database is not available" and its event callbacks do nothing.
+
+## Behaviour
+
+- **Whois.** On the first GMCP `char.status` update where the state is 3 (active), the plugin
+  checks the `stats` table. When the current row has no kills (a new database, or a new
+  character) it sends `whois` once. The whois plugin raises the whois event with the result, and
+  that fills the `stats` table. `char.status` itself is never written to `stats`. The plugin checks
+  once per connection; a MUD disconnect allows it again.
+- **Stats.** The `stats` table has a `current` row, kept up to date by the events, and a milestone
+  row for each milestone: `start` (added with the first whois), a row named for each total level
+  reached, and one named like `t2r3l10` for each hero, superhero, tier or remort level.
+- **Deaths.** The trigger `^You die\.$` adds one to `timeskilled`.
+- **Backups.** The `backupstart` setting is the time of day for the first backup and
+  `backupinterval` the time between backups from then on. The backup is a zip in the `archive`
+  directory next to the database, named `stats_<weekday>-<month>-<day>-<year>-<hour>-<minute>.sqlite.zip`.
+  bastproxy's timer fires a time-of-day timer once a day and ignores its interval, so the plugin
+  uses a one-time timer at `backupstart` whose callback backs up and then adds an interval timer.
+  A change to either setting schedules both again. The time of day is **UTC**, because bastproxy's
+  timers are; the old proxy used local time.
+
+## Database
+
+The database is `stats.sqlite` in the plugin's data directory,
+`<BASTPROXY_HOME>/data/plugins/plugins.aardwolf.statdb/`. It is opened through bastproxy's
+`plugins.core.sqldb:database.add` and its `user_version` is 17, the old plugin's final version.
+
+| Table | Holds | Filled by |
+| :--- | :--- | :--- |
+| `stats` | the current stats and one row per milestone | whois, and every event below |
+| `quests` | one row per quest, completed or failed | quest events |
+| `classes` | each class and the remort it was taken at, -1 when not taken | whois |
+| `levels` | one row per level or power-up, with its gains | level gain event |
+| `campaigns`, `cpmobs` | one row per campaign and its mobs | cp events |
+| `gquests`, `gqmobs` | one row per global quest and its mobs | gq events |
+| `mobkills` | one row per mob kill | mob kill event |
+
+The CREATE statements are the old version 17 text with the columns in the same order, because the
+plugin inserts by position and a database from the old plugin must keep working. A test compares
+them with a copy of the old text.
+
+**Versions.** A file at version 17 opens with no change. A file at version 12 to 16 is rebuilt, one
+table at a time, into the final layout, with its rows and ids kept, after a backup named
+`stats_<version>` in the `archive` directory. The steps are ports of the old ones:
+
+| Step | Table | Change |
+| :--- | :--- | :--- |
+| 13 | `mobkills` | adds `rarexp` |
+| 14 | `mobkills` | adds `noexp` |
+| 15 | `gquests` | adds `extended`, 1 for a completed global quest |
+| 16 | `quests` | adds `tierqp` (from the old `tier`), `opk` and `hardcore` |
+| 17 | `levels` | adds `battlelearntrains` |
+
+A file older than version 12 is refused with an error naming its version: the old plugin could not
+upgrade it either. A rebuild leaves a table that is already in its final layout alone, so the
+steps can run again safely.
+
+The `skills` and `recoveries` tables, which another old plugin wrote into the same file, are never
+touched.
+
+### Using a database from the old proxy
+
+The core opens the old file as it is, so there is no converter. To use an old database:
+
+1. Stop the proxy.
+2. Copy the old plugin's `stats.sqlite` (with any `-wal` and `-shm` files beside it) into
+   `<BASTPROXY_HOME>/data/plugins/plugins.aardwolf.statdb/`. To use one of the old backups,
+   extract the `.sqlite` file from its `stats_*.sqlite.zip` and rename it `stats.sqlite`.
+3. Start the proxy and load the plugin.
+
+Keep the old file until the commands show the data you expect.
+
+## Commands
+
+The commands are `#bp.aardwolf.statdb.<command>`.
+
+| Command | Description |
+| :--- | :--- |
+| `list` | List the milestones: the range of level milestones, then the named ones three to a line. |
+| `comp [milestone1] [milestone2]` | Compare two milestones. With one name it compares that milestone to `current`; with none, `start` to `current`. |
+| `quests [count] [-n number]` | Quest totals and averages, the last `count` quests, or the quest with the id `number`. |
+| `levels [count] [-n number]` | Level and power-up totals, averages and times, the last `count` rows, or the row with the id `number`. |
+| `cps [count] [-n number]` | Campaign totals and averages, the last `count` campaigns, or one campaign with its mobs. |
+| `gqs [count] [-n number]` | Global quest totals and averages, the last `count`, or one global quest with its mobs. |
+| `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
+
+The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
+failing. The `db*` commands that bastproxy's sqldb plugin adds work on this database too.
+
+## Settings
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `backupstart` | `0000` | The time of day (HHMM, UTC) of the first backup each day. |
+| `backupinterval` | `4h` | The time between backups after the first. |
+
+## Events consumed
+
+The plugin listens to these events. Each event name starts with `ev_plugins.aardwolf.`, and the
+payload keys are those the old plugins put in their `aard_*` events. If a source plugin's port
+names an event or a key differently, statdb is changed to match. The store never changes the
+payload it is given, and a column that is not in the payload takes its SQL default.
+
+| Event | Payload keys | Store method |
+| :--- | :--- | :--- |
+| `whois_received` | `name`, `level`, `totallevels`, `tiers`, `redos`, `remorts`, `race`, `sex`, `subclass`, `powerupsall`, `classes` (a list of `class` and `remort`), and any `stats` column | `save_whois` |
+| `quest_comp`, `quest_failed` | `starttime`, `finishtime`, `mobname`, `mobarea`, `mobroom`, `qp`, `double`, `daily`, `totqp`, `gold`, `tierqp`, `mccp`, `lucky`, `opk`, `hardcore`, `tp`, `trains`, `pracs`, `level`, `failed` | `save_quest` |
+| `cp_comp`, `cp_failed` | `starttime`, `finishtime`, `qp`, `bonusqp`, `gold`, `tp`, `trains`, `pracs`, `level`, `failed`, `mobs` (a list of `name` and `location`) | `save_cp` |
+| `gq_done`, `gq_completed`, `gq_won` | `starttime`, `finishtime`, `qp`, `qpmobs`, `gold`, `tp`, `trains`, `pracs`, `level`, `extended`, `won`, `completed`, `mobs` (a list of `num`, `name` and `location`) | `save_gq` |
+| `level_gain` | `type` (`level` or `pup`), `level`, `totallevels`, `starttime`, `str`, `int`, `wis`, `dex`, `con`, `luc`, `hp`, `mp`, `mv`, `pracs`, `trains`, `bonustrains`, `blessingtrains`, `battlelearntrains` | `save_level` |
+| `level_hero`, `level_superhero`, `level_tier` | none; the total level comes from GMCP | `hero_milestone` and `add_milestone` |
+| `level_remort` | none; `char.base.remorts`, `char.base.tier` and the total level come from GMCP | `apply_remort`, then a milestone |
+| `mobk_kill` | `name`, `xp`, `rarexp`, `bonusxp`, `blessingxp`, `totalxp`, `noexp`, `gold`, `tp`, `time`, `vorpal`, `banishment`, `assassinate`, `slit`, `disintegrate`, `deathblow`, `wielded_weapon`, `second_weapon`, `room_id`, `level` | `save_mobkill` |
+
+A global quest event counts a win in `gquestswon` only when `won` is 1. A level event with
+`totallevels` above zero sets `totallevels` and `level` in the stats, and adds one to each
+otherwise; a `pup` adds one to `powerupsall`; a `level` also adds a milestone named for the total
+level.
+
+It also listens to `ev_libs.net.mud_gmcp_char.status` (the whois above),
+`ev_libs.net.mud_muddisconnect` (the whois is allowed again) and the two setting events
+`ev_plugins.aardwolf.statdb_var_backupstart_modified` and
+`ev_plugins.aardwolf.statdb_var_backupinterval_modified`.
+
+## APIs
+
+The plugin adds none of its own. `database.add` registers these under the plugin:
+
+| API | Description |
+| :--- | :--- |
+| `plugins.aardwolf.statdb:stats.select(sql, params)` | Run a select against the database. |
+| `plugins.aardwolf.statdb:stats.modify(sql, data)` | Run one modifying statement. |
+| `plugins.aardwolf.statdb:stats.modify.many(sql, data)` | Run a modifying statement for each item of `data`. |
+| `plugins.aardwolf.statdb:stats.row.get(row_id, table)` | Get one row of a table by its key. |
+
+Known gap: the `dbremove` command removes one row and does not remove the `cpmobs` or `gqmobs` rows
+of a removed campaign or global quest. The old plugin did. The schema has no cascade and the
+plugin adds no SQL triggers, because the file must stay as the old plugin wrote it.
+
+## From the old plugin
+
+| Old | New |
+| :--- | :--- |
+| `sqldb.baseclass` and the `Statdb` subclass | `plugins.core.sqldb:database.add` with plain table and migration data |
+| `stats.select`, `stats.modify`, `stats.modifymany`, `stats.getrow` | `plugins.aardwolf.statdb:stats.select`, `.modify`, `.modify.many`, `.row.get` |
+| events `aard_quest_comp`, `aard_quest_failed`, `aard_cp_comp`, `aard_cp_failed`, `aard_whois`, `aard_level_*`, `aard_mobkill`, `aard_gq_*` | the events in the table above, with the `ev_plugins.aardwolf.` prefix |
+| event `GMCP:char.status`, unregistered after the first active state | `ev_libs.net.mud_gmcp_char.status`, checked once per connection |
+| `send.execute('whois')` | the whois is sent straight to the MUD |
+| event `trigger_dead` | a trigger on `^You die\.$` |
+| timer `stats_backup` at local time | UTC, with a one-time timer that adds the interval timer |
+| plugin version 2, which moved the files from the old `data/db` layout | dropped; copy the file as above |
+| `send.msg` logging of every save | dropped |
+
+Bugs fixed in the port:
+
+- **Whois classes never matched.** The old table held full class names and whois sent
+  abbreviations, so no row was updated. The table keeps full names and abbreviations are converted,
+  so both forms work.
+- **Remort wrote a column that does not exist.** The old handler set `tier`; the column is `tiers`.
+- **Dead stat names.** The old code added to `questpoints` and `triviapoints`, which are not
+  columns, and did nothing. Those calls are dropped; nothing changes.
+- **Time checks never fired.** The old code compared a finish time to the text `'-1'`, so the check
+  was always true. It compares to the number -1.
+- **Crashes on missing rows.** `-n` with an unknown number, a campaign or global quest with no
+  mobs, and a table with only failed rows no longer fail.
+- **A level event without a total level** named its milestone `None`; it is named for the total
+  level now.
+- **SQL injection.** The old code pasted values into its SQL. Every value is a bound parameter,
+  and a stat name is checked against the `stats` columns first.
