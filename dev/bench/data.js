@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795188562498,
+  "lastUpdate": 1795373278215,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -645,6 +645,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.141434789280039e-7",
             "extra": "mean: 3.699917308991099 usec\nrounds: 143885"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6c57a662b6008fdf934ab675bb6f7a5dbd022b64",
+          "message": "feat: migrate the statdb plugin from the old bastproxy (merges PR #31, addresses #26)\n\n* feat: migrate the statdb plugin from the old bastproxy\n\nAdd plugins.aardwolf.statdb, which records character stats, quests,\ncampaigns, global quests, levels and mob kills in SQLite and reports on\nthem with the old list, comp, quests, levels, cps, gqs and mobs\ncommands.\n\nThe schema is the old version 17 text, so a database from the old proxy\nopens without conversion once copied into the plugin's data directory;\ntables the plugin does not own are left alone. Migrations 13 to 17\nrebuild the changed tables, and older versions are refused. Storage goes\nthrough the core sqldb database.add API, so the bastproxy lock moves to\na core that has it.\n\nThe plugin imports no other plugin. It subscribes to the events the\nwhois, level, mobk, cp, gq and quest plugins will raise (#19, #20,\n#27-#30), records deaths from a trigger, and on GMCP char.status sends\none whois when there are no stats yet. Backups run at backupstart (UTC)\nand then every backupinterval.\n\nOld bugs fixed in the port: whois class names never matched the classes\ntable, the remort handler wrote a column that does not exist, finish\ntime checks compared an int with a string, the reports crashed on an\nunknown id or a row with no mobs, and SQL values were pasted into the\nstatement text instead of passed as parameters.\n\nAddresses #26\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: drop a nosec bandit never reads from the statdb test helper\n\nBandit skips tests/, so the comment suppressed nothing and failed the\nguard that keeps nosec comments where bandit reads them.\n\nAddresses #26\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T18:47:17Z",
+          "tree_id": "96689b9877435fe9d687d6559602c3fd2ca6816c",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6c57a662b6008fdf934ab675bb6f7a5dbd022b64"
+        },
+        "date": 1795373277924,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5795895.286379337,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1728212566738642e-8",
+            "extra": "mean: 172.53589835379762 nsec\nrounds: 59225"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 290472.36389960407,
+            "unit": "iter/sec",
+            "range": "stddev: 3.27765903485387e-7",
+            "extra": "mean: 3.442668302674157 usec\nrounds: 156275"
           }
         ]
       }
