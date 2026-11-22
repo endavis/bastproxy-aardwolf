@@ -271,7 +271,7 @@ def _insert(connection: sqlite3.Connection, table: str, row: dict[str, Any]) -> 
     kept = {key: value for key, value in row.items() if key in columns}
     names = ", ".join(f'"{key}"' for key in kept)
     marks = ", ".join(f":{key}" for key in kept)
-    connection.execute(f"INSERT INTO {table} ({names}) VALUES ({marks})", kept)  # nosec B608  # fixture tables
+    connection.execute(f"INSERT INTO {table} ({names}) VALUES ({marks})", kept)
 
 
 def build_old_database(path: Path, version: int = 17, rows: bool = True) -> Path:
