@@ -109,6 +109,7 @@ nav:
       - connect: plugins/connect.md
       - a102: plugins/a102.md
       - statdb: plugins/statdb.md
+      - quest: plugins/quest.md
       - whois: plugins/whois.md
   - Development:
       - Coding Standards: development/coding-standards.md
