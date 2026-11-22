@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795379190245,
+  "lastUpdate": 1795383671284,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -721,6 +721,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.011242440847272e-7",
             "extra": "mean: 5.8635211641276355 usec\nrounds: 177305"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "201cc6856c05bd152d558f97593ac6db5d68086d",
+          "message": "feat: migrate the quest plugin from the old bastproxy (merges PR #33, addresses #19)\n\nAdd plugins.aardwolf.quest, which turns Aardwolf's GMCP comm.quest\nmessages into ev_plugins.aardwolf.quest_* events (ready, start, killed,\ncomp, failed for fail and timeout, status, reset) and keeps the current\nquest in a saved state that survives a reload or restart.\n\nstart resets the state with the target, area, room, timer and the\ncharacter's actual level from GMCP; comp merges the GMCP reward fields\nin. Every event carries a plain copy, so subscribers cannot change the\nsaved state. A message that is not a dict, or has no or an unknown\naction, raises nothing. The quest_comp and quest_failed payloads carry\nthe keys statdb saves.\n\nAddresses #19\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T21:40:41Z",
+          "tree_id": "d3abd6e369b08709d2d087abe748718d2336635e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/201cc6856c05bd152d558f97593ac6db5d68086d"
+        },
+        "date": 1795383670939,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3116686.6710297093,
+            "unit": "iter/sec",
+            "range": "stddev: 4.2580171216001534e-8",
+            "extra": "mean: 320.8535555707992 nsec\nrounds: 199641"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 165970.91417267086,
+            "unit": "iter/sec",
+            "range": "stddev: 8.456250559319426e-7",
+            "extra": "mean: 6.025152087549699 usec\nrounds: 172118"
           }
         ]
       }
