@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795383671284,
+  "lastUpdate": 1795389146171,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -759,6 +759,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.456250559319426e-7",
             "extra": "mean: 6.025152087549699 usec\nrounds: 172118"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "82efdd9a704700fc722a948cb56c8e4d087c7b4b",
+          "message": "feat: migrate the level plugin from the old bastproxy (merges PR #34, addresses #20)\n\nAdd plugins.aardwolf.level, which follows level, powerup, superhero,\nremort and tier output and raises ev_plugins.aardwolf.level_gain with\nthe record of each (type, level, total level, gains, bonus and blessing\ntrains, bonus stats, start and finish times), plus level_hero,\nlevel_superhero, level_remort, level_tier and level_preremort. The\nrecord is saved and survives a reload or restart, and level_gain carries\nthe keys statdb saves.\n\nA record is collected until an empty line and finishes when trains were\ngained or a remort or tier completed. A tier is followed through GMCP\nchar.status state 2 then 3 and char.base, and a restart in the middle of\na tier picks it up again. GMCP state and level are read as numbers even\nwhen they arrive as strings.\n\nOld bugs fixed: the superhero loud trains group was empty, the gains\nline converted a group that does not exist, the finish guard made the\ntier branch unreachable, the char.base callback unregistered the wrong\nfunction, and the state 2 message called a misspelled API. A failed\nsuperhero no longer loses the previous finish time, and a disconnect\nturns the level triggers off.\n\ncodespell now ignores \"remorted\", which is Aardwolf's own text.\n\nAddresses #20\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T23:11:47Z",
+          "tree_id": "8a9160a6288b96bb752f56f28d70d2191ae68736",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/82efdd9a704700fc722a948cb56c8e4d087c7b4b"
+        },
+        "date": 1795389145411,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2968549.8037545444,
+            "unit": "iter/sec",
+            "range": "stddev: 4.5752086277103724e-8",
+            "extra": "mean: 336.86482158231814 nsec\nrounds: 198453"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170620.66487386872,
+            "unit": "iter/sec",
+            "range": "stddev: 8.987346499219525e-7",
+            "extra": "mean: 5.8609547720333275 usec\nrounds: 178540"
           }
         ]
       }
