@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795373278215,
+  "lastUpdate": 1795379190245,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -683,6 +683,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.27765903485387e-7",
             "extra": "mean: 3.442668302674157 usec\nrounds: 156275"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05e59c437faa8d9127141f7bc0784c0217390b29",
+          "message": "feat: migrate the whois plugin from the old bastproxy (merges PR #32, addresses #28)\n\nAdd plugins.aardwolf.whois, which parses the output of the whois command\ninto a saved state and raises ev_plugins.aardwolf.whois_received with a\ncopy of it: the stat lines, powerups, GMCP name, level, tier, redos,\nrace, subclass and remorts, the sex from the header, the classes and the\ntotal level.\n\nA whois typed by a client starts the parse through a watch. A whois a\nplugin needs goes through the core command queue: the plugin registers a\nwhois command type whose before-send callback starts the parse, and the\nend line finishes the command so the queue moves on.\n\nstatdb now queues its automatic first whois that way when the whois\nplugin is loaded, and sends none otherwise, instead of sending it\nstraight to the MUD where the watch never sees it.\n\nFixed from the old plugin: missing GMCP values no longer raise, unknown\nclass names pass through, and subscribers get a plain copy rather than\nthe live saved state.\n\nAddresses #28\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T20:25:50Z",
+          "tree_id": "ab8278adcdd9c5d9045c7e2eeabb168aa7458007",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/05e59c437faa8d9127141f7bc0784c0217390b29"
+        },
+        "date": 1795379189690,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2987588.431845061,
+            "unit": "iter/sec",
+            "range": "stddev: 5.0893911547651694e-8",
+            "extra": "mean: 334.7181256095655 nsec\nrounds: 193088"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170545.98627832843,
+            "unit": "iter/sec",
+            "range": "stddev: 9.011242440847272e-7",
+            "extra": "mean: 5.8635211641276355 usec\nrounds: 177305"
           }
         ]
       }
