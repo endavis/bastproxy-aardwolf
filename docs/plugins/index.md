@@ -37,6 +37,7 @@ lists every discovered plugin, loaded or not.
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 | [level](level.md) | `plugins.aardwolf.level` | Detects levels, powerups, hero, superhero, remort and tier from the MUD output and raises them as events. |
 | [mobk](mobk.md) | `plugins.aardwolf.mobk` | Follows the combat output and raises an event for each mob kill, with its experience, gold, damage and special kills. |
+| [cp](cp.md) | `plugins.aardwolf.cp` | Follows the campaigns of the character and raises the mobs left, the completion and the failure as events. |
 
 Libraries that plugins share, such as `aardwolf.libs.aardu`, are documented in the
 [API Reference](../reference/api.md).
