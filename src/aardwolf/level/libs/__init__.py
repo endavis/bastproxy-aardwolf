@@ -22,7 +22,6 @@ from ._level import (
     TriggerSpec,
     bonus_stat_key,
     new_record,
-    next_starttime,
     should_finish,
     to_int,
 )
@@ -49,7 +48,6 @@ __all__ = [
     "TriggerSpec",
     "bonus_stat_key",
     "new_record",
-    "next_starttime",
     "should_finish",
     "to_int",
 ]

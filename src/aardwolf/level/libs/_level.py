@@ -1,7 +1,7 @@
 """Constants, regexes and record helpers of the level plugin. No bastproxy imports."""
 
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import Any, NamedTuple
 
 PREFIX = "ev_plugins.aardwolf.level_"
@@ -28,8 +28,11 @@ _GAIN_KEYS = {
     "type": "level for a level, pup for a powerup",
     "level": "the level reached, or the level of the character for a powerup",
     "totallevels": "the total level of the character",
-    "starttime": "the time the level started, in seconds since the epoch",
-    "finishtime": "the time the level finished, in seconds since the epoch",
+    "starttime": "the time the level or powerup was reached, in seconds since the epoch",
+    "finishtime": (
+        "the time the gain lines of the level or powerup ended and this event was raised, in "
+        "seconds since the epoch; not the end of the level"
+    ),
     "str": "1 when a bonus strength point was gained, else 0",
     "int": "1 when a bonus intelligence point was gained, else 0",
     "wis": "1 when a bonus wisdom point was gained, else 0",
@@ -229,20 +232,6 @@ def new_record(kind: str, level: int, totallevels: int, starttime: float) -> dic
         }
     )
     return record
-
-
-def next_starttime(old: Mapping[str, Any], now: float) -> float:
-    """Return the start time of a new level.
-
-    That is the finish time of the old record. When the old record never finished, such as a
-    failed superhero, it is the old record's own start time, which came from the last finish.
-    With no usable old record it is ``now``.
-    """
-    for key in ("finishtime", "starttime"):
-        value = old.get(key, 0)
-        if isinstance(value, (int, float)) and value > 0:
-            return float(value)
-    return now
 
 
 def should_finish(trains: int, remortcomp: bool, tiering: bool) -> bool:

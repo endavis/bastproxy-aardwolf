@@ -1,7 +1,6 @@
 """Tests for the pure helpers of the level plugin."""
 
 import re
-from typing import Any
 
 import pytest
 
@@ -13,7 +12,6 @@ from aardwolf.level.libs import (
     WATCHES,
     bonus_stat_key,
     new_record,
-    next_starttime,
     should_finish,
     to_int,
 )
@@ -147,22 +145,6 @@ def test_events_have_no_raw_braces() -> None:
 def test_should_finish(trains: int, remortcomp: bool, tiering: bool, expected: bool) -> None:
     """Fix 3: finish when trains were gained, or when a remort or a tier is completing."""
     assert should_finish(trains, remortcomp, tiering) is expected
-
-
-@pytest.mark.parametrize(
-    ("old", "expected"),
-    [
-        ({"finishtime": 500.0, "starttime": 100.0}, 500.0),
-        ({"finishtime": -1, "starttime": 100.0}, 100.0),
-        ({"starttime": 100.0}, 100.0),
-        ({"finishtime": 0, "starttime": 0}, 999.0),
-        ({}, 999.0),
-        ({"finishtime": "x", "starttime": None}, 999.0),
-    ],
-)
-def test_next_starttime(old: dict[str, Any], expected: float) -> None:
-    """The start is the last finish, else the last start, else now."""
-    assert next_starttime(old, 999.0) == expected
 
 
 @pytest.mark.parametrize(

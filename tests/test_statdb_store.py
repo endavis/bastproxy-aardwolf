@@ -174,15 +174,15 @@ def test_level_without_a_total_adds_one(store: "StatStore", db: "Sqldb") -> None
     assert store.get_milestone("11") is not None
 
 
-def test_pup_and_finish_time_of_previous_row(store: "StatStore", db: "Sqldb") -> None:
-    """A pup counts, adds no milestone, and the next row closes the previous one."""
+def test_pup_counts_and_saving_leaves_the_previous_row(store: "StatStore", db: "Sqldb") -> None:
+    """A pup counts and adds no milestone; saving it never changes the previous row."""
     store.save_whois(WHOIS)
     store.save_level({"type": "level", "totallevels": 11, "starttime": 50})
     store.save_level({"type": "pup", "totallevels": 11, "starttime": 80})
     assert _current(db)["powerupsall"] == 3
-    assert db.select("SELECT finishtime FROM levels ORDER BY level_id") == [
-        {"finishtime": 80},
-        {"finishtime": -1},
+    assert db.select("SELECT starttime, finishtime FROM levels ORDER BY level_id") == [
+        {"starttime": 50, "finishtime": -1},
+        {"starttime": 80, "finishtime": -1},
     ]
     assert [row["milestone"] for row in db.select("SELECT milestone FROM stats")].count("11") == 1
 

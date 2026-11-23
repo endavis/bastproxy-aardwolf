@@ -363,3 +363,60 @@ def test_reports_survive_only_failed_rows(empty: "StatStore") -> None:
     assert "Quests Failed  : @W1            @W1" in _text(quest_report(empty, 1, None, fmt))
     assert "Failed         : @W1            @W1" in _text(cp_report(empty, 1, None, fmt))
     assert "Lost           : @W             @W1" in _text(gq_report(empty, 1, None, fmt))
+
+
+def _save_new_style(store: "StatStore", rows: list[tuple[str, float, int]]) -> None:
+    """Save level or pup rows as the plugin now does: only the time reached."""
+    store.save_whois({"name": "Tester"})
+    for kind, start, trains in rows:
+        store.save_level(
+            {"type": kind, "starttime": start, "finishtime": -1, "trains": trains, "totallevels": 5}
+        )
+
+
+def test_level_report_times_from_the_next_start(empty: "StatStore") -> None:
+    """Average time is the gap to the next row's start; the last row has none."""
+    from aardwolf.statdb.libs import level_report
+
+    _save_new_style(
+        empty, [("level", 1000, 3), ("pup", 1300, 0), ("level", 1900, 2), ("level", 2500, 1)]
+    )
+    lines = level_report(empty, 4, None, formatters())
+    text = _text(lines)
+    assert "Time           : @W450s" in text
+    assert text.count("600s") >= 1
+    # newest row first in the list: no time for the current row
+    assert lines[-4].split()[-1] != "600s"
+    assert lines[-4].split()[0] == "4"
+    assert len(lines[-4].split()) == 15
+    assert lines[-3].endswith("600s")
+    assert lines[-2].endswith("600s")
+    assert lines[-1].endswith("300s")
+
+
+def test_level_report_filters_after_the_window(empty: "StatStore") -> None:
+    """A row without trains is left out of the average but still ends the row before it."""
+    from aardwolf.statdb.libs import level_report
+
+    _save_new_style(
+        empty, [("level", 1000, 3), ("level", 1100, 0), ("level", 2000, 2), ("pup", 2600, 0)]
+    )
+    lines = level_report(empty, 4, None, formatters())
+    # levels with trains: 1000 -> 1100 = 100s and 2000 -> 2600 = 600s
+    assert "Time           : @W350s" in _text(lines)
+    assert lines[-1].endswith("100s")
+
+
+def test_show_level_on_new_style_rows(empty: "StatStore") -> None:
+    """A row finishes at the next row's start, and the last row is current."""
+    from aardwolf.statdb.libs import level_report
+
+    _save_new_style(empty, [("level", 1000, 3), ("level", 2000, 2)])
+    empty.save_mobkill({"name": "a rat", "xp": 5, "totalxp": 20, "time": 1500})
+    empty.save_mobkill({"name": "a bat", "xp": 5, "totalxp": 20, "time": 2500})
+    first = level_report(empty, 0, 1, formatters(), 6000.0)
+    assert any(line.startswith("Finished : ") and "Current" not in line for line in first)
+    assert first[-2].startswith("It took 1000s with @G1@w mobs killed")
+    last = level_report(empty, 0, 2, formatters())
+    assert last[-1] == "Finished : Current"
+    assert not any("mobs killed" in line for line in last)
