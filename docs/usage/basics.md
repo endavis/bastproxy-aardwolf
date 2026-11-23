@@ -27,6 +27,10 @@ bastproxy will not start unless `BASTPROXY_HOME` points at an existing, writable
 it keeps its settings, data and logs. The tracked `.envrc` defaults it to `~/bastproxy`; without
 direnv, export it in the shell first.
 
+A `BASTPROXY_HOME` holds one character: plugins such as the
+[statdb plugin](../plugins/statdb.md) keep one character's data there. Use a separate
+`BASTPROXY_HOME` for each character you play.
+
 Connect your MUD client to the proxy's port. bastproxy's own documentation covers the proxy
 settings, passwords and connecting to the MUD.
 

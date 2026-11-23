@@ -16,6 +16,8 @@ from statdb_support import make_db
 import aardwolf
 
 if TYPE_CHECKING:
+    from bastproxy.libs.records import NetworkData
+
     from aardwolf.statdb.libs import StatStore
     from aardwolf.statdb.plugin._statdb import StatdbPlugin
 
@@ -267,6 +269,50 @@ def test_whois_event(env: Env) -> None:
     ]
     assert env.plugin.statdb is not None
     assert env.plugin.statdb.get_classes() == ["mage"]
+
+
+@pytest.fixture
+def sent(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Collect the messages the plugin sends directly to the client."""
+    from aardwolf.statdb.plugin import _statdb
+
+    lines: list[str] = []
+
+    class FakeSend:
+        def __init__(self, data: "NetworkData") -> None:
+            lines.extend(str(line.original_line) for line in data)
+
+        def __call__(self) -> None:
+            return None
+
+    monkeypatch.setattr(_statdb, "SendDataDirectlyToClient", FakeSend)
+    return lines
+
+
+def test_whois_for_another_character_warns_and_saves(
+    env: Env, sent: list[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    """A whois for a different character warns in the log and the client, and still saves."""
+    _send(env, "_eventcb_whois", dict(WHOIS))
+    with caplog.at_level("WARNING"):
+        _send(env, "_eventcb_whois", {**WHOIS, "name": "Other", "totallevels": 12})
+    assert len(sent) == 1
+    assert "holds Tester" in sent[0]
+    assert "Other" in sent[0]
+    assert any("holds Tester" in r.getMessage() for r in caplog.records)
+    assert env.store.stored_name() == "Other"
+
+
+@pytest.mark.parametrize("name", ["Tester", "tester", " TESTER "])
+def test_whois_for_the_same_character_does_not_warn(
+    env: Env, sent: list[str], caplog: pytest.LogCaptureFixture, name: str
+) -> None:
+    """The first whois and a whois for the same name, in any case, do not warn."""
+    with caplog.at_level("WARNING"):
+        _send(env, "_eventcb_whois", dict(WHOIS))
+        _send(env, "_eventcb_whois", {**WHOIS, "name": name})
+    assert sent == []
+    assert not caplog.records
 
 
 def test_quest_event(env: Env) -> None:

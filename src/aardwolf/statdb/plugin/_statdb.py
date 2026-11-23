@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from bastproxy.libs.logger import log_to
+from bastproxy.libs.records import NetworkData, NetworkDataLine, SendDataDirectlyToClient
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -210,8 +211,28 @@ class StatdbPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=EVENT_WHOIS)
     def _eventcb_whois(self) -> None:
-        """Save the whois data."""
-        self._store(lambda store, info: store.save_whois(info))
+        """Save the whois data, warning when it is for a different character."""
+        self._store(self._save_whois)
+
+    def _save_whois(self, store: StatStore, info: dict[str, Any]) -> None:
+        """Warn when the whois is not for the stored character, then save it."""
+        stored = store.stored_name()
+        new = info.get("name")
+        if (
+            stored is not None
+            and isinstance(new, str)
+            and stored.strip().casefold() != new.strip().casefold()
+        ):
+            msg = (
+                f"The stats database holds {stored}, but this whois is for {new}. "
+                "A BASTPROXY_HOME holds one character: use a separate BASTPROXY_HOME "
+                "for each character."
+            )
+            log_to([self.plugin_id], logging.WARNING, msg)
+            SendDataDirectlyToClient(
+                NetworkData([NetworkDataLine(msg)], owner_id=f"{self.plugin_id}:whois_mismatch")
+            )()
+        store.save_whois(info)
 
     @RegisterToEvent(event_name=EVENT_LEVEL_GAIN)
     def _eventcb_level_gain(self) -> None:
