@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795431864989,
+  "lastUpdate": 1795434017911,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -987,6 +987,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.637151637496795e-7",
             "extra": "mean: 5.865579701645819 usec\nrounds: 177305"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4cf0abd4c5010279c44ecfbda4d60f5266837597",
+          "message": "fix: describe every key the aardwolf events send (merges PR #48, addresses #43)\n\n* fix: describe every key the aardwolf events send\n\nwhois_received now carries the whois stat values under one described\nkey, stats, and statdb save_whois reads them from there. quest_status\ndescribes action and status, and quest_comp describes its keys. Tests\ncheck that each plugin's raised keys are a subset of its declared\narg_descriptions.\n\nAddresses #43\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: keep the save_whois parameter name\n\nStatStore.save_whois keeps its info parameter, so its signature does\nnot change; it flattens the nested stats into a local dict instead.\n\nAddresses #43\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T11:39:26Z",
+          "tree_id": "1153588899508454a7ac3afc5ad8a86214fea6a8",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/4cf0abd4c5010279c44ecfbda4d60f5266837597"
+        },
+        "date": 1795434017243,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5135395.96848187,
+            "unit": "iter/sec",
+            "range": "stddev: 1.4014785480453849e-8",
+            "extra": "mean: 194.72695117132724 nsec\nrounds: 53391"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 273908.38983678905,
+            "unit": "iter/sec",
+            "range": "stddev: 4.678803125840188e-7",
+            "extra": "mean: 3.6508556769504565 usec\nrounds: 144426"
           }
         ]
       }
