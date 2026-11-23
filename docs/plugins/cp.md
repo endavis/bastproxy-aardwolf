@@ -26,14 +26,19 @@ The plugin id is `plugins.aardwolf.cp`:
 ```
 
 It depends on the events, triggers, mudcmds and commands core plugins and on the
-[connect plugin](connect.md). The [mobk plugin](mobk.md) is optional: without it the mobs left are only
+[connect plugin](connect.md) and on the [config plugin](config.md). The [mobk plugin](mobk.md) is optional: without it the mobs left are only
 refreshed by a new `campaign check`.
 
 ## Behaviour
 
 - **Triggers.** Their names carry a `cp_` prefix because trigger names are global: `cp_new`,
   `cp_none`, `cp_time`, `cp_mob`, `cp_scramble`, `cp_needtolevel`, `cp_cantake`, `cp_shnext`,
-  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`. Only `cp_new` is always on.
+  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`. Only `cp_new` is always on, and it
+  matches the new-campaign tell, but only from a questmaster. The questmasters come from the
+  [config plugin](config.md) (`plugins.aardwolf.config:questmasters.get`); add one with
+  `#bp.aard.config.questmaster add <name>`. The trigger's regex is rebuilt when the list changes, so a
+  player's tell or an emote of the same text never resets the tracked campaign. With no
+  questmasters the regex matches nothing, so no new campaign is recognised.
   The others sit in four groups, named `<plugin id>.<suffix>`: `cpcheck` (the output of
   `campaign check`, omitted from the client), `cpin` (while on a campaign), `cprew` (the rewards)
   and `cpdone` (the line under the rewards).

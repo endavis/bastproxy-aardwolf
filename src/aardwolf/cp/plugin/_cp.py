@@ -17,6 +17,7 @@ from aardwolf.libs import aardu
 
 from ..libs import (
     ALL_LINES_ID,
+    API_QUESTMASTERS_GET,
     CMD,
     CMD_REGEX,
     CMDTYPE,
@@ -27,15 +28,18 @@ from ..libs import (
     EVENT_MOBK_KILL,
     EVENT_MOBSLEFT,
     EVENT_MOBSORIG,
+    EVENT_QUESTMASTERS_CHANGED,
     EVENTS,
     GROUP_CHECK,
     GROUP_DONE,
     GROUP_IN,
     GROUP_REW,
+    NEW_TRIGGER,
     TRIGGERS,
     TriggerSpec,
     bonus_qp,
     is_count_line,
+    new_campaign_regex,
     new_mob,
     new_state,
     remove_mob,
@@ -74,9 +78,15 @@ class CpPlugin(BasePlugin):
         )
         callbacks = self._trigger_callbacks()
         for spec in TRIGGERS:
+            if spec.name == NEW_TRIGGER:
+                spec = spec._replace(regex=new_campaign_regex(self._questmasters()))
             self._add_trigger(spec, callbacks.get(spec.name))
         if self.api("libs.api:character.is.active")():
             self._queue_check()
+
+    def _questmasters(self) -> list[str]:
+        """Return the questmaster names from the config plugin."""
+        return list(self.api(API_QUESTMASTERS_GET)())
 
     def _trigger_callbacks(self) -> dict[str, Callable[[], None]]:
         """Return the callback of each trigger, by trigger name."""
@@ -314,6 +324,14 @@ class CpPlugin(BasePlugin):
         if self._waiting_done:
             self._finish_comp()
         self._toggle_all_groups(False)
+
+    @RegisterToEvent(event_name=EVENT_QUESTMASTERS_CHANGED)
+    def _eventcb_questmasters_changed(self) -> None:
+        """The questmasters changed: only they may start a campaign."""
+        names = self._record().get("questmasters", [])
+        self.api("plugins.core.triggers:trigger.update")(
+            NEW_TRIGGER, {"regex": new_campaign_regex(names)}
+        )
 
     # APIs
 

@@ -20,6 +20,7 @@ from aardwolf.cp.libs import (
     EVENT_FAILED,
     EVENT_MOBSLEFT,
     EVENT_MOBSORIG,
+    EVENT_QUESTMASTERS_CHANGED,
     EVENTS,
     TRIGGERS,
 )
@@ -39,6 +40,7 @@ GMCP: dict[str, Any] = {
 WHOIS = {"name": "Bast", "level": 50, "totallevels": 50, "remorts": 1, "classes": []}
 LEVEL = actual_level(50, 2, 1, 0)
 NEW = "Commander Barcett tells you 'Type 'campaign info' to see what you must kill.'"
+QUESTOR_NEW = "A QuestoR tells you 'Type 'campaign info' to see what you must kill.'"
 NONE = "You are not currently on a campaign."
 TIME = "You have 30 minutes to finish this campaign."
 RAT = "You still have to kill * A rat (Sewers)"
@@ -71,6 +73,7 @@ class FakeApi:
         self.enabled: dict[str, bool] = {}
         self.toggles: list[tuple[str, bool]] = []
         self.add_ok = True
+        self.questmasters = ["Commander Barcett", "A QuestoR"]
         self.record: dict[str, Any] = {}
         self.active = False
         self.omitted: list[str] = []
@@ -84,6 +87,8 @@ class FakeApi:
             "plugins.core.events:event.raise": self._event_raise,
             "plugins.core.events:event.current.record.get": lambda: self.record,
             "plugins.core.triggers:trigger.add": self._trigger_add,
+            "plugins.aardwolf.config:questmasters.get": lambda: list(self.questmasters),
+            "plugins.core.triggers:trigger.update": self._trigger_update,
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.triggers:trigger.unregister": self._trigger_unregister,
             "plugins.core.triggers:group.toggle.enable": self._group_toggle,
@@ -111,6 +116,10 @@ class FakeApi:
         self.enabled[name] = bool(kwargs.get("enabled", True))
         self.trigger_cbs.setdefault(name, [])
         return SimpleNamespace(success=self.add_ok, trigger=SimpleNamespace(trigger_id=name))
+
+    def _trigger_update(self, name: str, data: dict[str, Any]) -> bool:
+        self.triggers[name] = data["regex"]
+        return True
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
         assert trigger_id == ALL_LINES_ID or trigger_id in self.trigger_cbs
@@ -238,6 +247,7 @@ def test_dependencies() -> None:
 
     assert "plugins.core.mudcmds" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.connect" in cp.PLUGIN_DEPENDENCIES
+    assert "plugins.aardwolf.config" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.mobk" not in cp.PLUGIN_DEPENDENCIES
 
 
@@ -304,6 +314,61 @@ def test_new_campaign_resets_state_and_queues_a_check(env: Env) -> None:
     assert env.fake.queued == [CMDTYPE]
     assert env.fake.started == [CMDTYPE]
     assert env.fake.group_on("cpcheck")
+
+
+def test_new_campaign_from_another_questmaster(env: Env) -> None:
+    """A QuestoR starts the state and the check like Commander Barcett."""
+    env.fake.feed(QUESTOR_NEW)
+    assert env.plugin.cp["oncp"] is True
+    assert env.fake.queued == [CMDTYPE]
+    assert env.fake.group_on("cpcheck")
+
+
+def test_player_tell_does_not_reset_the_campaign(env: Env) -> None:
+    """A player's tell or an emote of the line leaves the tracked campaign alone."""
+    env.fake.feed(NEW, RAT, TIME)
+    env.fake.queued.clear()
+    env.fake.feed("Some Player tells you 'Type 'campaign info' to see what you must kill.'")
+    env.fake.feed("Bob " + NEW)
+    assert env.fake.queued == []
+    assert env.plugin.cp["mobsleft"]
+
+
+def test_questmasters_changed_updates_the_trigger(env: Env) -> None:
+    """A questmaster added through the config plugin starts campaigns."""
+    line = "Sergeant Pike tells you 'Type 'campaign info' to see what you must kill.'"
+    env.fake.feed(line)
+    assert env.fake.queued == []
+    env.fake.record = {"questmasters": ["Commander Barcett", "Sergeant Pike"]}
+    env.plugin._eventcb_questmasters_changed()
+    env.fake.feed(line)
+    assert env.fake.queued == [CMDTYPE]
+    env.fake.queued.clear()
+    env.fake.feed(QUESTOR_NEW)
+    assert env.fake.queued == []
+
+
+def test_no_questmasters_matches_nothing(env: Env) -> None:
+    """An empty list after a change, or at load, leaves no campaign recognisable."""
+    env.fake.record = {"questmasters": []}
+    env.plugin._eventcb_questmasters_changed()
+    env.fake.feed(NEW, QUESTOR_NEW)
+    assert env.fake.queued == []
+
+    fake = FakeApi()
+    fake.questmasters = []
+    (env.home / "empty").mkdir()
+    build(env.home / "empty", fake)
+    fake.feed(NEW)
+    assert fake.queued == []
+
+
+def test_changed_event_is_registered_by_name() -> None:
+    """The plugin listens to the config plugin's changed event."""
+    from aardwolf.cp.plugin import _cp
+
+    assert EVENT_QUESTMASTERS_CHANGED == "ev_plugins.aardwolf.config_questmasters_changed"
+    assert hasattr(_cp.CpPlugin, "_eventcb_questmasters_changed")
 
 
 def test_check_output_raises_the_mobs(env: Env) -> None:

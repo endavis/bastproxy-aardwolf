@@ -1,7 +1,7 @@
 """Constants, regexes and state helpers of the cp plugin. No bastproxy imports."""
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, NamedTuple
 
 from aardwolf.libs import aardu
@@ -15,6 +15,10 @@ EVENT_FAILED = f"{PREFIX}failed"
 EVENT_MOBK_KILL = "ev_plugins.aardwolf.mobk_kill"
 EVENT_CHAR_ACTIVE = "ev_libs.api_character_active"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
+# the questmasters come from the aardwolf config plugin; its API and event are used by name,
+# because a plugin never imports another plugin's package
+EVENT_QUESTMASTERS_CHANGED = "ev_plugins.aardwolf.config_questmasters_changed"
+API_QUESTMASTERS_GET = "plugins.aardwolf.config:questmasters.get"
 # the id of the core trigger that fires for every line, which belongs to plugins.core.triggers
 ALL_LINES_ID = "t_plugins.core.triggers_all"
 
@@ -70,6 +74,21 @@ EVENTS: dict[str, dict[str, Any]] = {
 }
 
 
+NEW_TRIGGER = "cp_new"
+# matches nothing: used when there are no questmasters
+NEVER_REGEX = r"(?!)"
+_NEW_TEXT = r" tells you 'Type 'campaign info' to see what you must kill\.'$"
+_DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR")
+
+
+def new_campaign_regex(questmasters: Iterable[str]) -> str:
+    """Return the regex of the new-campaign tell, which only the given questmasters send."""
+    names = [re.escape(name) for name in questmasters if name]
+    if not names:
+        return NEVER_REGEX
+    return "^(?:" + "|".join(names) + ")" + _NEW_TEXT
+
+
 class TriggerSpec(NamedTuple):
     """A trigger the plugin adds: its name, regex, group suffix, state, omit and argtypes."""
 
@@ -85,8 +104,8 @@ _DASHES = "^" + "-" * 62 + "$"
 
 TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
-        "cp_new",
-        "^Commander Barcett tells you 'Type 'campaign info' to see what you must kill.'$",
+        NEW_TRIGGER,
+        new_campaign_regex(_DEFAULT_QUESTMASTERS),
         None,
         True,
         False,

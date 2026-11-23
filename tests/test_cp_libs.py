@@ -6,9 +6,11 @@ import pytest
 
 from aardwolf.cp.libs import (
     EVENTS,
+    NEVER_REGEX,
     TRIGGERS,
     bonus_qp,
     is_count_line,
+    new_campaign_regex,
     new_mob,
     new_state,
     remove_mob,
@@ -65,6 +67,42 @@ def test_reward_line_amount_is_int() -> None:
     found = groups("cp_reward", "  Reward of 120 quest points added.")
     assert found == {"amount": "120", "type": "quest"}
     assert SPECS["cp_reward"].argtypes == {"amount": int}
+
+
+TELL = " tells you 'Type 'campaign info' to see what you must kill.'"
+
+
+@pytest.mark.parametrize("speaker", ["Commander Barcett", "A QuestoR"])
+def test_new_matches_the_default_questmasters(speaker: str) -> None:
+    """The new-campaign line matches the default questmasters."""
+    groups("cp_new", f"{speaker}{TELL}")
+
+
+@pytest.mark.parametrize(
+    "line", ["Bob" + TELL, "Bob Commander Barcett" + TELL, "Commander Barcett" + TELL + " x"]
+)
+def test_new_does_not_match_players_or_emotes(line: str) -> None:
+    """A player's tell, an emote or trailing text is not a campaign."""
+    assert re.match(SPECS["cp_new"].regex, line) is None
+
+
+def test_new_campaign_regex_escapes_and_anchors() -> None:
+    """Names are escaped, alternated and anchored at both ends."""
+    regex = new_campaign_regex(["A.B", "C+D"])
+    assert regex.startswith(r"^(?:A\.B|C\+D) tells you")
+    assert regex.endswith("$")
+    assert re.match(regex, "A.B" + TELL)
+    assert re.match(regex, "C+D" + TELL)
+    assert re.match(regex, "AxB" + TELL) is None
+    assert re.match(regex, "xA.B" + TELL) is None
+
+
+def test_new_campaign_regex_without_questmasters_never_matches() -> None:
+    """An empty list gives a regex that matches nothing."""
+    assert new_campaign_regex([]) == NEVER_REGEX
+    assert new_campaign_regex([""]) == NEVER_REGEX
+    assert re.match(NEVER_REGEX, "Commander Barcett" + TELL) is None
+    assert re.match(NEVER_REGEX, "") is None
 
 
 def test_new_none_and_single_line_triggers() -> None:
