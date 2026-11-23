@@ -30,6 +30,15 @@ Pure helpers for levels, class abbreviations and combat damage lines.
       show_root_heading: true
       show_root_full_path: true
 
+## Item Utilities Module
+
+Item tables and the parser for item data lines.
+
+::: aardwolf.libs.itemu
+    options:
+      show_root_heading: true
+      show_root_full_path: true
+
 ---
 
 ## Extending the Package
