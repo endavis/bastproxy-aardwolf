@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795461824440,
+  "lastUpdate": 1795464263141,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1405,6 +1405,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.573661640700318e-7",
             "extra": "mean: 5.586343015533007 usec\nrounds: 185254"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f2f91745a031deb01592a87d52cdb884312ba4b",
+          "message": "feat: add the scanh plugin, which highlights targets in scan output (merges PR #69, addresses #68)\n\nPort the old bastproxy's scanh plugin. Between {scan} and {/scan}, a\nline naming a campaign, global quest or quest target is rewritten in\nthe target's colours with a (CP), (GQ) or (Quest) tag.\n\n- targets come only from the cp, gq and quest events, plus a read of\n  the cp mobs.left.get API at load when it exists\n- a disabled trigger group is on only while a scan is shown, and a\n  disconnect turns it off\n- six colour settings carry over with their old defaults\n\nOld bugs fixed: a name must end the line on a word boundary, so \"rat\"\nno longer matches \"pirat\"; a line keeps every matching tag; gq won\nand completed clear the targets; a killed quest target stops being\nhighlighted; the text colour settings say \"text color\"; debug output\ngoes to the log, not to clients; the cp event is the one source of\ncampaign targets.\n\nAddresses #68\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T20:03:40Z",
+          "tree_id": "5d22aa70998ad93129f28cdcb80248a35d86a3a8",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/0f2f91745a031deb01592a87d52cdb884312ba4b"
+        },
+        "date": 1795464262453,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3145741.415812051,
+            "unit": "iter/sec",
+            "range": "stddev: 4.5331056953602333e-8",
+            "extra": "mean: 317.89008307342294 nsec\nrounds: 191976"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 175623.315171955,
+            "unit": "iter/sec",
+            "range": "stddev: 9.432327872509295e-7",
+            "extra": "mean: 5.694004802385647 usec\nrounds: 181160"
           }
         ]
       }
