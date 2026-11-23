@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795444326715,
+  "lastUpdate": 1795444950657,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1139,6 +1139,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010151825818130333",
             "extra": "mean: 5.855076427183902 usec\nrounds: 176992"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b8999bdae1b357e4b75f357d4f1414e187cbab0",
+          "message": "feat: add a statdb command that lists recent kills (merges PR #56, addresses #52)\n\nfeat: add a statdb mobkills command that lists recent kills\n\nAdd `#bp.aardwolf.statdb.mobkills`, which lists the last N rows of the\nmobkills table, newest first: time (UTC), name, level, total XP, gold,\nroom and the special-kill flags. `-c N` sets the count (default 10), and\nan empty table gives a message instead of an error. The query is\nparameterised.\n\nAddresses #52\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T14:41:53Z",
+          "tree_id": "b6fc8ab74b7e46d97d2d4840ea2dd675912d64e6",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6b8999bdae1b357e4b75f357d4f1414e187cbab0"
+        },
+        "date": 1795444949827,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3047066.4292748244,
+            "unit": "iter/sec",
+            "range": "stddev: 6.0406824270689e-8",
+            "extra": "mean: 328.1845090059265 nsec\nrounds: 199641"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170711.72121943673,
+            "unit": "iter/sec",
+            "range": "stddev: 9.071292586716228e-7",
+            "extra": "mean: 5.857828582927691 usec\nrounds: 176336"
           }
         ]
       }
