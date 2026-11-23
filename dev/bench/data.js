@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795453582148,
+  "lastUpdate": 1795455903814,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1291,6 +1291,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 6.068417704875982e-7",
             "extra": "mean: 5.722783281222557 usec\nrounds: 183925"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bec99d995ebcfdc5e5bbe0dc9cc700aaef563333",
+          "message": "feat: add Questor to the default questmasters (merges PR #63, addresses #62)\n\nQuestor also gives campaigns, and a campaign from it was not tracked\nuntil the name was added by hand. The default questmaster list, in the\nconfig plugin and in cp's copy for its trigger, is now Commander\nBarcett, A QuestoR and Questor. A home that already saved its list\nkeeps it.\n\nAddresses #62\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T17:44:23Z",
+          "tree_id": "34aaf178eae4a8577ba2d3c7270e3dce0c443558",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/bec99d995ebcfdc5e5bbe0dc9cc700aaef563333"
+        },
+        "date": 1795455903128,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4536902.439699295,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5262392542819255e-8",
+            "extra": "mean: 220.4147021654448 nsec\nrounds: 47157"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 241191.08812348705,
+            "unit": "iter/sec",
+            "range": "stddev: 5.804794481118348e-7",
+            "extra": "mean: 4.146090171822649 usec\nrounds: 126647"
           }
         ]
       }
