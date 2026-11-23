@@ -3,6 +3,7 @@
 from ._cp import (
     ALL_LINES_ID,
     API_QUESTMASTERS_GET,
+    BEFORE_ALL_LINES_ID,
     BONUS_REGEX,
     CMD,
     CMD_INFO,
@@ -26,6 +27,7 @@ from ._cp import (
     GROUP_IN,
     GROUP_INFO,
     GROUP_REW,
+    HIDE_MAX_LINES,
     NEVER_REGEX,
     NEW_TRIGGER,
     PREFIX,
@@ -46,6 +48,7 @@ from ._cp import (
 __all__ = [
     "ALL_LINES_ID",
     "API_QUESTMASTERS_GET",
+    "BEFORE_ALL_LINES_ID",
     "BONUS_REGEX",
     "CMD",
     "CMDTYPE",
@@ -69,6 +72,7 @@ __all__ = [
     "GROUP_IN",
     "GROUP_INFO",
     "GROUP_REW",
+    "HIDE_MAX_LINES",
     "NEVER_REGEX",
     "NEW_TRIGGER",
     "PREFIX",

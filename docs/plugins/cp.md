@@ -41,8 +41,8 @@ refreshed by a new `campaign check`.
   player's tell or an emote of the same text never queues anything. With no
   questmasters the regex matches nothing, so no new campaign is recognised.
   The others sit in five groups, named `<plugin id>.<suffix>`: `cpcheck` (the output of
-  `campaign check`, omitted from the client), `cpinfo` (the output of `campaign info`, omitted
-  except for the may-take lines), `cpin` (while on a campaign), `cprew` (the rewards) and `cpdone`
+  `campaign check`, omitted from the client), `cpinfo` (the output of `campaign info`, omitted,
+  the may-take lines too when the info was queued), `cpin` (while on a campaign), `cprew` (the rewards) and `cpdone`
   (the line under the rewards).
 - **Campaign info.** Only the output of `campaign info` starts or replaces a campaign, so a faked
   tell costs one `campaign info` and nothing else. A `cpinfo` command type runs through the
@@ -69,6 +69,16 @@ refreshed by a new `campaign check`.
   and `cpcheck` off. A check is queued after `campaign info` starts a campaign, together with an info on the
   first active event and when the plugin loads with an active character, on `cp refresh` and when a
   kill cannot be matched to a mob.
+- **Hiding queued output.** The output of a `campaign check` or `campaign info` that the plugin
+  queued is hidden from its first line through the next prompt: the target, time and info lines,
+  the state line (`You will have to level...`, `You may take a campaign...`, `You cannot take
+  another campaign for ...`), `You have completed N campaigns today.`, blank lines and the prompt.
+  The first omitting trigger of the `cpcheck` or `cpinfo` group opens the hide window, and a
+  watcher on the core before-all-lines trigger hides each line until a prompt ends it. The state
+  triggers still fire on hidden lines, so `cantake`, need to level and `shtime` update. A
+  `campaign check`, `cp check` or `campaign info` the player types is shown in full, because those
+  groups are on only while a queued command runs. If no prompt comes, the window ends after
+  `HIDE_MAX_LINES` (60) hidden lines, and a disconnect ends it too.
 - **Mobs.** Each `cp_mob` line adds a mob with `name`, `nocolorname`, `location` and `mobdead`. The
   mobs left are saved in the state under `mobsleft`, so they survive a restart. The first check of a
   campaign copies them to `mobs` and raises `cp_mobsorig`; every check raises `cp_mobsleft`. When
@@ -130,4 +140,6 @@ Each payload is a deep copy; changing it does not change the state. statdb store
   registering and unregistering a callback on every kill.
 - **Watch.** The `cp_check` watch is not ported. Its handler was commented out in the old plugin, and
   enabling the omitting `cpcheck` group on a typed `cp check` would hide the output.
+- **Hidden output.** The old plugin omitted the check lines but left the state line, the blank
+  line and the prompt of a queued command visible; they are hidden now.
 - **Events.** `aard_cp_*` events are now `ev_plugins.aardwolf.cp_*`.

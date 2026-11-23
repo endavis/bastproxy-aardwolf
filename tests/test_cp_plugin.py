@@ -15,6 +15,7 @@ from statdb_support import make_db
 import aardwolf
 from aardwolf.cp.libs import (
     ALL_LINES_ID,
+    BEFORE_ALL_LINES_ID,
     CMDTYPE,
     CMDTYPE_INFO,
     CP_DURATION,
@@ -24,6 +25,7 @@ from aardwolf.cp.libs import (
     EVENT_MOBSORIG,
     EVENT_QUESTMASTERS_CHANGED,
     EVENTS,
+    HIDE_MAX_LINES,
     TRIGGERS,
 )
 from aardwolf.libs.aardu import actual_level
@@ -119,6 +121,8 @@ class FakeApi:
         self.record: dict[str, Any] = {}
         self.active = False
         self.omitted: list[str] = []
+        self.shown: list[str] = []
+        self.hidden: list[str] = []
         self.types: dict[str, dict[str, Any]] = {}
         self.queued: list[str] = []
         self.pending: list[str] = []
@@ -165,7 +169,7 @@ class FakeApi:
         return True
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        assert trigger_id == ALL_LINES_ID or trigger_id in self.trigger_cbs
+        assert trigger_id in (ALL_LINES_ID, BEFORE_ALL_LINES_ID) or trigger_id in self.trigger_cbs
         self.trigger_cbs.setdefault(trigger_id, []).append(func)
         return True
 
@@ -213,7 +217,10 @@ class FakeApi:
     def feed(self, *lines: str, prompt: bool = False) -> None:
         """Run each line through the enabled triggers and then the every-line callbacks."""
         for line in lines:
-            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt)
+            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt, send=True)
+            self.record = {"matches": {}, "line": line_obj}
+            for func in list(self.trigger_cbs.get(BEFORE_ALL_LINES_ID, [])):
+                func()
             for name, regex in list(self.triggers.items()):
                 match = re.match(regex, line)
                 if not match or not self.enabled[name]:
@@ -223,12 +230,14 @@ class FakeApi:
                     groups[arg] = argtype(groups[arg])
                 if self.kwargs[name].get("omit"):
                     self.omitted.append(line)
+                    line_obj.send = False
                 self.record = {"matches": groups, "line": line_obj}
                 for func in list(self.trigger_cbs[name]):
                     func()
             self.record = {"matches": {}, "line": line_obj}
             for func in list(self.trigger_cbs.get(ALL_LINES_ID, [])):
                 func()
+            (self.shown if line_obj.send else self.hidden).append(line)
 
     def events(self, name: str) -> list[dict[str, Any]]:
         """The payloads raised for an event."""
@@ -949,3 +958,122 @@ def test_info_state_is_saved_for_statdb(env: Env, tmp_path: Path) -> None:
         assert len(database.select("SELECT * FROM cpmobs")) == 3
     finally:
         database.close()
+
+
+PROMPT = "[198/201hp 168/176mn 630/630mv 10qt 773tnl] >"
+STATE = "You cannot take another campaign for 3m 4s."
+
+
+def is_hiding(env: Env) -> bool:
+    """Whether the hide window is open; a function so mypy does not narrow the attribute."""
+    return env.plugin._hiding
+
+
+def test_cp_req_shows_only_the_tell_and_one_prompt(env: Env) -> None:
+    """The queued info and check are hidden, with their blank lines and prompts."""
+    fake = env.fake
+    fake.feed(NEW)
+    fake.feed(PROMPT, prompt=True)
+    fake.feed(*info_for(RAT), "")
+    fake.feed(PROMPT, prompt=True)
+    fake.feed(RAT, TIME, INFO_NEEDTOLEVEL, "")
+    fake.feed(PROMPT, prompt=True)
+    assert fake.shown == [NEW, PROMPT]
+    assert env.plugin.cp["cantake"] is False
+    assert fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+
+
+def test_hidden_state_line_still_updates_state(env: Env) -> None:
+    """The cpin triggers fire on lines the hide window hides."""
+    env.take_cp(RAT)
+    env.fake.feed(STATE, INFO_CANTAKE)
+    assert STATE in env.fake.hidden
+    assert INFO_CANTAKE in env.fake.hidden
+    assert env.plugin.cp["shtime"] == "3m 4s"
+    assert env.plugin.cp["cantake"] is True
+
+
+def test_first_active_not_on_a_campaign_hides_everything(env: Env) -> None:
+    """The info and check queued on first active show nothing when not on a campaign."""
+    fake = env.fake
+    fake.record = {"is_character_active": True}
+    env.plugin._eventcb_character_active()
+    for _ in range(2):
+        fake.feed(NONE, COUNT, INFO_NEEDTOLEVEL, "")
+        fake.feed(PROMPT, prompt=True)
+    assert fake.shown == []
+    assert env.plugin.cp["oncp"] is False
+    assert env.plugin.cp["cantake"] is False
+    assert fake.finished == [CMDTYPE_INFO, CMDTYPE]
+
+
+def test_mob_kill_with_an_unknown_name_hides_the_queued_check(env: Env) -> None:
+    """The check queued by a kill of an unknown mob is hidden; the kill line is not."""
+    env.take_cp(RAT)
+    env.fake.feed(PROMPT, prompt=True)
+    env.fake.feed(DEAD)
+    env.kill("Nobody")
+    assert env.fake.queued[-1] == CMDTYPE
+    env.fake.feed(RAT, TIME, STATE, "")
+    env.fake.feed(PROMPT, prompt=True)
+    assert env.fake.shown[-1:] == [DEAD]
+    assert env.fake.shown.count(DEAD) == 1
+
+
+def test_typed_output_is_shown(env: Env) -> None:
+    """A check or info the player types is shown in full."""
+    env.take_cp(RAT)
+    env.fake.feed("", PROMPT, prompt=False)
+    env.fake.feed(PROMPT, prompt=True)
+    env.fake.shown.clear()
+    env.fake.feed(RAT, TIME, INFO_NEEDTOLEVEL, "")
+    env.fake.feed(PROMPT, prompt=True)
+    assert env.fake.shown == [RAT, TIME, INFO_NEEDTOLEVEL, "", PROMPT]
+    assert env.plugin.cp["cantake"] is False
+    typed_info = [*info_lines(RAT), ""]
+    env.fake.shown.clear()
+    env.fake.feed(*typed_info)
+    assert env.fake.shown == typed_info
+
+
+def test_window_ends_at_the_prompt(env: Env) -> None:
+    """The line after the prompt of a queued check is shown."""
+    env.take_cp(RAT)
+    env.fake.feed(PROMPT, prompt=True)
+    env.fake.feed("Some other line.")
+    assert env.fake.shown[-1] == "Some other line."
+
+
+def test_window_ends_at_the_line_cap(env: Env) -> None:
+    """Without a prompt, HIDE_MAX_LINES lines after the opener are hidden and the next is shown.
+
+    The opener is not counted: it is hidden by its own omit, before the watcher exists.
+    """
+    env.plugin._queue_check()
+    env.fake.feed(RAT)
+    assert is_hiding(env)
+    others = [f"line {i}" for i in range(HIDE_MAX_LINES + 1)]
+    env.fake.feed(*others)
+    assert env.fake.hidden[-HIDE_MAX_LINES:] == others[:HIDE_MAX_LINES]
+    assert env.fake.shown == [others[-1]]
+    assert not is_hiding(env)
+    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+
+
+def test_disconnect_ends_the_hide_window(env: Env) -> None:
+    """A disconnect while hiding unregisters the watcher; the next line is shown."""
+    env.plugin._queue_check()
+    env.fake.feed(RAT)
+    assert is_hiding(env)
+    env.plugin._eventcb_disconnect()
+    assert not is_hiding(env)
+    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+    env.fake.feed("Hello")
+    assert env.fake.shown == ["Hello"]
+
+
+def test_one_hide_watcher_for_several_openers(env: Env) -> None:
+    """Several opener lines in one window register the watcher once."""
+    env.take_cp(RAT)
+    env.fake.feed(RAT, BAT, TIME)
+    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == [env.plugin._hide_line]
