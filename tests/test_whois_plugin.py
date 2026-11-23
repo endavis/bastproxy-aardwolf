@@ -62,6 +62,8 @@ class FakeApi:
         self.trigger_toggles: list[tuple[str, bool]] = []
         self.add_ok = True
         self.record: dict[str, Any] = {}
+        self.active = False
+        self.queued: list[str] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -75,6 +77,8 @@ class FakeApi:
             ),
             "plugins.core.mudcmds:type.add": self._type_add,
             "plugins.core.mudcmds:command.finish": self.finished.append,
+            "plugins.core.mudcmds:command.queue": self.queued.append,
+            "libs.api:character.is.active": lambda: self.active,
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.triggers:trigger.toggle.enable": self._trigger_toggle,
@@ -168,6 +172,32 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     plugin._phook_init_plugin()
     plugin._phook_initialize()
     yield Env(plugin, fake, tmp_path)
+
+
+def test_character_first_active_queues_a_whois(env: Env) -> None:
+    """Each first active queues a whois, with nothing else loaded."""
+    env.fake.record = {"is_character_active": True}
+    env.plugin._eventcb_character_active()
+    assert env.fake.queued == ["whois"]
+    env.plugin._eventcb_character_active()
+    assert env.fake.queued == ["whois", "whois"]
+
+
+def test_character_not_active_queues_nothing(env: Env) -> None:
+    """An inactive record, or no record, queues no whois."""
+    env.fake.record = {"is_character_active": False}
+    env.plugin._eventcb_character_active()
+    env.fake.record = {}
+    env.plugin._eventcb_character_active()
+    assert env.fake.queued == []
+
+
+def test_load_while_active_queues_a_whois(env: Env) -> None:
+    """Loading the plugin while the character is already active queues a whois."""
+    assert env.fake.queued == []
+    env.fake.active = True
+    env.plugin._phook_initialize()
+    assert env.fake.queued == ["whois"]
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

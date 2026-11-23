@@ -34,8 +34,12 @@ It depends on the events, triggers, watch and mudcmds core plugins.
       `watch_whois`. The watch sees only lines a client typed.
     - Another plugin queues the command with `plugins.core.mudcmds:command.queue("whois")`. The
       plugin adds a `whois` command type with `plugins.core.mudcmds:type.add`, and mudcmds calls
-      its `beforef` just before it sends the line. The statdb plugin queues its automatic first
-      whois this way when this plugin is loaded.
+      its `beforef` just before it sends the line. This plugin queues its own whois this way, see
+      below.
+- **Automatic whois.** The plugin queues one `whois` each time the character becomes first active
+  (`ev_libs.api_character_active` with `is_character_active` true), and once after it loads when
+  `libs.api:character.is.active` is already true. It does not depend on the statdb plugin or on
+  what the stats database holds.
 - **Parsing.** The group holds the triggers `whoisheader`, `whoisclasses`, `whois1`, `whois2`,
   `whois3` and `whoispowerup`; all are off until a whois starts. The header sets the name, level,
   tiers, redos, race, subclass and remorts from GMCP (`char.base.*` and `char.status.level`) and

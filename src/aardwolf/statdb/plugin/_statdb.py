@@ -36,7 +36,6 @@ EVENT_QUEST_FAILED = f"{PREFIX}quest_failed"
 EVENT_CP_COMP = f"{PREFIX}cp_comp"
 EVENT_CP_FAILED = f"{PREFIX}cp_failed"
 EVENT_WHOIS = f"{PREFIX}whois_received"
-WHOIS_PLUGIN_ID = "plugins.aardwolf.whois"
 EVENT_LEVEL_GAIN = f"{PREFIX}level_gain"
 EVENT_LEVEL_HERO = f"{PREFIX}level_hero"
 EVENT_LEVEL_SUPERHERO = f"{PREFIX}level_superhero"
@@ -65,10 +64,6 @@ EVENTS = (
     EVENT_GQ_WON,
 )
 
-EVENT_GMCP_STATUS = "ev_libs.net.mud_gmcp_char.status"
-EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
-STATE_PATH = "char.status.state"
-ACTIVE_STATES = (3, "3")
 
 DEAD_TRIGGER = "dead"
 DEAD_REGEX = r"^You die\.$"
@@ -83,7 +78,6 @@ class StatdbPlugin(BasePlugin):
     def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.statdb: StatStore | None = None
-        self._whois_sent = False
 
     @property
     def _backup_start_timer(self) -> str:
@@ -256,33 +250,6 @@ class StatdbPlugin(BasePlugin):
         """Count a death."""
         if self.statdb is not None:
             self.statdb.record_death()
-
-    # whois
-
-    @RegisterToEvent(event_name=EVENT_GMCP_STATUS)
-    def _eventcb_char_status(self) -> None:
-        """Queue a whois once the character is active, when there are no stats yet."""
-        if self._whois_sent or self.statdb is None:
-            return
-        if self.api("libs.net.protocols:gmcp.value.get")(STATE_PATH) not in ACTIVE_STATES:
-            return
-        self._whois_sent = True
-        if self.statdb.get_stat("monsterskilled"):
-            return
-        if self.api("libs.plugins.loader:plugin.is.loaded")(WHOIS_PLUGIN_ID):
-            self.api("plugins.core.mudcmds:command.queue")("whois")
-        else:
-            log_to(
-                self.plugin_id,
-                logging.DEBUG,
-                "no whois sent: %s is not loaded",
-                WHOIS_PLUGIN_ID,
-            )
-
-    @RegisterToEvent(event_name=EVENT_DISCONNECT)
-    def _eventcb_mud_disconnected(self) -> None:
-        """Allow the whois to be sent again on the next connection."""
-        self._whois_sent = False
 
     # commands
 

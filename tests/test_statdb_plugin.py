@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 PLUGIN_ID = "plugins.aardwolf.statdb"
 PREFIX = "ev_plugins.aardwolf."
-WHOIS_PLUGIN_ID = "plugins.aardwolf.whois"
 
 
 class FakeApi:
@@ -40,8 +39,6 @@ class FakeApi:
         self.record: dict[str, Any] = {}
         self.gmcp: dict[str, Any] = {}
         self.args: dict[str, Any] = {}
-        self.whois_loaded = True
-        self.queued: list[str] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -60,10 +57,6 @@ class FakeApi:
             "plugins.core.utils:timelength.format": lambda seconds: f"{int(seconds)}s",
             "plugins.core.utils:number.to.readable": lambda number: f"<{number}>",
             "plugins.core.proxy:line.length.get": lambda: 40,
-            "libs.plugins.loader:plugin.is.loaded": lambda plugin_id: (
-                self.whois_loaded and plugin_id == WHOIS_PLUGIN_ID
-            ),
-            "plugins.core.mudcmds:command.queue": self.queued.append,
         }
         return table[name]
 
@@ -101,16 +94,11 @@ class FakeApi:
 
 
 class Env:
-    """The plugin under test with its fake API, which records the commands it queued."""
+    """The plugin under test with its fake API."""
 
     def __init__(self, plugin: "StatdbPlugin", fake: FakeApi) -> None:
         self.plugin = plugin
         self.fake = fake
-
-    @property
-    def lines(self) -> list[str]:
-        """The command types the plugin queued for the MUD."""
-        return self.fake.queued
 
     @property
     def store(self) -> "StatStore":
@@ -224,8 +212,6 @@ def test_registered_events(env: Env) -> None:
     }
     assert set(_statdb.EVENTS) == expected
     assert names == expected | {
-        "ev_libs.net.mud_gmcp_char.status",
-        "ev_libs.net.mud_muddisconnect",
         f"ev_{PLUGIN_ID}_var_backupstart_modified",
         f"ev_{PLUGIN_ID}_var_backupinterval_modified",
     }
@@ -253,12 +239,11 @@ def test_loads_when_the_database_fails(env: Env, tmp_path: Path) -> None:
         env.fake.args = {"milestone1": "", "milestone2": "", "count": 0, "number": 0}
         result = getattr(env.plugin, f"_command_{command}")()
         assert result == CommandResult(True, ["The stats database is not available"])
-    for method in ("_eventcb_quest", "_eventcb_hero", "_eventcb_remort", "_eventcb_char_status"):
+    for method in ("_eventcb_quest", "_eventcb_hero", "_eventcb_remort"):
         env.fake.record = {"failed": 0}
         getattr(env.plugin, method)()
     env.plugin._trigger_dead()
     env.plugin._timer_backup_start()
-    assert env.lines == []
 
 
 def test_trigger_failure_is_logged(env: Env) -> None:
@@ -366,54 +351,6 @@ def test_save_failure_is_logged(env: Env, monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr(env.store, "save_quest", broken)
     _send(env, "_eventcb_quest", {"failed": 0})
-
-
-def test_whois_sent_once_when_active_with_no_stats(env: Env) -> None:
-    """In state 3 with no stats a whois is queued once, and a disconnect allows it again."""
-    env.fake.gmcp = {"char.status.state": 3}
-    env.plugin._eventcb_char_status()
-    env.plugin._eventcb_char_status()
-    assert env.lines == ["whois"]
-    env.plugin._eventcb_mud_disconnected()
-    env.plugin._eventcb_char_status()
-    assert env.lines == ["whois", "whois"]
-
-
-def test_no_whois_queued_when_the_whois_plugin_is_not_loaded(env: Env) -> None:
-    """Without the whois plugin nothing is queued, and the check is still spent."""
-    env.fake.whois_loaded = False
-    env.fake.gmcp = {"char.status.state": 3}
-    env.plugin._eventcb_char_status()
-    assert env.lines == []
-    assert env.plugin._whois_sent
-
-
-def test_whois_accepts_state_as_text(env: Env) -> None:
-    """The state may arrive as the text 3."""
-    env.fake.gmcp = {"char.status.state": "3"}
-    env.plugin._eventcb_char_status()
-    assert env.lines == ["whois"]
-
-
-@pytest.mark.parametrize("state", [2, None, "9"])
-def test_no_whois_for_other_states(env: Env, state: object) -> None:
-    """A state other than 3 sends nothing, and checks again at the next update."""
-    env.fake.gmcp = {"char.status.state": state}
-    env.plugin._eventcb_char_status()
-    assert env.lines == []
-    env.fake.gmcp = {"char.status.state": 3}
-    env.plugin._eventcb_char_status()
-    assert env.lines == ["whois"]
-
-
-def test_no_whois_when_stats_exist(env: Env) -> None:
-    """With kills already recorded no whois is sent, and none is sent later either."""
-    _start(env)
-    _send(env, "_eventcb_mobkill", {"name": "a rat"})
-    env.fake.gmcp = {"char.status.state": 3}
-    env.plugin._eventcb_char_status()
-    assert env.lines == []
-    assert env.plugin._whois_sent
 
 
 def test_backup_start_timer_backs_up_and_adds_the_interval(env: Env) -> None:
