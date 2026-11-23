@@ -283,3 +283,13 @@ def test_raised_keys_are_all_described(env: Env) -> None:
     env.send({"action": "reset"})
     assert len(env.fake.raised) == 8
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+def test_live_comp_keys_are_described(env: Env) -> None:
+    """The comp message from Aardwolf also carries completed and wait (#50)."""
+    env.send(START)
+    env.send({**COMP, "completed": 1, "wait": 30})
+    name, payload = env.fake.raised[1]
+    assert name == "ev_plugins.aardwolf.quest_comp"
+    assert (payload["completed"], payload["wait"]) == (1, 30)
+    assert_raised_described(env.fake.raised, EVENTS)

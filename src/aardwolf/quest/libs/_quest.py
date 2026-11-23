@@ -44,6 +44,8 @@ _COMP_KEYS = {
     "tp": "the trivia points of the comp message",
     "trains": "the trains of the comp message",
     "pracs": "the practices of the comp message",
+    "completed": "the number of quests the character has completed, from the comp message",
+    "wait": "the minutes until the next quest can be taken, from the comp message",
 }
 
 EVENTS: dict[str, dict[str, Any]] = {

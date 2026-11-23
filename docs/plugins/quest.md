@@ -54,7 +54,7 @@ The plugin registers to `ev_libs.net.mud_gmcp_comm.quest` and reads the `action`
 | `ev_plugins.aardwolf.quest_ready` | none |
 | `ev_plugins.aardwolf.quest_start` | `starttime`, `finishtime`, `killedtime`, `mobname`, `mobarea`, `mobroom`, `stimer`, `level`, `failed` |
 | `ev_plugins.aardwolf.quest_killed` | the state keys |
-| `ev_plugins.aardwolf.quest_comp` | the state keys plus the keys of the GMCP comp message: `action`, `qp`, `double`, `daily`, `totqp`, `gold`, `tierqp`, `mccp`, `lucky`, `opk`, `hardcore`, `tp`, `trains` and `pracs` |
+| `ev_plugins.aardwolf.quest_comp` | the state keys plus the keys of the GMCP comp message: `action`, `qp`, `double`, `daily`, `totqp`, `gold`, `tierqp`, `mccp`, `lucky`, `opk`, `hardcore`, `tp`, `trains`, `pracs`, `completed` (quests completed) and `wait` (minutes until the next quest) |
 | `ev_plugins.aardwolf.quest_failed` | the state keys, with `failed` 1 |
 | `ev_plugins.aardwolf.quest_status` | `action` and `status` of the GMCP status message |
 | `ev_plugins.aardwolf.quest_reset` | none |
