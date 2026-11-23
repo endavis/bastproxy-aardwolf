@@ -39,21 +39,37 @@ bastproxy finds this package's plugins through its `bastproxy.plugins` entry poi
 #bp.core.pluginm.load plugins.aardwolf.connect
 ```
 
+To load several at once, name them all, or load the whole package:
+
+```text
+#bp.core.pluginm.load aardwolf.connect aardwolf.whois aardwolf.statdb
+#bp.core.pluginm.load aardwolf
+```
+
+`aardwolf` loads every Aardwolf plugin that is not loaded yet, with its dependencies.
+
 A loaded plugin is loaded again whenever bastproxy starts. `#bp.core.pluginm.list` lists every
 discovered plugin. [Plugins](../plugins/index.md) describes each one.
 
 ## Working against a local bastproxy checkout
 
 `uv.lock` pins a bastproxy commit. To run the plugins against a local bastproxy checkout instead,
-for example to try a bastproxy change before it is merged, layer it over this project's
-environment for one run:
+for example while bastproxy is changing often or to try a change before it is merged, layer it
+over this project's environment for one run:
 
 ```bash
 uv run --with-editable ../bastproxy bastproxy
 ```
 
-This leaves `.venv` and `uv.lock` untouched. To move the pinned commit forward, run
-`uv lock --upgrade-package bastproxy`.
+This runs whatever is checked out in `../bastproxy` and leaves `.venv` and `uv.lock` untouched, so
+there is nothing to bump or commit to pick up a core change.
+
+CI and `doit check` still use the pinned commit. When a plugin change needs a newer bastproxy API,
+move the pin forward in that change's PR:
+
+```bash
+uv lock --upgrade-package bastproxy
+```
 
 ## Next Steps
 
