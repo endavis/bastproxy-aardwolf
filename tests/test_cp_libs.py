@@ -5,14 +5,18 @@ import re
 import pytest
 
 from aardwolf.cp.libs import (
+    CP_DURATION,
     EVENTS,
     NEVER_REGEX,
     TRIGGERS,
     bonus_qp,
+    info_mobs,
+    info_starttime,
     is_count_line,
     new_campaign_regex,
     new_mob,
     new_state,
+    parse_time_left,
     remove_mob,
     reward_key,
 )
@@ -27,24 +31,36 @@ def groups(name: str, line: str) -> dict[str, str]:
     return match.groupdict()
 
 
-def test_there_are_thirteen_triggers_with_prefixed_names() -> None:
+def test_there_are_26_triggers_with_prefixed_names() -> None:
     """Every trigger name is unique and carries the cp_ prefix."""
-    assert len(TRIGGERS) == 13
-    assert len(SPECS) == 13
+    assert len(TRIGGERS) == 26
+    assert len(SPECS) == 26
     assert all(name.startswith("cp_") for name in SPECS)
 
 
-def test_only_cp_new_is_enabled_without_a_group() -> None:
-    """Only the new campaign trigger is always on."""
-    assert [s.name for s in TRIGGERS if s.enabled] == ["cp_new"]
+def test_only_cp_new_and_cp_mobdead_are_enabled_without_a_group() -> None:
+    """The new campaign tell and the campaign mob kill are always on; the rest sit in groups."""
+    assert [s.name for s in TRIGGERS if s.enabled] == ["cp_new", "cp_mobdead"]
     assert SPECS["cp_new"].group is None
+    assert SPECS["cp_mobdead"].group is None
+    assert all(s.group for s in TRIGGERS if s.name not in {"cp_new", "cp_mobdead"})
 
 
 def test_check_triggers_are_omitted() -> None:
     """The triggers of the check output hide it from the client."""
-    omitted = {s.name for s in TRIGGERS if s.omit}
+    omitted = {s.name for s in TRIGGERS if s.omit and s.group == "cpcheck"}
     assert omitted == {"cp_none", "cp_time", "cp_mob", "cp_scramble"}
-    assert all(SPECS[name].group == "cpcheck" for name in omitted)
+
+
+def test_info_triggers_are_in_the_info_group_and_omitted() -> None:
+    """The campaign info output is hidden, except the may-take lines, which the client keeps."""
+    info = {s.name for s in TRIGGERS if s.group == "cpinfo"}
+    assert info == {name for name in SPECS if name.startswith("cp_info_")}
+    assert {s.name for s in TRIGGERS if s.omit and s.group == "cpinfo"} == info - {
+        "cp_info_cantake",
+        "cp_info_needtolevel",
+    }
+    assert not any(SPECS[name].enabled for name in info)
 
 
 def test_mob_line_with_and_without_dead() -> None:
@@ -221,3 +237,86 @@ def test_event_descriptions_format() -> None:
     for info in EVENTS.values():
         for text in info["description"]:
             text.format()
+
+
+INFO_HEADER = "-" * 26 + "[ YOUR CURRENT CAMPAIGN ]" + "-" * 22
+
+
+def test_info_header_and_value_lines() -> None:
+    """The header and the value lines of campaign info give their values."""
+    groups("cp_info_header", INFO_HEADER)
+    found = groups("cp_info_completeby", "Complete By........: [ 12:34PM on 30 Nov 2026 ]")
+    assert found == {"completeby": "12:34PM on 30 Nov 2026"}
+    found = groups("cp_info_timeleft", "Time Left  ........: [ 6 days, 23 hours and 56 minutes ]")
+    assert found == {"timeleft": "6 days, 23 hours and 56 minutes"}
+    assert groups("cp_info_level", "Level Taken........: [     2 ]") == {"level": "2"}
+    assert SPECS["cp_info_level"].argtypes == {"level": int}
+    groups("cp_info_rewards", "Quest Points.......: [    27 ]")
+    groups("cp_info_rewards", "Gold Coins.........: [  6613 ]")
+
+
+def test_info_structure_lines() -> None:
+    """The victims, targets, dashes and end lines match."""
+    groups("cp_info_victims", "-" * 28 + "[ Campaign Victims ]" + "-" * 26)
+    groups("cp_info_targets", "The targets for this campaign are:")
+    groups("cp_info_dashes", "-" * 74)
+    groups("cp_info_end", "Use 'cp check' to see only targets that you still need to kill.")
+    assert re.match(SPECS["cp_info_dashes"].regex, "-" * 62) is None
+
+
+def test_info_mob_line() -> None:
+    """The target line gives the count, the name and the location."""
+    found = groups("cp_info_mob", "Find and kill 1 * some wicked ale (Gallows Hill)")
+    assert found == {"count": "1", "mob": "some wicked ale", "location": "Gallows Hill"}
+    found = groups("cp_info_mob", "Find and kill 2 * a black cat (Gallows Hill)")
+    assert found["count"] == "2"
+    assert SPECS["cp_info_mob"].argtypes == {"count": int}
+
+
+def test_info_mob_line_with_parentheses_in_the_name() -> None:
+    """The location is the last group in parentheses."""
+    found = groups("cp_info_mob", "Find and kill 1 * a rat (big) (Sewers)")
+    assert found == {"count": "1", "mob": "a rat (big)", "location": "Sewers"}
+
+
+def test_info_none_and_limit_lines() -> None:
+    """The not-on-a-campaign reply and its limit lines match in the info group."""
+    groups("cp_info_none", "You are not currently on a campaign.")
+    groups("cp_info_cantake", "You may take a campaign at this level.")
+    groups("cp_info_needtolevel", "You will have to level before you can go on another campaign.")
+
+
+@pytest.mark.parametrize(
+    ("text", "seconds"),
+    [
+        ("6 days, 23 hours and 59 minutes", 604740),
+        ("1 day, 1 hour and 1 minute", 86400 + 3600 + 60),
+        ("59 minutes", 3540),
+        ("garbage", None),
+        ("", None),
+    ],
+)
+def test_parse_time_left(text: str, seconds: int | None) -> None:
+    """The time left is summed in seconds, or None when it has no unit."""
+    assert parse_time_left(text) == seconds
+
+
+def test_info_starttime() -> None:
+    """The start is the 7 days of a campaign less its time left before now."""
+    assert info_starttime(10000.0, 604740) == 10000.0 - 60
+    assert info_starttime(10000.0, CP_DURATION) == 10000.0
+    assert info_starttime(10000.0, None) == 10000.0
+
+
+def test_info_mobs_repeats_a_target_by_its_count() -> None:
+    """A target with a count of n is n mobs, none of them dead; a count under 1 is one."""
+    found = info_mobs(2, "a cat", "Hill")
+    assert found == [new_mob("a cat", "Hill", "")] * 2
+    assert not any(mob["mobdead"] for mob in found)
+    assert len(info_mobs(0, "a cat", "Hill")) == 1
+
+
+def test_new_state_has_completeby() -> None:
+    """The state starts without a Complete By time, and the key is described."""
+    assert new_state(5.0, 1)["completeby"] == ""
+    assert "completeby" in EVENTS["ev_plugins.aardwolf.cp_comp"]["arg_descriptions"]

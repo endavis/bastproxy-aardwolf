@@ -25,11 +25,18 @@ ALL_LINES_ID = "t_plugins.core.triggers_all"
 CMDTYPE = "cpcheck"
 CMD = "campaign check"
 CMD_REGEX = "^campaign check$"
+CMDTYPE_INFO = "cpinfo"
+CMD_INFO = "campaign info"
+CMD_INFO_REGEX = "^campaign info$"
 
 GROUP_CHECK = "cpcheck"
 GROUP_IN = "cpin"
 GROUP_REW = "cprew"
 GROUP_DONE = "cpdone"
+GROUP_INFO = "cpinfo"
+
+# a campaign lasts 7 days from the moment it is taken
+CP_DURATION = 7 * 24 * 3600
 
 BONUS_REGEX = (
     r"^You receive (?P<bonus>\d+) quest points bonus for your first campaign completed today.$"
@@ -52,6 +59,7 @@ _STATE_KEYS = {
     "starttime": "the time the campaign started, in seconds since the epoch",
     "finishtime": "the time the campaign finished, 0 until then",
     "level": "the total level of the character when the campaign started",
+    "completeby": "the Complete By time of the campaign in server time, used as its identity",
 }
 
 EVENTS: dict[str, dict[str, Any]] = {
@@ -101,6 +109,7 @@ class TriggerSpec(NamedTuple):
 
 
 _DASHES = "^" + "-" * 62 + "$"
+_INFO_DASHES = "^" + "-" * 74 + "$"
 
 TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
@@ -170,8 +179,8 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
         "cp_mobdead",
         "^Congratulations, that was one of your CAMPAIGN mobs!$",
-        GROUP_IN,
-        False,
+        None,
+        True,
         False,
         None,
     ),
@@ -193,6 +202,103 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         {"amount": int},
     ),
     TriggerSpec("cp_compdone", _DASHES, GROUP_DONE, False, False, None),
+    TriggerSpec(
+        "cp_info_header",
+        r"^-+\[ YOUR CURRENT CAMPAIGN \]-+$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_completeby",
+        r"^Complete By\.+: \[ (?P<completeby>.+?) \]$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_timeleft",
+        r"^Time Left\s*\.+: \[ (?P<timeleft>.+?) \]$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_level",
+        r"^Level Taken\.+: \[\s*(?P<level>\d+) \]$",
+        GROUP_INFO,
+        False,
+        True,
+        {"level": int},
+    ),
+    TriggerSpec(
+        "cp_info_rewards",
+        r"^(?:Quest Points|Gold Coins)\.+: \[\s*\d+ \]$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_victims",
+        r"^-+\[ Campaign Victims \]-+$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_targets",
+        "^The targets for this campaign are:$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_mob",
+        r"^Find and kill (?P<count>\d+) \* (?P<mob>.*) \((?P<location>[^()]*)\)$",
+        GROUP_INFO,
+        False,
+        True,
+        {"count": int},
+    ),
+    TriggerSpec("cp_info_dashes", _INFO_DASHES, GROUP_INFO, False, True, None),
+    TriggerSpec(
+        "cp_info_end",
+        r"^Use 'cp check' to see only targets that you still need to kill\.$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_none",
+        "^You are not currently on a campaign.$",
+        GROUP_INFO,
+        False,
+        True,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_cantake",
+        "^You may take a campaign at this level.$",
+        GROUP_INFO,
+        False,
+        False,
+        None,
+    ),
+    TriggerSpec(
+        "cp_info_needtolevel",
+        "^You will have to level before you can go on another campaign.$",
+        GROUP_INFO,
+        False,
+        False,
+        None,
+    ),
 )
 
 
@@ -209,6 +315,7 @@ def new_state(now: float, level: int) -> dict[str, Any]:
         "bonusqp": 0,
         "failed": 0,
         "level": level,
+        "completeby": "",
         "starttime": now,
         "finishtime": 0,
         "oncp": True,
@@ -220,6 +327,27 @@ def new_state(now: float, level: int) -> dict[str, Any]:
 def new_mob(name: str, location: str, dead: object) -> dict[str, Any]:
     """Return a mob of the campaign; the trigger matches the name without colour."""
     return {"name": name, "nocolorname": name, "location": location, "mobdead": bool(dead)}
+
+
+def parse_time_left(text: str) -> int | None:
+    """Return the seconds in a time left such as ``6 days, 23 hours and 59 minutes``, or None."""
+    units = {"day": 86400, "hour": 3600, "minute": 60, "second": 1}
+    found = re.findall(r"(\d+) (day|hour|minute|second)s?\b", text)
+    if not found:
+        return None
+    return sum(int(amount) * units[unit] for amount, unit in found)
+
+
+def info_starttime(now: float, time_left: int | None) -> float:
+    """Return when a campaign started: ``now`` minus what has passed of its 7 days."""
+    if time_left is None:
+        return now
+    return now - (CP_DURATION - time_left)
+
+
+def info_mobs(count: int, name: str, location: str) -> list[dict[str, Any]]:
+    """Return the mobs of a ``Find and kill`` line: one entry for each of its count."""
+    return [new_mob(name, location, "") for _ in range(max(count, 1))]
 
 
 def remove_mob(mobs: list[dict[str, Any]], name: str) -> bool:
