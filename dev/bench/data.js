@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795474951157,
+  "lastUpdate": 1795477209255,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1633,6 +1633,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010829470200383612",
             "extra": "mean: 5.826419477615374 usec\nrounds: 179180"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a99d039e2b1f1c20d5732ed3452e48b0448a016b",
+          "message": "feat: port the eqdb plugin (merges PR #96, addresses #74)\n\nplugins.aardwolf.eqdb keeps identified items in a SQLite database\nthrough plugins.core.sqldb, with the old plugin's 18 tables kept word\nfor word so an old eqdb file opens as it is.\n\n- item.get returns an item by serial or identifier as a dict, with its\n  details; item.save takes a dict and replaces each detail it holds.\n  A wrong detail shape is refused before anything is written.\n- getitem shows an item; the old debug test command is dropped.\n- backupstart and backupinterval drive its own backups, rescheduled\n  when either setting changes.\n\nOld bugs fixed, listed in docs/plugins/eqdb.md: type details (weapon,\nlight, container and the rest) were never saved because the numeric\nitype was compared with names; backup setting changes were ignored;\nmissing flags or keywords crashed save and get; stale mods were kept;\nthe caller's enchant data was changed; SQL was built with %.\n\ncodespell ignores \"anid\", the old affectmod key column.\n\nAddresses #74\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T23:39:27Z",
+          "tree_id": "1e402a431d86692e993c52ea059dc08e69dada5d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a99d039e2b1f1c20d5732ed3452e48b0448a016b"
+        },
+        "date": 1795477208636,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5137349.9204579815,
+            "unit": "iter/sec",
+            "range": "stddev: 2.0509092751890694e-8",
+            "extra": "mean: 194.65288825621843 nsec\nrounds: 53721"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 272444.25148834486,
+            "unit": "iter/sec",
+            "range": "stddev: 4.878375362729854e-7",
+            "extra": "mean: 3.6704756827757103 usec\nrounds: 144342"
           }
         ]
       }
