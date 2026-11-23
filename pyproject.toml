@@ -255,7 +255,7 @@ skips = [
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
-ignore-words-list = "crate,thi,remorted,cpcheck"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type
+ignore-words-list = "crate,thi,remorted,cpcheck,uptodate"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type; uptodate: the old skills plugin's event and API name
 
 [tool.vulture]
 min_confidence = 80
@@ -307,16 +307,23 @@ pytest_add_cli_args_test_selection = [
     "tests/test_cp_plugin.py",
     "tests/test_gq_libs.py",
     "tests/test_gq_plugin.py",
+    "tests/test_itemu.py",
     "tests/test_level_libs.py",
     "tests/test_level_plugin.py",
     "tests/test_mobk_libs.py",
     "tests/test_mobk_plugin.py",
+    "tests/test_move_libs.py",
+    "tests/test_move_plugin.py",
     "tests/test_promptfix_libs.py",
     "tests/test_promptfix_plugin.py",
     "tests/test_quest_libs.py",
     "tests/test_quest_plugin.py",
+    "tests/test_repop_libs.py",
+    "tests/test_repop_plugin.py",
     "tests/test_scanh_libs.py",
     "tests/test_scanh_plugin.py",
+    "tests/test_skills_libs.py",
+    "tests/test_skills_plugin.py",
     "tests/test_statdb_plugin.py",
     "tests/test_statdb_report.py",
     "tests/test_statdb_schema.py",
