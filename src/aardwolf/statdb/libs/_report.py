@@ -38,6 +38,16 @@ FIELDSTOCOMP = [
 ]
 
 NO_STATS = "No stats available"
+NO_KILLS = "No kills recorded"
+DEFAULT_MOBKILL_COUNT = 10
+SPECIAL_FLAGS = (
+    ("banishment", "B"),
+    ("vorpal", "V"),
+    ("assassinate", "A"),
+    ("slit", "S"),
+    ("deathblow", "D"),
+    ("disintegrate", "I"),
+)
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S +0000"
 
 
@@ -955,6 +965,37 @@ def mob_report(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     return msg
 
 
+def _flags(item: dict[str, Any]) -> str:
+    """Return the letters of every special kill the row has."""
+    return "".join(letter for column, letter in SPECIAL_FLAGS if int(item[column]) == 1)
+
+
+def mobkill_list(store: StatStore, count: int, fmt: Formatters) -> list[str]:
+    """List the last ``count`` mob kills, newest first."""
+    if count < 1:
+        return ["The count must be at least 1"]
+    rows = store.recent_mobkills(count)
+    if not rows:
+        return [NO_KILLS]
+    msg = [
+        f"@G{'Time':<16} {'Name':<18} {'Lvl':>3} {'TXP':>6} {'Gold':>8} {'Room':>8} Flags",
+        _divider(fmt),
+    ]
+    for item in rows:
+        when = int(item["time"])
+        time_text = time.strftime("%Y-%m-%d %H:%M", time.gmtime(when)) if when != -1 else ""
+        level = int(item["level"])
+        level_text = str(convert_level(level)["level"]) if level >= 1 else ""
+        room = int(item["room_id"])
+        room_text = str(room) if room else ""
+        gold = fmt.readable(item["gold"])
+        msg.append(
+            f"{time_text:<16} {item['name'][0:18]:<18} {level_text:>3} "
+            f"{item['totalxp']:>6} {gold:>8} {room_text:>8} {_flags(item)}"
+        )
+    return msg
+
+
 def _mob_line(item: dict[str, Any]) -> str:
     """Format a mob kill as a line of the mob list."""
     bonus = ""
@@ -963,14 +1004,7 @@ def _mob_line(item: dict[str, Any]) -> str:
     if int(item["blessingxp"]) != 0:
         bonus += "E"
     special = ""
-    for column, letter in (
-        ("banishment", "B"),
-        ("vorpal", "V"),
-        ("assassinate", "A"),
-        ("slit", "S"),
-        ("deathblow", "D"),
-        ("disintegrate", "I"),
-    ):
+    for column, letter in SPECIAL_FLAGS:
         if int(item[column]) == 1:
             special = letter
             break

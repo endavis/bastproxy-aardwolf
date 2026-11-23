@@ -309,6 +309,35 @@ def test_mob_report(full: "StatStore") -> None:
     assert "@R0" in lines[-3]
 
 
+def test_mobkill_list(full: "StatStore") -> None:
+    """The kill list shows the newest first with time, level, gold and flags."""
+    from aardwolf.statdb.libs import mobkill_list
+
+    lines = mobkill_list(full, 10, formatters())
+    assert lines[0].startswith("@GTime")
+    assert lines[1].startswith("@B-")
+    assert len(lines) == 5
+    assert "a bat" in lines[2]
+    assert "very long named" in lines[3]
+    assert "monster" not in lines[3]
+    assert lines[4].split() == ["1970-01-01", "00:26", "a", "rat", "3", "12", "<50>", "V"]
+    assert len(mobkill_list(full, 1, formatters())) == 3
+
+
+def test_mobkill_list_edges(empty: "StatStore") -> None:
+    """No kills, a bad count, unknown values and several flags."""
+    from aardwolf.statdb.libs import NO_KILLS, mobkill_list
+
+    fmt = formatters()
+    assert mobkill_list(empty, 10, fmt) == [NO_KILLS]
+    assert mobkill_list(empty, 0, fmt) == ["The count must be at least 1"]
+    assert mobkill_list(empty, -1, fmt) == ["The count must be at least 1"]
+    empty.save_mobkill({"name": "x"})
+    assert mobkill_list(empty, 10, fmt)[-1].split() == ["x", "0", "<0>"]
+    empty.save_mobkill({"name": "y", "vorpal": 1, "slit": 1})
+    assert mobkill_list(empty, 10, fmt)[2].split()[-1] == "VS"
+
+
 def test_reports_survive_missing_current_row(full: "StatStore") -> None:
     """Reports still run when the current stats row is gone."""
     from aardwolf.statdb.libs import cp_report, gq_report, level_report, mob_report, quest_report

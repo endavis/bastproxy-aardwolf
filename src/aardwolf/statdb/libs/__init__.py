@@ -2,7 +2,9 @@
 
 from ._db import StatsDb
 from ._report import (
+    DEFAULT_MOBKILL_COUNT,
     FIELDSTOCOMP,
+    NO_KILLS,
     Formatters,
     compare_milestones,
     cp_report,
@@ -13,6 +15,7 @@ from ._report import (
     level_report,
     list_milestones,
     mob_report,
+    mobkill_list,
     quest_report,
     show_cp,
     show_gq,
@@ -34,8 +37,10 @@ __all__ = [
     "CURRENT",
     "DB_NAME",
     "DB_VERSION",
+    "DEFAULT_MOBKILL_COUNT",
     "FIELDSTOCOMP",
     "MIGRATIONS",
+    "NO_KILLS",
     "TABLES",
     "Formatters",
     "StatStore",
@@ -51,6 +56,7 @@ __all__ = [
     "level_report",
     "list_milestones",
     "mob_report",
+    "mobkill_list",
     "quest_report",
     "rebuild_table",
     "show_cp",

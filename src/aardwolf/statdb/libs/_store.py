@@ -245,6 +245,10 @@ class StatStore:
         self.add_to_stat("monsterskilled", 1)
         return self._insert("mobkills", info)
 
+    def recent_mobkills(self, count: int) -> list[dict[str, Any]]:
+        """Return the last ``count`` mob kills, newest first."""
+        return self.db.select("SELECT * FROM mobkills ORDER BY mk_id DESC LIMIT ?", (count,))
+
     def record_death(self) -> None:
         """Count a death."""
         self.add_to_stat("timeskilled", 1)

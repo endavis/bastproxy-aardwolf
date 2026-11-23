@@ -119,6 +119,7 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 | `cps [count] [-n number]` | Campaign totals and averages, the last `count` campaigns, or one campaign with its mobs. |
 | `gqs [count] [-n number]` | Global quest totals and averages, the last `count`, or one global quest with its mobs. |
 | `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
+| `mobkills [-c count]` | List the last `count` kills (default 10), newest first, with time (UTC), name, level, total XP, gold, room and special-kill flags (B, V, A, S, D, I). An empty table says "No kills recorded". |
 
 The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
 failing. The `db*` commands that bastproxy's sqldb plugin adds work on this database too.
