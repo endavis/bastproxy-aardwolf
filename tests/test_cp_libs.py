@@ -5,8 +5,10 @@ import re
 import pytest
 
 from aardwolf.cp.libs import (
+    CHECK_HIDE_START,
     CP_DURATION,
     EVENTS,
+    INFO_HIDE_START,
     NEVER_REGEX,
     TRIGGERS,
     bonus_qp,
@@ -320,3 +322,58 @@ def test_new_state_has_completeby() -> None:
     """The state starts without a Complete By time, and the key is described."""
     assert new_state(5.0, 1)["completeby"] == ""
     assert "completeby" in EVENTS["ev_plugins.aardwolf.cp_comp"]["arg_descriptions"]
+
+
+CHECK_OPENERS = (
+    "You are not currently on a campaign.",
+    "You have 30 minutes to finish this campaign.",
+    "You still have to kill * A rat (Sewers)",
+    "You still have to kill * A bat (Cave - Dead)",
+    "Note: One or more target names in this campaign might be slightly scrambled.",
+)
+INFO_OPENERS = (
+    "-" * 26 + "[ YOUR CURRENT CAMPAIGN ]" + "-" * 22,
+    "Complete By........: [ 12:34PM on 30 Nov 2026 ]",
+    "Time Left  ........: [ 6 days, 23 hours and 56 minutes ]",
+    "Level Taken........: [    50 ]",
+    "Quest Points.......: [    27 ]",
+    "Gold Coins.........: [  6613 ]",
+    "-" * 28 + "[ Campaign Victims ]" + "-" * 26,
+    "The targets for this campaign are:",
+    "Find and kill 1 * A rat (Sewers)",
+    "-" * 74,
+    "Use 'cp check' to see only targets that you still need to kill.",
+    "You are not currently on a campaign.",
+)
+NOT_OPENERS = (
+    "Commander Barcett tells you 'Type 'campaign info' to see what you must kill.'",
+    "You may take a campaign at this level.",
+    "You will have to level before you can go on another campaign.",
+    "[198/201hp 168/176mn 630/630mv 10qt 773tnl] >",
+    "",
+)
+
+
+def test_the_check_hide_start_matches_the_omitted_check_lines() -> None:
+    """A queued check opens its window on the lines its omit triggers hide, and no other."""
+    start = re.compile(CHECK_HIDE_START)
+    assert all(start.search(line) for line in CHECK_OPENERS)
+    assert not any(start.search(line) for line in NOT_OPENERS[:1] + NOT_OPENERS[3:])
+    assert not start.search(INFO_OPENERS[1])
+
+
+def test_the_info_hide_start_matches_the_omitted_info_lines() -> None:
+    """A queued info opens its window on its omitted lines, not on the may-take lines."""
+    start = re.compile(INFO_HIDE_START)
+    assert all(start.search(line) for line in INFO_OPENERS)
+    assert not any(start.search(line) for line in NOT_OPENERS)
+
+
+@pytest.mark.parametrize("group", ["cpcheck", "cpinfo"])
+def test_a_hide_start_has_one_alternative_per_omitted_trigger(group: str) -> None:
+    """Every omitted trigger of the group is in the opener, and no other one."""
+    start = CHECK_HIDE_START if group == "cpcheck" else INFO_HIDE_START
+    omitted = [s for s in TRIGGERS if s.group == group and s.omit]
+    assert start.startswith("(?:") and start.endswith(")")
+    assert start.count("|") >= len(omitted) - 1
+    assert "(?P<" not in start

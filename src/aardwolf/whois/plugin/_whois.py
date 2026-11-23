@@ -11,7 +11,6 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from ..libs import (
-    BEFORE_ALL_LINES_ID,
     CLASSES_REGEX,
     END_REGEX,
     HEADER_REGEX,
@@ -67,9 +66,6 @@ class WhoisPlugin(BasePlugin):
         )
         self._group_ready = False
         self._end_ready = False
-        self._hide_pending = False
-        self._hiding = False
-        self._hidden_count = 0
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -83,7 +79,13 @@ class WhoisPlugin(BasePlugin):
         self.api("plugins.core.watch:watch.add")(WHOIS_NAME, WHOIS_COMMAND_REGEX)
         self.api("plugins.core.events:event.register")(EVENT_WATCH, self._eventcb_whois_sent)
         self.api("plugins.core.mudcmds:type.add")(
-            WHOIS_NAME, WHOIS_NAME, WHOIS_COMMAND_REGEX, beforef=self._start_whois
+            WHOIS_NAME,
+            WHOIS_NAME,
+            WHOIS_COMMAND_REGEX,
+            beforef=self._start_whois,
+            hide_output=True,
+            hide_start=END_REGEX,
+            hide_max=HIDE_MAX_LINES + 1,
         )
 
         self._add_trigger("whoisheader", HEADER_REGEX, self._trigger_header, grouped=True)
@@ -92,9 +94,6 @@ class WhoisPlugin(BasePlugin):
         self._add_trigger("whois2", STAT2_REGEX, self._trigger_stats, grouped=True)
         self._add_trigger("whois3", STAT3_REGEX, self._trigger_stats, grouped=True)
         self._add_trigger("whoispowerup", POWERUP_REGEX, self._trigger_stats, grouped=True)
-        # opens the hide window on the first dashes of a queued whois; the closing dashes do
-        # nothing because the flag is already off
-        self._add_trigger("whoisstart", END_REGEX, self._trigger_start, grouped=True)
         # not in the group: it is turned on at the header, so the dashed line above it cannot end
         self._add_trigger(END_TRIGGER, END_REGEX, self._trigger_end, grouped=False)
         if self.api("libs.api:character.is.active")():
@@ -139,70 +138,17 @@ class WhoisPlugin(BasePlugin):
         self._toggle_triggers(True)
 
     def _start_whois(self) -> None:
-        """A whois is about to be sent by mudcmds (the beforef): parse it and hide its output."""
+        """A whois is about to be sent by mudcmds (the beforef): parse it; mudcmds hides it."""
         self._begin_whois()
-        self._hide_pending = True
 
     def _eventcb_whois_sent(self) -> None:
         """A client typed whois: parse it, and show it in full."""
         self._begin_whois()
-        self._hide_pending = False
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
     def _eventcb_disconnect(self) -> None:
         """Turn the triggers off so a whois cut off by a disconnect does not leave them on."""
         self._toggle_triggers(False, end=False)
-        self._stop_hiding()
-        self._hide_pending = False
-
-    def _trigger_start(self) -> None:
-        """The first dashes of a queued whois: hide them and every line up to the prompt."""
-        if not self._hide_pending:
-            return
-        line = self._record().get("line")
-        if line is None:
-            return
-        self._hide_pending = False
-        line.send = False
-        self._start_hiding()
-
-    def _start_hiding(self) -> None:
-        """Hide every line up to the next prompt."""
-        if self._hiding:
-            return
-        registered = self.api("plugins.core.triggers:trigger.register")(
-            BEFORE_ALL_LINES_ID, self._hide_line
-        )
-        self._hiding = bool(registered)
-        self._hidden_count = 0
-
-    def _hide_line(self) -> None:
-        """Hide the line; the prompt ends the window, and so does the line cap."""
-        line = self._record().get("line")
-        if line is None:
-            return
-        if self._hidden_count >= HIDE_MAX_LINES:
-            log_to(
-                [self.plugin_id],
-                logging.WARNING,
-                "no prompt after %d hidden lines, showing output again",
-                HIDE_MAX_LINES,
-            )
-            self._stop_hiding()
-            return
-        line.send = False
-        self._hidden_count += 1
-        if getattr(line, "is_prompt", False):
-            self._stop_hiding()
-
-    def _stop_hiding(self) -> None:
-        """End the hide window."""
-        if self._hiding:
-            self.api("plugins.core.triggers:trigger.unregister")(
-                BEFORE_ALL_LINES_ID, self._hide_line
-            )
-        self._hiding = False
-        self._hidden_count = 0
 
     def _gmcp_value(self, path: str) -> object:
         """Return the cached GMCP value at a dotted path, or None."""

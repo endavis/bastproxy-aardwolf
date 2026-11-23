@@ -59,7 +59,7 @@ on the [connect plugin](connect.md).
   holding `h` before the fixed text `hp`) leaves the line unmarked. A line longer than 400
   characters is never tested.
 - **What marking does.** Marked prompts reach triggers, `on_prompt` triggers and line waiters as real
-  prompts, which is how the [cp plugin](cp.md) ends its hide window. Clients get IAC GA or EOR after a
+  prompts, which is how mudcmds closes the hide window of a queued cp, slist or whois. Clients get IAC GA or EOR after a
   marked line, as they do from a MUD that sends one.
 
 ## Settings

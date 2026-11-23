@@ -6,10 +6,16 @@ from typing import Any
 import pytest
 
 from aardwolf.skills.libs import (
+    CMD_REGEX,
+    CMD_SPELLUP_REGEX,
     EVENTS,
     FAILREASON,
     GROUP_RECOVERIES,
     GROUP_SPELLS,
+    HIDE_END_FULL,
+    HIDE_END_SPELLUP,
+    HIDE_START_FULL,
+    HIDE_START_SPELLUP,
     TRIGGERS,
     SkillTable,
     code_name,
@@ -296,3 +302,22 @@ def test_events_are_described() -> None:
     for info in EVENTS.values():
         assert info["description"]
         assert info["arg_descriptions"]
+
+
+def test_hide_tags_match_their_slist_block() -> None:
+    """Each type opens and closes its window on its own tags, and not on the other's."""
+    assert re.search(HIDE_START_FULL, "{spellheaders noprompt}")
+    assert not re.search(HIDE_START_FULL, "{spellheaders spellup noprompt}")
+    assert re.search(HIDE_START_SPELLUP, "{spellheaders spellup noprompt}")
+    assert not re.search(HIDE_START_SPELLUP, "{spellheaders noprompt}")
+    assert re.search(HIDE_END_FULL, "{/recoveries}")
+    assert not re.search(HIDE_END_FULL, "{/spellheaders}")
+    assert re.search(HIDE_END_SPELLUP, "{/spellheaders}")
+
+
+def test_the_spellup_command_regex_matches_only_the_spellup_slist() -> None:
+    """The spellup type is for ``slist spellup noprompt``; the full regex still matches both."""
+    assert re.search(CMD_SPELLUP_REGEX, "slist spellup noprompt")
+    assert not re.search(CMD_SPELLUP_REGEX, "slist noprompt")
+    assert not re.search(CMD_SPELLUP_REGEX, "slist learned noprompt")
+    assert re.search(CMD_REGEX, "slist noprompt")

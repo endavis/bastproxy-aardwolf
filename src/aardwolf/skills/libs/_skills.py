@@ -23,16 +23,24 @@ EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 API_A102_TOGGLE = "plugins.aardwolf.a102:option.toggle"
 A102_OPTIONS = ("SPELLUPTAGS", "SKILLGAINTAGS")
 
-# the core raises this trigger for every line before it matches the regexes
-BEFORE_ALL_LINES_ID = "t_plugins.core.triggers_beall"
-# the most lines hidden without an end tag; a full slist can run to several hundred lines
+# the most lines hidden after the opening line, without an end tag; a full slist can run to
+# several hundred lines. mudcmds counts the opening line too, so the type gets HIDE_MAX_LINES + 1
 HIDE_MAX_LINES = 1000
 
 CMDTYPE = "slist"
 CMD = "slist"
 CMD_REGEX = r"^slist\s((?P<type>.*)\s)?noprompt$"
+CMDTYPE_SPELLUP = "slistspellup"
+CMD_SPELLUP_REGEX = r"^slist\sspellup\snoprompt$"
 ARGS_FULL = "noprompt"
 ARGS_SPELLUP = "spellup noprompt"
+
+# the hide window of each type: a full slist ends at the end of the recoveries and prints the end
+# of the spell headers partway through, a spellup slist ends at the end of the spell headers
+HIDE_START_FULL = r"^\{spellheaders noprompt\}$"
+HIDE_START_SPELLUP = r"^\{spellheaders spellup noprompt\}$"
+HIDE_END_FULL = r"^\{/recoveries\}$"
+HIDE_END_SPELLUP = r"^\{/spellheaders\}$"
 
 GROUP_SLIST = "slist"
 GROUP_SPELLS = "slist_spells"
