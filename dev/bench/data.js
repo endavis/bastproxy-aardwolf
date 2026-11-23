@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795434566184,
+  "lastUpdate": 1795439362714,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1063,6 +1063,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.400955921557234e-7",
             "extra": "mean: 4.4707526209865955 usec\nrounds: 115701"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e47c78114e9cfec3f7d7089207f43573b9f36875",
+          "message": "fix: describe the completed and wait keys of quest_comp (merges PR #53, addresses #50)\n\nAardwolf's GMCP comm.quest completion message carries completed (the\nquests the character has completed) and wait (minutes until the next\nquest) as well as the reward keys. The plugin merges every key of the\nmessage into quest_comp, so the core warned about the two undescribed\nkeys on every completed quest. Both are now in arg_descriptions and\nthe quest docs.\n\nAddresses #50\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T13:08:50Z",
+          "tree_id": "bbae9e33f1abf4fdbfeac7aa2b3d2302b1a99b78",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/e47c78114e9cfec3f7d7089207f43573b9f36875"
+        },
+        "date": 1795439362185,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6011322.841245241,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1727916323254298e-8",
+            "extra": "mean: 166.35273573043546 nsec\nrounds: 62020"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 299052.070941585,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010084995094129154",
+            "extra": "mean: 3.343899264270047 usec\nrounds: 155764"
           }
         ]
       }
