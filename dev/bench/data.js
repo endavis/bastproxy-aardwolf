@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795456820208,
+  "lastUpdate": 1795461824440,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1367,6 +1367,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 7.182417611412775e-7",
             "extra": "mean: 4.79382271624384 usec\nrounds: 109195"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74ef162cf5c376a0266723091b6e99ef237379d2",
+          "message": "fix: store only the time a level was reached (merges PR #67, addresses #66)\n\nA level record's starttime was the previous record's finish time, so\neach row carried the time spent at the level before it. A record now\nstarts at the time its level or powerup was reached, as the original\nplugin stored it.\n\n- level: _start uses now; next_starttime and its fallback chain are\n  gone, so a failed superhero no longer leaks its time into the next\n  record\n- statdb: save_level no longer closes the previous row; finishtime\n  stays in the schema as -1 for new rows\n- report: time at a level is the gap to the next row's starttime,\n  using LEAD() over level_id before filtering, in the averages, the\n  levels list and the single-level view (finish, kills, xp per mob)\n- docs: level and statdb pages describe the new meaning\n\nOld databases already store starttime as the time reached, so no\nmigration is needed and their report values are unchanged.\n\nAddresses #66\n\nBREAKING CHANGE: aardwolf.level.libs no longer exports next_starttime.\nA record's starttime is now the time it was reached; use the current\ntime instead of calling it.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T19:22:58Z",
+          "tree_id": "bde17e0ca886c2fd54cf6f996c063161d6b6e528",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/74ef162cf5c376a0266723091b6e99ef237379d2"
+        },
+        "date": 1795461823583,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3058135.9015775514,
+            "unit": "iter/sec",
+            "range": "stddev: 3.5996933705810416e-8",
+            "extra": "mean: 326.99658621585326 nsec\nrounds: 199522"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 179007.98379538592,
+            "unit": "iter/sec",
+            "range": "stddev: 5.573661640700318e-7",
+            "extra": "mean: 5.586343015533007 usec\nrounds: 185254"
           }
         ]
       }
