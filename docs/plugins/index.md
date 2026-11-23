@@ -49,6 +49,7 @@ lists every discovered plugin, loaded or not.
 | [gq](gq.md) | `plugins.aardwolf.gq` | Follows the global quests of the character and raises the declaration, the mobs left and the end as events. |
 | [promptfix](promptfix.md) | `plugins.aardwolf.promptfix` | Makes the prompt and the battle prompt end in `%c`, so the next line from the MUD never sticks to them. |
 | [scanh](scanh.md) | `plugins.aardwolf.scanh` | Highlights the campaign, global quest and quest mobs in the `scan` output. |
+| [move](move.md) | `plugins.aardwolf.move` | Raises an event when the character moves to another room, with the rooms and the direction. |
 
 Libraries that plugins share, such as `aardwolf.libs.aardu` and `aardwolf.libs.itemu`, are documented in the
 [API Reference](../reference/api.md).
