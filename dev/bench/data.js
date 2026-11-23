@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795465071580,
+  "lastUpdate": 1795466819752,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1481,6 +1481,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.9346834930415797e-7",
             "extra": "mean: 3.4824945645440146 usec\nrounds: 153989"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b0d274f0a926fe2c42b313a6113508cb94e82e5f",
+          "message": "feat: port itemu, skills, move and repop from the old bastproxy (merges PR #89, addresses #71, #72, #73, #85)\n\n* feat: port itemu as the aardwolf.libs.itemu library\n\nThe old itemu plugin held no state: five APIs returned constant tables\nand dataparse split a line by a fixed layout. It becomes a library\nmodule beside aardu, so the eq, itemid and itemkeep ports can import\nit; importing a library is allowed where importing a plugin is not.\n\n- the tables keep their old names as module constants, with\n  OBJECTTYPESREV and WEARLOCSREV for the reverse lookups\n- parse_item_data(line, layout, strip_color) splits comma layouts\n  (eqdata, tempmod, enchant) on commas and the rest on pipes, and\n  converts numbers to int; eqdata takes the colour stripper the\n  caller passes, as aardu takes its GMCP getter\n\nChanges from the old plugin: a short line or an unknown layout raises\nValueError instead of logging and returning a partial dict or None;\nthe dead invheader \"type\" branch is gone.\n\nAddresses #71\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: add the move plugin, which raises an event on a room change\n\nPort the old move plugin as plugins.aardwolf.move. On each GMCP\nroom.info whose room number differs from the last one, it raises\nev_plugins.aardwolf.move_room with from, to and direction (the exit\nof the old room that leads to the new one, or \"unknown\").\n\nChanges from the old plugin:\n- the roominfo payload key, a copy of \"to\", is dropped\n- the last room is forgotten on disconnect, so a reconnect no longer\n  raises a move from the previous session's room\n- a room.info without a num is ignored instead of raising KeyError\n- the room is read from the event data, and seeded from the GMCP\n  cache when the plugin loads mid-session\n- the per-move echo is a debug log line; the room request on first\n  active is left to the connect plugin, which already sends it\n\nAddresses #73\nBatched in the PR for #71.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: add the skills plugin, which tracks skills, spells and recoveries\n\nPort the old skills plugin as plugins.aardwolf.skills. It reads\n`slist` through the core mudcmds queue on first active and after a\nremort or tier, keeps the skills and recoveries in memory, follows the\n{affon}, {affoff}, {recon}, {recoff}, {skillgain} and {sfail} tags,\nand raises ev_plugins.aardwolf.skills_* events. The old APIs become\ndotted APIs (skill.get, skill.is.affected, spellups.get, skill.send,\n...); docs/plugins/skills.md maps old names to new ones.\n\nThe queued slist output is hidden from its {spellheaders} start tag\nto its end tag, with a cap, and a typed slist is shown. The a102\nSPELLUPTAGS and SKILLGAINTAGS options are requested while the plugin\nis loaded.\n\nOld bugs fixed: isbad called a misspelt API and always failed; tags\nfor an unknown skill number raised KeyError or TypeError; an unknown\nfail reason or target code raised KeyError; {/spellheaders} leaked to\nthe client; skills_affected_update was never raised although su and\naflags listen for it; the refresh echo named the wrong slist.\n\ncodespell now ignores \"uptodate\", the old event and API name.\n\nAddresses #72\nBatched in the PR for #71.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: add the repop plugin, which announces area repops on a channel\n\nPort the old repop plugin as plugins.aardwolf.repop. On GMCP\ncomm.repop it fills the format setting with ${zone} and ${time} and\nsends \"<channel> <message>\" to the MUD. The channel (gt) and format\ndefaults are unchanged.\n\nChanges from the old plugin:\n- a comm.repop with no zone is skipped instead of raising KeyError\n- a blank channel sends nothing instead of \" <message>\"\n- the line goes straight to the MUD, so a proxy alias or #bp command\n  as the channel no longer expands; MUD aliases still work\n- the format setting is shown with its raw @ colour codes\n\nAddresses #85\nBatched in the PR for #71.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: record the slist forms checked against Aardwolf\n\nThe skills page said its slist forms were inferred from the old\nregexes. Aardwolf's own `slist noprompt` and `slist spellup noprompt`\noutput now confirms them: {spellheaders noprompt} and\n{spellheaders spellup noprompt} start the blocks, the full list has a\n{recoveries noprompt} section and runs to about 680 lines, the\nspellup list ends at {/spellheaders}, and neither sends a prompt. A\ntyped `slist` starts with a bare {spellheaders} and stays visible.\nThe affect and recovery tags remain inferred.\n\nAddresses #72\nBatched in the PR for #71.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T20:46:24Z",
+          "tree_id": "1251c8da40fb767331fb8cb803c30d7236ab6c54",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/b0d274f0a926fe2c42b313a6113508cb94e82e5f"
+        },
+        "date": 1795466818985,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2975623.984346827,
+            "unit": "iter/sec",
+            "range": "stddev: 4.649283662950671e-8",
+            "extra": "mean: 336.06396683870923 nsec\nrounds: 197278"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170428.29882127786,
+            "unit": "iter/sec",
+            "range": "stddev: 8.958315648767612e-7",
+            "extra": "mean: 5.867570156577487 usec\nrounds: 178572"
           }
         ]
       }
