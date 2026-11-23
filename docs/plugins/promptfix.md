@@ -53,6 +53,11 @@ on the [connect plugin](connect.md).
   internal and client lines never are. The patterns are built from any `char.prompts`, even with
   `autofix` off, though the plugin requests prompts only while `autofix` is on. A disconnect clears
   them.
+- **Matching limits.** Every MUD line is tested, so a pattern is built to fail fast: each code's
+  value runs up to the first character of the fixed text after it, without backtracking, and
+  adjacent codes count as one value. A value that contains that character (for example a value
+  holding `h` before the fixed text `hp`) leaves the line unmarked. A line longer than 400
+  characters is never tested.
 - **What marking does.** Marked prompts reach triggers, `on_prompt` triggers and line waiters as real
   prompts, which is how the [cp plugin](cp.md) ends its hide window. Clients get IAC GA or EOR after a
   marked line, as they do from a MUD that sends one.

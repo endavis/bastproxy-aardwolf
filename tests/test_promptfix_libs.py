@@ -1,12 +1,14 @@
 """Tests for the pure helpers of the prompt fixer plugin."""
 
 import re
+import time
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
 from aardwolf.promptfix.libs import (
+    MAX_PROMPT_LINE,
     MAX_VISIBLE,
     PROMPT_MARK_PRIORITY,
     PROMPT_SET_REGEX,
@@ -234,3 +236,44 @@ def test_a_line_rendered_from_a_template_matches_its_pattern(pieces: list[str]) 
         return
     line = "".join("12" if p == "%h" else "%" if p == "%%" else p for p in pieces)
     assert is_prompt_text(line, [result.regex])
+
+
+def test_near_miss_line_fails_fast() -> None:
+    """A near-miss line for a template with many codes fails without catastrophic backtracking."""
+    regex = build_prompt_pattern("[" + "x".join(["%h"] * 12) + "] >%c").regex
+    assert regex is not None
+    assert ".*?" not in regex.pattern
+    start = time.perf_counter()
+    assert not regex.search("[" + "x" * 300 + "!")
+    assert time.perf_counter() - start < 1.0
+
+
+def test_adjacent_codes_are_one_value() -> None:
+    """Two codes with no fixed text between them match one value."""
+    regex = build_prompt_pattern("[%h%m] >%c").regex
+    assert regex is not None
+    assert is_prompt_text("[12x34] >", [regex])
+
+
+def test_value_holding_the_next_fixed_character_is_not_marked() -> None:
+    """A value runs up to the first character of the fixed text after it."""
+    regex = build_prompt_pattern("[%h/%Hhp] >%c").regex
+    assert regex is not None
+    assert is_prompt_text("[201/201hp] >", [regex])
+    assert not is_prompt_text("[201/2h1hp] >", [regex])
+
+
+def test_long_line_is_never_a_prompt() -> None:
+    """A line longer than MAX_PROMPT_LINE is not tested against the patterns."""
+    regex = build_prompt_pattern("[%h] >%c").regex
+    assert regex is not None
+    assert is_prompt_text("[" + "1" * (MAX_PROMPT_LINE - 4) + "] >", [regex])
+    assert not is_prompt_text("[" + "1" * MAX_PROMPT_LINE + "] >", [regex])
+
+
+def test_trailing_value_stops_at_the_flags() -> None:
+    """A template ending in a code still lets Aardwolf's *[FLAG]* follow it."""
+    regex = build_prompt_pattern("Hp: %h%c").regex
+    assert regex is not None
+    assert is_prompt_text("Hp: 201 *[NOEXP]*", [regex])
+    assert is_prompt_text("Hp: 201", [regex])

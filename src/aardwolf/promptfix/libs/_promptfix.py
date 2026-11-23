@@ -20,6 +20,9 @@ EVENT_LINE_MODIFY = "ev_to_client_data_modify"
 PROMPT_MARK_PRIORITY = 30
 # fewest non-blank fixed characters a prompt line needs to be recognised safely
 MIN_PROMPT_LITERAL = 3
+# longest line tested against a prompt pattern; a prompt is at most MAX_VISIBLE fixed
+# characters plus its values, so anything longer is other output
+MAX_PROMPT_LINE = 400
 
 PROMPT_SET_TRIGGER = "promptfix_set"
 # not anchored: the line can arrive stuck to the end of a prompt
@@ -175,10 +178,38 @@ def build_prompt_pattern(template: str) -> PromptPattern:
     literal = sum(len("".join(text.split())) for wild, text in pieces if not wild)
     if literal < MIN_PROMPT_LITERAL:
         return PromptPattern(PatternStatus.TOO_LOOSE, None)
-    body = "".join(".*?" if wild else re.escape(text) for wild, text in pieces)
-    return PromptPattern(PatternStatus.OK, re.compile(rf"\A{body}{_FLAG_SUFFIX}\Z"))
+    return PromptPattern(
+        PatternStatus.OK, re.compile(rf"\A{_pattern_body(pieces)}{_FLAG_SUFFIX}\Z")
+    )
+
+
+def _pattern_body(pieces: list[tuple[bool, str]]) -> str:
+    """Turn the pieces of a prompt line into regex text that cannot backtrack badly.
+
+    A value (a ``%`` code) runs up to the first character of the fixed text after it, and it
+    is possessive, so a line that almost matches fails in linear time instead of trying every
+    split between several wildcards. Adjacent codes are one value. A value that contains the
+    first character of the text after it does not match, which leaves that line unmarked.
+    """
+    merged: list[tuple[bool, str]] = []
+    for wild, text in pieces:
+        if wild and merged and merged[-1][0]:
+            continue
+        merged.append((wild, text))
+    parts: list[str] = []
+    for index, (wild, text) in enumerate(merged):
+        if not wild:
+            parts.append(re.escape(text))
+        elif index + 1 < len(merged):
+            parts.append(f"[^{re.escape(merged[index + 1][1][0])}]*+")
+        else:
+            # the last value runs to the trailing flags; it cannot contain their "*["
+            parts.append(r"(?:[^*]|\*(?!\[))*+")
+    return "".join(parts)
 
 
 def is_prompt_text(text: str, patterns: Iterable[re.Pattern[str]]) -> bool:
     """Return True when the line of text matches any prompt pattern."""
+    if len(text) > MAX_PROMPT_LINE:
+        return False
     return any(pattern.search(text) for pattern in patterns)
