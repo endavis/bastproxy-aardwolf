@@ -37,6 +37,7 @@ lists every discovered plugin, loaded or not.
 
 | Plugin | ID | Description |
 | :--- | :--- | :--- |
+| [config](config.md) | `plugins.aardwolf.config` | Keeps the settings several Aardwolf plugins share, starting with the list of questmasters. |
 | [connect](connect.md) | `plugins.aardwolf.connect` | Sets up Aardwolf GMCP, presses return at login prompts and detects when the character is first active. |
 | [a102](a102.md) | `plugins.aardwolf.a102` | Toggles Aardwolf telnet option 102 features with shared counts and publishes the MUD's option 102 reports. |
 | [statdb](statdb.md) | `plugins.aardwolf.statdb` | Records character stats, quests, campaigns, global quests, levels and mob kills in a database, and reports on them. |
