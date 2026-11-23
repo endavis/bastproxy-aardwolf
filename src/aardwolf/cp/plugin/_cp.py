@@ -19,8 +19,11 @@ from ..libs import (
     ALL_LINES_ID,
     API_QUESTMASTERS_GET,
     CMD,
+    CMD_INFO,
+    CMD_INFO_REGEX,
     CMD_REGEX,
     CMDTYPE,
+    CMDTYPE_INFO,
     EVENT_CHAR_ACTIVE,
     EVENT_COMP,
     EVENT_DISCONNECT,
@@ -33,20 +36,24 @@ from ..libs import (
     GROUP_CHECK,
     GROUP_DONE,
     GROUP_IN,
+    GROUP_INFO,
     GROUP_REW,
     NEW_TRIGGER,
     TRIGGERS,
     TriggerSpec,
     bonus_qp,
+    info_mobs,
+    info_starttime,
     is_count_line,
     new_campaign_regex,
     new_mob,
     new_state,
+    parse_time_left,
     remove_mob,
     reward_key,
 )
 
-_ALL_GROUPS = (GROUP_CHECK, GROUP_IN, GROUP_REW, GROUP_DONE)
+_ALL_GROUPS = (GROUP_CHECK, GROUP_IN, GROUP_REW, GROUP_DONE, GROUP_INFO)
 
 
 class CpPlugin(BasePlugin):
@@ -61,6 +68,10 @@ class CpPlugin(BasePlugin):
         self._await_kill = False
         # True while _after_done is registered on the every-line trigger
         self._waiting_done = False
+        # the values of the campaign info output, until its last line applies them
+        self._info: dict[str, Any] = {}
+        # True while _after_info_none is registered on the every-line trigger
+        self._waiting_info = False
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -76,12 +87,20 @@ class CpPlugin(BasePlugin):
         self.api("plugins.core.mudcmds:type.add")(
             CMDTYPE, CMD, CMD_REGEX, beforef=self._check_before, afterf=self._check_after
         )
+        self.api("plugins.core.mudcmds:type.add")(
+            CMDTYPE_INFO,
+            CMD_INFO,
+            CMD_INFO_REGEX,
+            beforef=self._info_before,
+            afterf=self._info_after,
+        )
         callbacks = self._trigger_callbacks()
         for spec in TRIGGERS:
             if spec.name == NEW_TRIGGER:
                 spec = spec._replace(regex=new_campaign_regex(self._questmasters()))
             self._add_trigger(spec, callbacks.get(spec.name))
         if self.api("libs.api:character.is.active")():
+            self._queue_info()
             self._queue_check()
 
     def _questmasters(self) -> list[str]:
@@ -103,6 +122,14 @@ class CpPlugin(BasePlugin):
             "cp_clear": self._trigger_clear,
             "cp_reward": self._trigger_reward,
             "cp_compdone": self._trigger_compdone,
+            "cp_info_completeby": self._trigger_info_completeby,
+            "cp_info_timeleft": self._trigger_info_timeleft,
+            "cp_info_level": self._trigger_info_level,
+            "cp_info_mob": self._trigger_info_mob,
+            "cp_info_end": self._trigger_info_end,
+            "cp_info_none": self._trigger_info_none,
+            "cp_info_cantake": self._trigger_info_cantake,
+            "cp_info_needtolevel": self._trigger_info_needtolevel,
         }
 
     def _group(self, suffix: str) -> str:
@@ -140,6 +167,10 @@ class CpPlugin(BasePlugin):
     def _queue_check(self) -> None:
         """Queue a ``campaign check``."""
         self.api("plugins.core.mudcmds:command.queue")(CMDTYPE)
+
+    def _queue_info(self) -> None:
+        """Queue a ``campaign info``."""
+        self.api("plugins.core.mudcmds:command.queue")(CMDTYPE_INFO)
 
     @staticmethod
     def _now() -> float:
@@ -179,15 +210,117 @@ class CpPlugin(BasePlugin):
         self._toggle_group(GROUP_IN, True)
         self._toggle_group(GROUP_CHECK, False)
 
+    # the campaign info command
+
+    def _info_before(self) -> None:
+        """Before ``campaign info`` is sent: forget the last values and read the output."""
+        self._info = {"mobs": []}
+        self._toggle_group(GROUP_INFO, True)
+        self.api("plugins.core.mudcmds:command.start")(CMDTYPE_INFO)
+
+    def _info_after(self) -> None:
+        """After ``campaign info`` finished: stop reading the info and the prompt."""
+        self._toggle_group(GROUP_INFO, False)
+        self._stop_waiting_info()
+
+    def _stop_waiting_info(self) -> None:
+        """Unregister the prompt watcher of the not-on-a-campaign reply."""
+        if self._waiting_info:
+            self.api("plugins.core.triggers:trigger.unregister")(
+                ALL_LINES_ID, self._after_info_none
+            )
+            self._waiting_info = False
+
+    def _finish_info(self) -> None:
+        """The ``campaign info`` output is over."""
+        self.api("plugins.core.mudcmds:command.finish")(CMDTYPE_INFO)
+
+    def _apply_info(self) -> None:
+        """Start a campaign from the info values, unless it is the one already tracked."""
+        completeby = str(self._info.get("completeby") or "")
+        mobs: list[dict[str, Any]] = list(self._info.get("mobs", []))
+        if not completeby or not mobs:
+            log_to([self.plugin_id], logging.DEBUG, "campaign info has no Complete By or targets")
+            return
+        if self.cp.get("oncp") and self.cp.get("completeby") == completeby:
+            return
+        level = aardu.actual_level_from_gmcp(self._gmcp_value, level=self._info.get("level"))
+        state = new_state(self._now(), level)
+        state["starttime"] = info_starttime(self._now(), self._info.get("timeleft"))
+        state["completeby"] = completeby
+        state["mobs"] = copy.deepcopy(mobs)
+        state["mobsleft"] = copy.deepcopy(mobs)
+        self.cp.clear()
+        self.cp.update(state)
+        self.cp.sync()
+        self._raise(EVENT_MOBSORIG, {"mobsleft": copy.deepcopy(mobs)})
+        self._queue_check()
+
     # triggers
 
     def _trigger_new(self) -> None:
-        """A new campaign: start a new state and check the mobs."""
-        level = aardu.actual_level_from_gmcp(self._gmcp_value)
-        self.cp.clear()
-        self.cp.update(new_state(self._now(), level))
+        """A new campaign tell: ask the server, which is the only thing that starts a campaign."""
+        self._queue_info()
+
+    def _trigger_info_completeby(self) -> None:
+        """The Complete By line of the info output."""
+        self._info["completeby"] = str(self._matches().get("completeby") or "")
+
+    def _trigger_info_timeleft(self) -> None:
+        """The Time Left line of the info output."""
+        self._info["timeleft"] = parse_time_left(str(self._matches().get("timeleft") or ""))
+
+    def _trigger_info_level(self) -> None:
+        """The Level Taken line of the info output."""
+        self._info["level"] = self._matches().get("level")
+
+    def _trigger_info_mob(self) -> None:
+        """A target of the info output; a count of n is n mobs."""
+        matches = self._matches()
+        name = str(matches.get("mob") or "")
+        location = str(matches.get("location") or "")
+        if not name or not location:
+            log_to([self.plugin_id], logging.DEBUG, "error parsing the info mob line: %s", matches)
+            return
+        self._info.setdefault("mobs", []).extend(
+            info_mobs(int(matches.get("count") or 1), name, location)
+        )
+
+    def _trigger_info_end(self) -> None:
+        """The last line of the info output: apply it and finish the command."""
+        self._apply_info()
+        self._finish_info()
+
+    def _trigger_info_none(self) -> None:
+        """Not on a campaign, in the info output: wait for the limit lines or the prompt."""
+        self.cp["oncp"] = False
         self.cp.sync()
-        self._queue_check()
+        for suffix in (GROUP_IN, GROUP_REW, GROUP_DONE):
+            self._toggle_group(suffix, False)
+        if self._waiting_info:
+            return
+        registered = self.api("plugins.core.triggers:trigger.register")(
+            ALL_LINES_ID, self._after_info_none
+        )
+        self._waiting_info = bool(registered)
+
+    def _after_info_none(self) -> None:
+        """The first prompt after the not-on-a-campaign line ends the info output."""
+        line = self._record().get("line")
+        if getattr(line, "is_prompt", False):
+            self._finish_info()
+
+    def _trigger_info_cantake(self) -> None:
+        """The info output says a campaign may be taken."""
+        self.cp["cantake"] = True
+        self.cp.sync()
+        self._finish_info()
+
+    def _trigger_info_needtolevel(self) -> None:
+        """The info output says the character has to level first."""
+        self.cp["cantake"] = False
+        self.cp.sync()
+        self._finish_info()
 
     def _trigger_none(self) -> None:
         """The character is not on a campaign."""
@@ -235,8 +368,11 @@ class CpPlugin(BasePlugin):
         self.cp.sync()
 
     def _trigger_mobdead(self) -> None:
-        """A campaign mob died: the next mobk kill is its kill."""
-        self._await_kill = True
+        """A campaign mob died: the next kill is its kill, or ask for the campaign."""
+        if self.cp.get("oncp"):
+            self._await_kill = True
+        else:
+            self._queue_info()
 
     def _trigger_complete(self) -> None:
         """The campaign is complete: read the rewards."""
@@ -315,6 +451,7 @@ class CpPlugin(BasePlugin):
     def _eventcb_character_active(self) -> None:
         """The character is active: check the campaign."""
         if self._record().get("is_character_active"):
+            self._queue_info()
             self._queue_check()
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
@@ -323,6 +460,8 @@ class CpPlugin(BasePlugin):
         self._await_kill = False
         if self._waiting_done:
             self._finish_comp()
+        self._stop_waiting_info()
+        self._info = {}
         self._toggle_all_groups(False)
 
     @RegisterToEvent(event_name=EVENT_QUESTMASTERS_CHANGED)

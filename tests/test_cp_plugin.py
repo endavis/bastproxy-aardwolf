@@ -16,6 +16,8 @@ import aardwolf
 from aardwolf.cp.libs import (
     ALL_LINES_ID,
     CMDTYPE,
+    CMDTYPE_INFO,
+    CP_DURATION,
     EVENT_COMP,
     EVENT_FAILED,
     EVENT_MOBSLEFT,
@@ -57,7 +59,47 @@ REWARDS = (
     "  Reward of 5 training sessions added.",
     "  Reward of 6 practice sessions added.",
 )
-GROUPS = ("cpcheck", "cpin", "cprew", "cpdone")
+GROUPS = ("cpcheck", "cpin", "cprew", "cpdone", "cpinfo")
+INFO_COMPLETEBY = "Complete By........: [ 12:34PM on 30 Nov 2026 ]"
+INFO_TIMELEFT_TEXT = "6 days, 23 hours and 56 minutes"
+INFO_SECONDS_LEFT = 6 * 86400 + 23 * 3600 + 56 * 60
+INFO_END = "Use 'cp check' to see only targets that you still need to kill."
+INFO_CANTAKE = "You may take a campaign at this level."
+INFO_NEEDTOLEVEL = "You will have to level before you can go on another campaign."
+
+
+def info_lines(
+    *targets: str,
+    completeby: str = INFO_COMPLETEBY,
+    level: int = 2,
+) -> list[str]:
+    """Return the lines of ``campaign info`` on a campaign, in the captured format.
+
+    Each target is the text after ``Find and kill ``, such as ``1 * A rat (Sewers)``.
+    """
+    return [
+        "-" * 26 + "[ YOUR CURRENT CAMPAIGN ]" + "-" * 22,
+        completeby,
+        f"Time Left  ........: [ {INFO_TIMELEFT_TEXT} ]",
+        f"Level Taken........: [ {level:>5} ]",
+        "Quest Points.......: [    27 ]",
+        "Gold Coins.........: [  6613 ]",
+        "-" * 28 + "[ Campaign Victims ]" + "-" * 26,
+        "The targets for this campaign are:",
+        *(f"Find and kill {target}" for target in targets),
+        "-" * 74,
+        INFO_END,
+    ]
+
+
+def info_for(*check_lines: str, level: int = 50) -> list[str]:
+    """Return the info lines of the campaign whose ``campaign check`` lines are given."""
+    targets = []
+    for line in check_lines:
+        found = re.match(r"You still have to kill \* (.*) \((.*?)(?: - Dead|)\)$", line)
+        assert found is not None
+        targets.append(f"1 * {found.group(1)} ({found.group(2)})")
+    return info_lines(*targets, level=level)
 
 
 class FakeApi:
@@ -79,6 +121,7 @@ class FakeApi:
         self.omitted: list[str] = []
         self.types: dict[str, dict[str, Any]] = {}
         self.queued: list[str] = []
+        self.pending: list[str] = []
         self.started: list[str] = []
         self.finished: list[str] = []
         self.current: str | None = None
@@ -140,16 +183,25 @@ class FakeApi:
         self.types[cmdtype] = dict(kwargs)
 
     def _command_queue(self, cmdtype: str, arguments: str = "") -> None:
+        """Queue a command like mudcmds: one already pending or running is not queued twice."""
+        if cmdtype in self.pending or cmdtype == self.current:
+            return
         self.queued.append(cmdtype)
         if self.current is None:
             self.current = cmdtype
             self.types[cmdtype]["beforef"]()
+        else:
+            self.pending.append(cmdtype)
 
     def _command_finish(self, cmdtype: str) -> None:
+        """Finish the command, run its after function and send the next one."""
         self.finished.append(cmdtype)
         if self.current == cmdtype:
             self.current = None
             self.types[cmdtype]["afterf"]()
+            if self.pending and self.current is None:
+                self.current = self.pending.pop(0)
+                self.types[self.current]["beforef"]()
 
     def group_on(self, suffix: str) -> bool:
         """Return True when every trigger of the group is on."""
@@ -197,8 +249,8 @@ class Env:
         self.plugin._eventcb_mobk_kill()
 
     def take_cp(self, *mobs: str) -> None:
-        """Take a campaign and read its check output."""
-        self.fake.feed(NEW, *mobs, TIME)
+        """Take a campaign: the tell, its info output, then its check output."""
+        self.fake.feed(NEW, *info_for(*mobs), *mobs, TIME)
 
     def complete(self) -> None:
         """Complete the campaign and read the rewards, up to the line after them."""
@@ -252,13 +304,17 @@ def test_dependencies() -> None:
 
 
 def test_after_load_adds_events_type_and_triggers(env: Env) -> None:
-    """The four events, the check type and the 13 triggers are added."""
+    """The four events, the check and info types and the 26 triggers are added."""
     assert set(env.fake.events_added) == set(EVENTS)
-    assert set(env.fake.types) == {CMDTYPE}
+    assert set(env.fake.types) == {CMDTYPE, CMDTYPE_INFO}
     assert set(env.fake.triggers) == {spec.name for spec in TRIGGERS}
-    assert len(env.fake.triggers) == 13
+    assert len(env.fake.triggers) == 26
     omitted = {n for n, k in env.fake.kwargs.items() if k.get("omit")}
-    assert omitted == {"cp_none", "cp_time", "cp_mob", "cp_scramble"}
+    assert omitted == {s.name for s in TRIGGERS if s.omit}
+    assert {"cp_none", "cp_time", "cp_mob", "cp_scramble", "cp_info_mob", "cp_info_end"} <= omitted
+    assert "cp_info_cantake" not in omitted
+    assert env.fake.kwargs["cp_info_mob"]["group"] == f"{PLUGIN_ID}.cpinfo"
+    assert env.fake.kwargs["cp_info_mob"]["argtypes"] == {"count": int}
     assert env.fake.kwargs["cp_reward"]["argtypes"] == {"amount": int}
     assert env.fake.kwargs["cp_mob"]["group"] == f"{PLUGIN_ID}.cpcheck"
 
@@ -271,22 +327,22 @@ def test_inactive_character_queues_no_check(env: Env) -> None:
 def test_active_character_queues_a_check_on_load(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A reload with an active character checks the campaign."""
+    """A reload with an active character reads the campaign info, then checks it."""
     monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
     fake = FakeApi()
     fake.active = True
     build(tmp_path, fake)
-    assert fake.queued == [CMDTYPE]
+    assert fake.queued == [CMDTYPE_INFO, CMDTYPE]
 
 
 def test_character_active_event_queues_a_check(env: Env) -> None:
-    """The first active event checks the campaign; an inactive one does not."""
+    """The first active event reads the info and checks the campaign; an inactive one does not."""
     env.fake.record = {"is_character_active": False}
     env.plugin._eventcb_character_active()
     assert env.fake.queued == []
     env.fake.record = {"is_character_active": True}
     env.plugin._eventcb_character_active()
-    assert env.fake.queued == [CMDTYPE]
+    assert env.fake.queued == [CMDTYPE_INFO, CMDTYPE]
 
 
 def test_failed_trigger_add_is_logged_and_group_not_toggled(
@@ -303,30 +359,28 @@ def test_failed_trigger_add_is_logged_and_group_not_toggled(
     assert plugin._groups_ready == set()
 
 
-def test_new_campaign_resets_state_and_queues_a_check(env: Env) -> None:
-    """The Barcett line starts the state with the total level and checks the mobs."""
+def test_new_campaign_tell_only_queues_info(env: Env) -> None:
+    """The Barcett line queues campaign info and changes no state."""
     env.plugin.cp["qp"] = 99
     env.fake.feed(NEW)
-    assert env.plugin.cp["level"] == LEVEL
-    assert env.plugin.cp["starttime"] == NOW
-    assert env.plugin.cp["qp"] == 0
-    assert env.plugin.cp["oncp"] is True
-    assert env.fake.queued == [CMDTYPE]
-    assert env.fake.started == [CMDTYPE]
-    assert env.fake.group_on("cpcheck")
+    assert env.fake.queued == [CMDTYPE_INFO]
+    assert env.fake.started == [CMDTYPE_INFO]
+    assert env.fake.group_on("cpinfo")
+    assert env.plugin.cp["qp"] == 99
+    assert "oncp" not in env.plugin.cp
+    assert env.fake.events(EVENT_MOBSORIG) == []
 
 
 def test_new_campaign_from_another_questmaster(env: Env) -> None:
-    """A QuestoR starts the state and the check like Commander Barcett."""
+    """A QuestoR queues campaign info like Commander Barcett."""
     env.fake.feed(QUESTOR_NEW)
-    assert env.plugin.cp["oncp"] is True
-    assert env.fake.queued == [CMDTYPE]
-    assert env.fake.group_on("cpcheck")
+    assert env.fake.queued == [CMDTYPE_INFO]
+    assert env.fake.group_on("cpinfo")
 
 
 def test_player_tell_does_not_reset_the_campaign(env: Env) -> None:
-    """A player's tell or an emote of the line leaves the tracked campaign alone."""
-    env.fake.feed(NEW, RAT, TIME)
+    """A player's tell or an emote of the line queues nothing and leaves the campaign alone."""
+    env.take_cp(RAT)
     env.fake.queued.clear()
     env.fake.feed("Some Player tells you 'Type 'campaign info' to see what you must kill.'")
     env.fake.feed("Bob " + NEW)
@@ -342,7 +396,7 @@ def test_questmasters_changed_updates_the_trigger(env: Env) -> None:
     env.fake.record = {"questmasters": ["Commander Barcett", "Sergeant Pike"]}
     env.plugin._eventcb_questmasters_changed()
     env.fake.feed(line)
-    assert env.fake.queued == [CMDTYPE]
+    assert env.fake.queued == [CMDTYPE_INFO]
     env.fake.queued.clear()
     env.fake.feed(QUESTOR_NEW)
     assert env.fake.queued == []
@@ -378,12 +432,14 @@ def test_check_output_raises_the_mobs(env: Env) -> None:
         {"name": "A rat", "nocolorname": "A rat", "location": "Sewers", "mobdead": False},
         {"name": "A bat", "nocolorname": "A bat", "location": "Cave", "mobdead": True},
     ]
-    assert env.fake.events(EVENT_MOBSORIG) == [{"mobsleft": expected}]
+    # the original targets come from campaign info, which does not know which are dead
+    original = [dict(mob, mobdead=False) for mob in expected]
+    assert env.fake.events(EVENT_MOBSORIG) == [{"mobsleft": original}]
     assert env.fake.events(EVENT_MOBSLEFT) == [{"mobsleft": expected}]
-    assert env.fake.finished == [CMDTYPE]
+    assert env.fake.finished == [CMDTYPE_INFO, CMDTYPE]
     assert env.fake.group_on("cpin")
     assert not env.fake.group_on("cpcheck")
-    assert env.fake.omitted == [RAT, BAT, TIME]
+    assert env.fake.omitted[-3:] == [RAT, BAT, TIME]
 
 
 def test_second_check_raises_only_mobsleft(env: Env) -> None:
@@ -405,10 +461,9 @@ def test_mob_line_with_no_name_is_logged_not_added(
     env: Env, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A mob line without a name or a location adds nothing."""
-    env.fake.feed(NEW)
     env.fake.record = {"matches": {"mob": "", "location": "x", "dead": ""}}
     env.plugin._trigger_mob()
-    assert env.plugin.cp["mobsleft"] == []
+    assert env.plugin.cp.get("mobsleft", []) == []
 
 
 def test_target_kill_removes_the_first_mob(env: Env) -> None:
@@ -532,7 +587,7 @@ def test_cleared_campaign(env: Env) -> None:
 
 def test_not_on_a_campaign(env: Env) -> None:
     """The not-on-a-campaign line sets oncp False, finishes the check and turns groups off."""
-    env.fake.feed(NEW)
+    env.plugin._queue_check()
     env.fake.feed(NONE)
     assert env.plugin.cp["oncp"] is False
     assert env.fake.finished == [CMDTYPE]
@@ -674,3 +729,223 @@ def test_raised_keys_are_all_described(env: Env) -> None:
     env.fake.feed(BONUS)
     assert env.fake.events(EVENT_COMP)
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+CAT = "2 * a black cat (Gallows Hill)"
+ALE = "1 * some wicked ale (Gallows Hill)"
+CHECK_ALE = "You still have to kill * some wicked ale (Gallows Hill)"
+CHECK_CAT = "You still have to kill * a black cat (Gallows Hill)"
+
+
+def expected_start() -> float:
+    """The start time of the captured info block: 7 days less its time left, before NOW."""
+    return NOW - (CP_DURATION - INFO_SECONDS_LEFT)
+
+
+def assert_captured_campaign(fake: FakeApi, plugin: "CpPlugin") -> None:
+    """Check the state after the captured info block and its check output."""
+    cp = plugin.cp
+    assert cp["oncp"] is True
+    assert cp["starttime"] == expected_start()
+    assert cp["level"] == actual_level(2, 2, 1, 0)
+    assert cp["completeby"] == "12:34PM on 30 Nov 2026"
+    assert [m["name"] for m in cp["mobs"]] == ["some wicked ale", "a black cat", "a black cat"]
+    assert all(not m["mobdead"] for m in cp["mobs"])
+    (orig,) = fake.events(EVENT_MOBSORIG)
+    assert [m["name"] for m in orig["mobsleft"]] == [m["name"] for m in cp["mobs"]]
+    assert [m["name"] for m in fake.events(EVENT_MOBSLEFT)[-1]["mobsleft"]] == [
+        "some wicked ale",
+        "a black cat",
+    ]
+    assert fake.started.count(CMDTYPE) == 1
+    assert fake.started.count(CMDTYPE_INFO) == 1
+    assert fake.finished == [CMDTYPE_INFO, CMDTYPE]
+    assert not any(fake.group_on(group) for group in ("cpinfo", "cpcheck"))
+    assert set(info_lines(ALE, CAT)) <= set(fake.omitted)
+
+
+def test_load_mid_campaign_tracks_it_from_info(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Loading with an active character reads info, then check, and starts the campaign."""
+    from aardwolf.cp.plugin import _cp
+
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    monkeypatch.setattr(_cp.CpPlugin, "_now", staticmethod(lambda: NOW))
+    fake = FakeApi()
+    fake.active = True
+    plugin = build(tmp_path, fake)
+    fake.feed(*info_lines(ALE, CAT), CHECK_ALE, CHECK_CAT, TIME)
+    assert_captured_campaign(fake, plugin)
+    assert_raised_described(fake.raised, EVENTS)
+
+
+def test_character_active_event_tracks_it_from_info(env: Env) -> None:
+    """The character-active event reads info and check the same way."""
+    env.fake.record = {"is_character_active": True}
+    env.plugin._eventcb_character_active()
+    env.fake.feed(*info_lines(ALE, CAT), CHECK_ALE, CHECK_CAT, TIME)
+    assert_captured_campaign(env.fake, env.plugin)
+
+
+def test_campaign_from_an_unlisted_questmaster_starts_on_a_kill(env: Env) -> None:
+    """The CAMPAIGN-mob line while off a campaign queues info, which then starts tracking."""
+    env.fake.feed(DEAD)
+    assert env.fake.queued == [CMDTYPE_INFO]
+    assert env.plugin._await_kill is False
+    env.fake.feed(*info_lines(ALE, CAT))
+    assert env.plugin.cp["oncp"] is True
+    assert env.fake.queued == [CMDTYPE_INFO, CMDTYPE]
+    assert len(env.fake.events(EVENT_MOBSORIG)) == 1
+
+
+def test_kill_line_on_a_campaign_does_not_queue_info(env: Env) -> None:
+    """On a campaign the CAMPAIGN-mob line waits for the kill, as before."""
+    env.take_cp(RAT)
+    env.fake.queued.clear()
+    env.fake.feed(DEAD)
+    assert env.plugin._await_kill is True
+    assert env.fake.queued == []
+
+
+def test_tell_for_the_tracked_campaign_changes_nothing(env: Env) -> None:
+    """The tell and the same info again leave the state alone and queue no check."""
+    env.fake.feed(NEW, *info_lines(ALE, CAT), CHECK_ALE, CHECK_CAT, TIME)
+    before = dict(env.plugin.cp)
+    orig = len(env.fake.events(EVENT_MOBSORIG))
+    env.fake.queued.clear()
+    env.fake.feed(NEW)
+    env.fake.feed(*info_lines(ALE, CAT))
+    assert dict(env.plugin.cp) == before
+    assert len(env.fake.events(EVENT_MOBSORIG)) == orig
+    assert env.fake.queued == [CMDTYPE_INFO]
+    assert env.fake.finished[-1] == CMDTYPE_INFO
+
+
+def test_info_with_another_complete_by_replaces_the_campaign(env: Env) -> None:
+    """A different Complete By is a new campaign: new mobs, a new mobsorig and a check."""
+    env.fake.feed(NEW, *info_lines(ALE, CAT), CHECK_ALE, CHECK_CAT, TIME)
+    env.fake.queued.clear()
+    env.plugin.cp["qp"] = 99
+    other = "Complete By........: [ 01:00AM on 7 Dec 2026 ]"
+    env.fake.feed(NEW, *info_lines("1 * a rat (Sewers)", completeby=other))
+    assert env.plugin.cp["completeby"] == "01:00AM on 7 Dec 2026"
+    assert [m["name"] for m in env.plugin.cp["mobs"]] == ["a rat"]
+    assert env.plugin.cp["qp"] == 0
+    assert len(env.fake.events(EVENT_MOBSORIG)) == 2
+    assert env.fake.queued == [CMDTYPE_INFO, CMDTYPE]
+
+
+def test_new_info_after_completion_starts_a_campaign(env: Env) -> None:
+    """When cp is off a campaign, the same Complete By still starts a new state."""
+    env.fake.feed(NEW, *info_lines(ALE), CHECK_ALE, TIME)
+    env.plugin.cp["oncp"] = False
+    env.fake.feed(NEW, *info_lines(ALE))
+    assert env.plugin.cp["oncp"] is True
+    assert len(env.fake.events(EVENT_MOBSORIG)) == 2
+
+
+def test_info_not_on_a_campaign_with_a_limit_line(env: Env) -> None:
+    """The not-on-a-campaign reply and may-take line leave cp off and finish the command."""
+    env.fake.feed(NEW, NONE, INFO_CANTAKE)
+    assert env.plugin.cp["oncp"] is False
+    assert env.plugin.cp["cantake"] is True
+    assert env.fake.finished == [CMDTYPE_INFO]
+    assert not env.fake.group_on("cpinfo")
+    assert env.fake.trigger_cbs[ALL_LINES_ID] == []
+    assert NONE in env.fake.omitted
+    assert env.fake.events(EVENT_MOBSORIG) == []
+
+
+def test_info_not_on_a_campaign_must_level(env: Env) -> None:
+    """The must-level line sets cantake False and finishes the command."""
+    env.plugin.cp["cantake"] = True
+    env.fake.feed(NEW, NONE, INFO_NEEDTOLEVEL)
+    assert env.plugin.cp["cantake"] is False
+    assert env.fake.finished == [CMDTYPE_INFO]
+    assert env.fake.trigger_cbs[ALL_LINES_ID] == []
+
+
+def test_info_not_on_a_campaign_falls_back_to_the_prompt(env: Env) -> None:
+    """With no limit line, the first prompt after the reply finishes the command."""
+    env.fake.feed(NEW, NONE)
+    assert env.fake.finished == []
+    assert len(env.fake.trigger_cbs[ALL_LINES_ID]) == 1
+    env.fake.feed("Some other line.")
+    assert env.fake.finished == []
+    env.fake.feed("<100hp>", prompt=True)
+    assert env.fake.finished == [CMDTYPE_INFO]
+    assert env.fake.trigger_cbs[ALL_LINES_ID] == []
+    assert env.plugin._waiting_info is False
+    assert not env.fake.group_on("cpinfo")
+
+
+def test_prompt_before_the_none_line_does_not_finish_info(env: Env) -> None:
+    """A prompt still in flight when info starts does not end the command."""
+    env.fake.feed(NEW)
+    env.fake.feed("<100hp>", prompt=True)
+    assert env.fake.finished == []
+    assert env.fake.trigger_cbs.get(ALL_LINES_ID, []) == []
+
+
+def test_disconnect_while_waiting_for_the_info_prompt(env: Env) -> None:
+    """A disconnect unregisters the prompt watcher and forgets the info values."""
+    env.fake.feed(NEW, NONE)
+    env.plugin._eventcb_disconnect()
+    assert env.fake.trigger_cbs[ALL_LINES_ID] == []
+    assert env.plugin._waiting_info is False
+    assert env.plugin._info == {}
+    assert not any(env.fake.group_on(group) for group in GROUPS)
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        [line for line in info_lines(ALE) if not line.startswith("Complete By")],
+        info_lines(),
+    ],
+)
+def test_incomplete_info_changes_nothing_and_finishes(env: Env, lines: list[str]) -> None:
+    """Info with no Complete By line or no targets keeps the state and still finishes."""
+    env.fake.feed(NEW, *lines)
+    assert "oncp" not in env.plugin.cp
+    assert env.fake.events(EVENT_MOBSORIG) == []
+    assert env.fake.finished == [CMDTYPE_INFO]
+    assert env.fake.queued == [CMDTYPE_INFO]
+
+
+def test_info_with_an_unreadable_time_left_starts_now(env: Env) -> None:
+    """When the time left has no number, the start time is now."""
+    lines = [
+        "Time Left  ........: [ soon ]" if line.startswith("Time Left") else line
+        for line in info_lines(ALE)
+    ]
+    env.fake.feed(NEW, *lines)
+    assert env.plugin.cp["starttime"] == NOW
+
+
+def test_info_mob_line_with_no_name_is_logged_not_added(env: Env) -> None:
+    """A target line without a name or a location adds nothing to the info."""
+    env.fake.feed(NEW)
+    env.fake.record = {"matches": {"mob": "", "location": "x", "count": 1}}
+    env.plugin._trigger_info_mob()
+    assert env.plugin._info["mobs"] == []
+
+
+def test_info_state_is_saved_for_statdb(env: Env, tmp_path: Path) -> None:
+    """The expanded targets and Complete By reach the cp_comp payload and statdb."""
+    from aardwolf.statdb.libs import StatStore
+
+    env.fake.feed(NEW, *info_lines(ALE, CAT), CHECK_ALE, CHECK_CAT, TIME)
+    env.complete()
+    env.fake.feed(BONUS)
+    (payload,) = env.fake.events(EVENT_COMP)
+    assert payload["completeby"] == "12:34PM on 30 Nov 2026"
+    database = make_db(tmp_path / "db")
+    try:
+        store = StatStore(database)
+        store.save_whois(WHOIS)
+        store.save_cp(payload)
+        assert len(database.select("SELECT * FROM cpmobs")) == 3
+    finally:
+        database.close()

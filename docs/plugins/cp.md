@@ -33,22 +33,47 @@ refreshed by a new `campaign check`.
 
 - **Triggers.** Their names carry a `cp_` prefix because trigger names are global: `cp_new`,
   `cp_none`, `cp_time`, `cp_mob`, `cp_scramble`, `cp_needtolevel`, `cp_cantake`, `cp_shnext`,
-  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`. Only `cp_new` is always on, and it
-  matches the new-campaign tell, but only from a questmaster. The questmasters come from the
+  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`, plus the `cp_info_*`
+  triggers of the `campaign info` output. `cp_new` and `cp_mobdead` are always on. `cp_new`
+  matches the new-campaign tell, but only from a questmaster, and only queues `campaign info`. The questmasters come from the
   [config plugin](config.md) (`plugins.aardwolf.config:questmasters.get`); add one with
   `#bp.aard.config.questmaster add <name>`. The trigger's regex is rebuilt when the list changes, so a
-  player's tell or an emote of the same text never resets the tracked campaign. With no
+  player's tell or an emote of the same text never queues anything. With no
   questmasters the regex matches nothing, so no new campaign is recognised.
-  The others sit in four groups, named `<plugin id>.<suffix>`: `cpcheck` (the output of
-  `campaign check`, omitted from the client), `cpin` (while on a campaign), `cprew` (the rewards)
-  and `cpdone` (the line under the rewards).
+  The others sit in five groups, named `<plugin id>.<suffix>`: `cpcheck` (the output of
+  `campaign check`, omitted from the client), `cpinfo` (the output of `campaign info`, omitted
+  except for the may-take lines), `cpin` (while on a campaign), `cprew` (the rewards) and `cpdone`
+  (the line under the rewards).
+- **Campaign info.** Only the output of `campaign info` starts or replaces a campaign, so a faked
+  tell costs one `campaign info` and nothing else. A `cpinfo` command type runs through the
+  mudcmds queue like the check. It is queued on the new-campaign tell, on the CAMPAIGN-mob line
+  (`cp_mobdead`) while cp is not on a campaign, and, together with a check, on the first active
+  event and when the plugin loads with an active character.
+    - On a campaign, when cp is not on one or the `Complete By` time differs from the stored
+      `completeby`, cp starts a new state: `starttime` is now minus (7 days less the `Time Left`),
+      which has minute precision and needs no timezone (now if the time left cannot be read);
+      `level` is the `Level Taken` plus the remorts, tier and redos from GMCP; `mobs` and
+      `mobsleft` are the targets; `cp_mobsorig` is raised and a check is queued for the mobs left.
+      `Complete By` is in server time and is used only as the identity of the campaign.
+    - The same campaign (on a campaign, same `Complete By`) changes nothing and queues nothing.
+    - A target with a count of n is stored n times, because a mob has no count field, so each
+      kill removes one entry.
+    - Not on a campaign: the reply text of `campaign info` has not been captured and is assumed to
+      match the check reply (`You are not currently on a campaign.`, then the may-take or
+      must-level line). It sets `oncp` False and `cantake`. If the text differs, the first prompt
+      after the not-on-a-campaign line finishes the command so the queue cannot stall.
+    - A state saved before `completeby` existed has none, so the first info after an upgrade
+      rebuilds the campaign, with a better start time.
 - **Checking.** A `cpcheck` command type (`campaign check`) runs through the mudcmds queue. Before it
   is sent the mobs left are cleared and `cpcheck` is turned on; after it finishes `cpin` is turned on
-  and `cpcheck` off. A check is queued on a new campaign, on the first active event, when the plugin
-  loads with an active character, on `cp refresh` and when a kill cannot be matched to a mob.
+  and `cpcheck` off. A check is queued after `campaign info` starts a campaign, together with an info on the
+  first active event and when the plugin loads with an active character, on `cp refresh` and when a
+  kill cannot be matched to a mob.
 - **Mobs.** Each `cp_mob` line adds a mob with `name`, `nocolorname`, `location` and `mobdead`. The
   mobs left are saved in the state under `mobsleft`, so they survive a restart. The first check of a
-  campaign copies them to `mobs` and raises `cp_mobsorig`; every check raises `cp_mobsleft`.
+  campaign copies them to `mobs` and raises `cp_mobsorig`; every check raises `cp_mobsleft`. When
+  `campaign info` started the campaign, `mobs` is already set from it and the check does not raise
+  `cp_mobsorig` again.
 - **Kills.** `cp_mobdead` sets a flag. The next `mobk_kill` event, when the flag is set, removes the
   first mob with that name from the mobs left and raises `cp_mobsleft`. A name that is not in the list
   queues a check instead.
@@ -69,7 +94,7 @@ refreshed by a new `campaign check`.
 | :--- | :--- | :--- |
 | `ev_plugins.aardwolf.cp_mobsorig` | the mobs of a campaign are known for the first time | `mobsleft` |
 | `ev_plugins.aardwolf.cp_mobsleft` | the mobs left are known or changed | `mobsleft` |
-| `ev_plugins.aardwolf.cp_comp` | a campaign is complete and its rewards are known | `oncp`, `cantake`, `shtime`, `mobs`, `mobsleft`, `trains`, `pracs`, `gold`, `tp`, `qp`, `bonusqp`, `failed`, `starttime`, `finishtime`, `level` |
+| `ev_plugins.aardwolf.cp_comp` | a campaign is complete and its rewards are known | `oncp`, `cantake`, `shtime`, `mobs`, `mobsleft`, `trains`, `pracs`, `gold`, `tp`, `qp`, `bonusqp`, `failed`, `starttime`, `finishtime`, `level`, `completeby` |
 | `ev_plugins.aardwolf.cp_failed` | a campaign is cleared | the same keys as `cp_comp` |
 
 Each payload is a deep copy; changing it does not change the state. statdb stores the columns of its
@@ -91,6 +116,8 @@ Each payload is a deep copy; changing it does not change the state. statdb store
 
 ## Changes from the old plugin
 
+- **New campaign tell.** It no longer resets the state; it queues `campaign info`, and only that
+  output starts a campaign.
 - **First mob.** The old plugin tested the index of the killed mob for truth, so the mob at index 0
   was never removed. `remove_mob` tests it with `is not None`.
 - **Level.** The old plugin passed only `char.status.level` to its level helper. The level is now
