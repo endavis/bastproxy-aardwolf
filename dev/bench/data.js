@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795446173126,
+  "lastUpdate": 1795453582148,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1253,6 +1253,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.7513852716200184e-7",
             "extra": "mean: 3.703912314849967 usec\nrounds: 144614"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7c8fb5ff9b13ffdbe11e58dd5dd9fbe4c2a0524f",
+          "message": "feat: make the Aardwolf prompts end in %c (merges PR #61, addresses #60)\n\nAdd the promptfix plugin, ported from the MUSHclient prompt fixer. When the\ncharacter is first active, and whenever the MUD says \"Prompt set to\" or\n\"Battle prompt set to\", it requests the prompts over GMCP and changes any\nthat do not end in an unescaped %c with the prompt and bprompt commands,\ntelling the user. A result over 80 visible characters is not sent; the user\nis told to change it by hand. The autofix setting turns the fixer off.\n\nAddresses #60\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T17:05:44Z",
+          "tree_id": "b5525f277ed9ab4464d945c8a490e6b8d18b7857",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/7c8fb5ff9b13ffdbe11e58dd5dd9fbe4c2a0524f"
+        },
+        "date": 1795453581502,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2869242.6410198817,
+            "unit": "iter/sec",
+            "range": "stddev: 9.441314421814638e-8",
+            "extra": "mean: 348.5240271086124 nsec\nrounds: 199881"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 174740.1484311267,
+            "unit": "iter/sec",
+            "range": "stddev: 6.068417704875982e-7",
+            "extra": "mean: 5.722783281222557 usec\nrounds: 183925"
           }
         ]
       }
