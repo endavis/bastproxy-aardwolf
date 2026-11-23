@@ -142,7 +142,14 @@ class StatStore:
     # event saves
 
     def save_whois(self, info: Mapping[str, Any]) -> None:
-        """Save a whois: update the current stats, or start them with a ``start`` milestone."""
+        """Save a whois: update the current stats, or start them with a ``start`` milestone.
+
+        The stat lines of the whois are nested under ``stats`` in the payload; they are read
+        as columns next to the other keys.
+        """
+        flat = {key: value for key, value in info.items() if key != "stats"}
+        flat.update(info.get("stats") or {})
+        info = flat
         current = self.current_row()
         if current:
             merged = dict(current)

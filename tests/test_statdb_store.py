@@ -67,6 +67,19 @@ def test_whois_first_inserts_current_and_start(store: "StatStore", db: "Sqldb") 
     assert rows[1]["time"] > 0
 
 
+def test_whois_stats_are_read_from_the_nested_stats_key(store: "StatStore", db: "Sqldb") -> None:
+    """The stat lines of a whois arrive under ``stats`` and are saved as columns (#43)."""
+    payload = {**WHOIS, "stats": {"monsterskilled": "456", "questscomplete": "12", "bogus": "1"}}
+    store.save_whois(payload)
+    row = _current(db)
+    assert row["monsterskilled"] == 456
+    assert row["questscomplete"] == 12
+    assert row["name"] == "Tester"
+    assert "stats" in payload
+    store.save_whois({**payload, "stats": {"monsterskilled": "500"}})
+    assert _current(db)["monsterskilled"] == 500
+
+
 def test_whois_classes_from_abbreviations_and_full_names(store: "StatStore", db: "Sqldb") -> None:
     """Abbreviated and full class names both set the remort of the full-name row."""
     store.save_whois(WHOIS)

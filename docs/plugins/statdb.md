@@ -133,7 +133,7 @@ payload it is given, and a column that is not in the payload takes its SQL defau
 
 | Event | Payload keys | Store method |
 | :--- | :--- | :--- |
-| `whois_received` | `name`, `level`, `totallevels`, `tiers`, `redos`, `remorts`, `race`, `sex`, `subclass`, `powerupsall`, `classes` (a list of `class` and `remort`), and any `stats` column | `save_whois` |
+| `whois_received` | `name`, `level`, `totallevels`, `tiers`, `redos`, `remorts`, `race`, `sex`, `subclass`, `powerupsall`, `classes` (a list of `class` and `remort`), and `stats`, a dict of the stat lines, each key a `stats` column | `save_whois` |
 | `quest_comp`, `quest_failed` | `starttime`, `finishtime`, `mobname`, `mobarea`, `mobroom`, `qp`, `double`, `daily`, `totqp`, `gold`, `tierqp`, `mccp`, `lucky`, `opk`, `hardcore`, `tp`, `trains`, `pracs`, `level`, `failed` | `save_quest` |
 | `cp_comp`, `cp_failed` | `starttime`, `finishtime`, `qp`, `bonusqp`, `gold`, `tp`, `trains`, `pracs`, `level`, `failed`, `mobs` (a list of `name` and `location`) | `save_cp` |
 | `gq_done`, `gq_completed`, `gq_won` | `starttime`, `finishtime`, `qp`, `qpmobs`, `gold`, `tp`, `trains`, `pracs`, `level`, `extended`, `won`, `completed`, `mobs` (a list of `num`, `name` and `location`) | `save_gq` |

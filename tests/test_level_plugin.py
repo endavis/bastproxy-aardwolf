@@ -9,9 +9,11 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf.level.libs import EVENTS
 from aardwolf.libs.aardu import actual_level
 
 if TYPE_CHECKING:
@@ -227,6 +229,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     result = Env(plugin, fake, tmp_path)
     result.clock = clock
     yield result
+    assert_raised_described(fake.raised, EVENTS)
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -655,3 +658,10 @@ def test_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
         assert stat[0]["totallevels"] == 51
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """A level raises only keys its events describe in arg_descriptions (#43)."""
+    env.fake.feed("You raise a level! You are now level 51.", GAINS, "")
+    assert env.fake.raised_names() == ["gain"]
+    assert_raised_described(env.fake.raised, EVENTS)

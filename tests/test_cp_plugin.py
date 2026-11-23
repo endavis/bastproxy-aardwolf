@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
@@ -216,7 +217,9 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
 
     monkeypatch.setattr(_cp.CpPlugin, "_now", staticmethod(lambda: NOW))
     fake = FakeApi()
-    yield Env(build(tmp_path, fake), fake, tmp_path)
+    result = Env(build(tmp_path, fake), fake, tmp_path)
+    yield result
+    assert_raised_described(fake.raised, EVENTS)
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -597,3 +600,12 @@ def test_failed_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
         assert stat[0]["campaignsfld"] == 1
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """A campaign raises only keys its events describe in arg_descriptions (#43)."""
+    env.take_cp(RAT)
+    env.complete()
+    env.fake.feed(BONUS)
+    assert env.fake.events(EVENT_COMP)
+    assert_raised_described(env.fake.raised, EVENTS)

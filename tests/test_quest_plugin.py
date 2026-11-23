@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf.quest.libs import EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.quest.plugin._quest import QuestPlugin
@@ -267,3 +269,17 @@ def test_failed_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
         assert stat[0]["questsfailed"] == 1
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """Every action raises only keys its event describes in arg_descriptions (#43)."""
+    env.send({"action": "ready"})
+    env.send(START)
+    env.send({"action": "killed"})
+    env.send(COMP)
+    env.send(START)
+    env.send({"action": "fail"})
+    env.send({"action": "status", "status": "ready"})
+    env.send({"action": "reset"})
+    assert len(env.fake.raised) == 8
+    assert_raised_described(env.fake.raised, EVENTS)

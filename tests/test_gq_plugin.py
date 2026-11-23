@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
@@ -264,7 +265,9 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
 
     monkeypatch.setattr(_gq.GqPlugin, "_now", staticmethod(lambda: NOW))
     fake = FakeApi()
-    yield Env(build(tmp_path, fake), fake, tmp_path)
+    result = Env(build(tmp_path, fake), fake, tmp_path)
+    yield result
+    assert_raised_described(fake.raised, EVENTS)
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -784,3 +787,12 @@ def test_done_payload_does_not_count_a_win(env: Env, tmp_path: Path) -> None:
         assert stat[0]["gquestswon"] == 0
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """A global quest raises only keys its events describe in arg_descriptions (#43)."""
+    env.join(RAT)
+    env.fake.feed(DEAD)
+    env.win()
+    assert env.fake.events(EVENT_WON)
+    assert_raised_described(env.fake.raised, EVENTS)

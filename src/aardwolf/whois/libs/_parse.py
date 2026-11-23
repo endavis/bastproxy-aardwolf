@@ -1,6 +1,6 @@
 """Regexes and pure helpers that turn whois output and GMCP values into the whois state."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
 from aardwolf.libs.aardu import CLASSABBREV, actual_level
@@ -96,6 +96,13 @@ def header_values(gmcp_get: Callable[[str], object], sex: str) -> dict[str, Any]
         "powerupsmort": 0,
         "remorts": _int(gmcp_get("char.base.remorts"), 1),
     }
+
+
+def event_payload(state: Mapping[str, Any], described: Collection[str]) -> dict[str, Any]:
+    """Return the event payload: the described keys as they are, every other key under ``stats``."""
+    payload: dict[str, Any] = {key: value for key, value in state.items() if key in described}
+    payload["stats"] = {key: value for key, value in state.items() if key not in described}
+    return payload
 
 
 def total_levels(state: Mapping[str, Any]) -> int:
