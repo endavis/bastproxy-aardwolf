@@ -1,5 +1,6 @@
 """Tests for the Aardwolf prompt fixer plugin, with a stubbed API."""
 
+import logging
 import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -10,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import aardwolf
-from aardwolf.promptfix.libs import PROMPT_SET_REGEX
+from aardwolf.promptfix.libs import PROMPT_MARK_PRIORITY, PROMPT_SET_REGEX
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -230,3 +231,115 @@ def test_disconnect_clears_requesting(env: Env) -> None:
     env.plugin._requesting = True
     env.plugin._eventcb_disconnect()
     assert not env.plugin._requesting
+
+
+TEMPLATE_MAIN = "[%h/%Hhp] >%c"
+TEMPLATE_BATTLE = "[%h] Enemy: %e%c"
+LOOSE = "%h%m%c"
+
+
+def line(text: str, *, frommud: bool = True, internal: bool = False) -> SimpleNamespace:
+    """Return a stand-in line."""
+    return SimpleNamespace(noansi=text, frommud=frommud, internal=internal, is_prompt=False)
+
+
+def mark(env: Env, text: str, **kwargs: bool) -> bool:
+    """Run the mark callback on a line and return its is_prompt."""
+    obj = line(text, **kwargs)
+    env.fake.record = {"line": obj}
+    env.plugin._eventcb_mark_prompt()
+    return bool(obj.is_prompt)
+
+
+def test_patterns_mark_matching_mud_lines(env: Env) -> None:
+    """Both templates build patterns; a matching line is marked and others are not."""
+    env.prompts(main=TEMPLATE_MAIN, battle=TEMPLATE_BATTLE)
+    assert set(env.plugin._prompt_patterns) == {"main", "battle"}
+    assert mark(env, "[5/10hp] >")
+    assert mark(env, "[5] Enemy: 50%")
+    assert not mark(env, "Some other line")
+
+
+def test_internal_and_client_lines_are_never_marked(env: Env) -> None:
+    """Only lines from the mud are marked."""
+    env.prompts(main=TEMPLATE_MAIN)
+    assert not mark(env, "[5/10hp] >", frommud=False, internal=True)
+    assert not mark(env, "[5/10hp] >", frommud=False)
+
+
+def test_missing_line_or_text_is_skipped(env: Env) -> None:
+    """A record without a line, or a line without text, is left alone."""
+    env.prompts(main=TEMPLATE_MAIN)
+    env.fake.record = {}
+    env.plugin._eventcb_mark_prompt()
+    obj = SimpleNamespace(noansi=None, frommud=True, is_prompt=False)
+    env.fake.record = {"line": obj}
+    env.plugin._eventcb_mark_prompt()
+    assert obj.is_prompt is False
+
+
+def test_new_template_replaces_the_old_pattern(env: Env) -> None:
+    """A new char.prompts drops the old pattern."""
+    env.prompts(main=TEMPLATE_MAIN)
+    env.prompts(main="<%h> prompt%c")
+    assert not mark(env, "[5/10hp] >")
+    assert mark(env, "<5> prompt")
+
+
+def test_template_without_newline_clears_the_pattern(env: Env) -> None:
+    """A template without %c clears its key; the fix is sent and nothing is marked."""
+    env.prompts(main=TEMPLATE_MAIN)
+    env.prompts(main="[%h/%Hhp] >")
+    assert env.mud == ["prompt [%h/%Hhp] >%c"]
+    assert "main" not in env.plugin._prompt_patterns
+    assert not mark(env, "[5/10hp] >")
+    env.prompts(main="[%h/%Hhp] >%c")
+    assert mark(env, "[5/10hp] >")
+
+
+def test_key_missing_from_the_data_keeps_its_pattern(env: Env) -> None:
+    """A char.prompts without a key does not clear that key's pattern."""
+    env.prompts(main=TEMPLATE_MAIN, battle=TEMPLATE_BATTLE)
+    env.prompts(battle=TEMPLATE_BATTLE)
+    assert mark(env, "[5/10hp] >")
+
+
+def test_loose_template_warns_once_and_marks_nothing(
+    env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A code-only template logs one warning for the same template, without its text."""
+    with caplog.at_level(logging.WARNING):
+        env.prompts(main=LOOSE)
+        env.prompts(main=LOOSE)
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert LOOSE not in warnings[0].getMessage()
+    assert not env.plugin._prompt_patterns
+    assert not mark(env, "12 34")
+
+
+def test_autofix_off_still_builds_patterns(env: Env) -> None:
+    """With autofix off patterns are built and nothing is sent."""
+    env.fake.autofix = False
+    env.prompts(main=TEMPLATE_MAIN, battle="x")
+    assert env.mud == []
+    assert env.client == []
+    assert mark(env, "[5/10hp] >")
+
+
+def test_disconnect_clears_the_patterns(env: Env) -> None:
+    """The next login may be another character."""
+    env.prompts(main=TEMPLATE_MAIN)
+    env.plugin._eventcb_disconnect()
+    assert not mark(env, "[5/10hp] >")
+
+
+def test_mark_callback_is_registered_before_the_core_waiters() -> None:
+    """The callback registers on the line modify event at PROMPT_MARK_PRIORITY."""
+    from aardwolf.promptfix.plugin._promptfix import PromptFixPlugin
+
+    registrations = PromptFixPlugin._eventcb_mark_prompt.event_registration
+    assert registrations == [
+        {"event_name": "ev_to_client_data_modify", "priority": PROMPT_MARK_PRIORITY}
+    ]
+    assert PROMPT_MARK_PRIORITY < 40

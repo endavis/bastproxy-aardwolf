@@ -1,6 +1,7 @@
 """Pure helpers and constants of the prompt fixer plugin, with no bastproxy imports."""
 
 import re
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import NamedTuple
 
@@ -14,6 +15,15 @@ EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 # the event the core settings plugin raises when the setting changes or loads
 EVENT_AUTOFIX_MODIFIED = "ev_plugins.aardwolf.promptfix_var_autofix_modified"
 
+EVENT_LINE_MODIFY = "ev_to_client_data_modify"
+# runs before the core line waiters (priority 40) and triggers (priority 50) read is_prompt
+PROMPT_MARK_PRIORITY = 30
+# fewest non-blank fixed characters a prompt line needs to be recognised safely
+MIN_PROMPT_LITERAL = 3
+# longest line tested against a prompt pattern; a prompt is at most MAX_VISIBLE fixed
+# characters plus its values, so anything longer is other output
+MAX_PROMPT_LINE = 400
+
 PROMPT_SET_TRIGGER = "promptfix_set"
 # not anchored: the line can arrive stuck to the end of a prompt
 PROMPT_SET_REGEX = r"(?:Battle p|P)rompt set to:? "
@@ -26,6 +36,9 @@ PROMPT_KINDS: tuple[tuple[str, str, str], ...] = (
 
 _TOKEN = re.compile(r"@@|@[xXzZ]\d{1,3}|@[A-Za-z]|[^@]+|@")
 _COLOUR = re.compile(r"@[xXzZ]\d{1,3}|@[A-Za-z]")
+_PROMPT_TOKEN = re.compile(r"%%|%.|[^%]+|%", re.S)
+# Aardwolf appends flags such as *[NOEXP]* to a prompt line
+_FLAG_SUFFIX = r"(?:\s*\*\[[A-Z]+\]\*)*\s*"
 
 
 class PromptStatus(StrEnum):
@@ -35,6 +48,21 @@ class PromptStatus(StrEnum):
     FIXED = "fixed"
     TOO_LONG = "too_long"
     EMPTY = "empty"
+
+
+class PatternStatus(StrEnum):
+    """What build_prompt_pattern decided about a prompt template."""
+
+    OK = "ok"
+    NO_NEWLINE = "no_newline"
+    TOO_LOOSE = "too_loose"
+
+
+class PromptPattern(NamedTuple):
+    """The status of a template and its regex (None unless OK)."""
+
+    status: PatternStatus
+    regex: re.Pattern[str] | None
 
 
 class PromptFix(NamedTuple):
@@ -114,3 +142,74 @@ def too_long_message(label: str) -> str:
         f"Prompt fixer: your {label} does not end in %c, but adding it would make it longer "
         f"than {MAX_VISIBLE} visible characters. Shorten it and end it in %c by hand."
     )
+
+
+def build_prompt_pattern(template: str) -> PromptPattern:
+    """Build an anchored regex for the line a prompt template ends on.
+
+    A template that does not end in ``%c`` has no pattern (its prompt sticks to the next line),
+    and neither does one with too little fixed text to tell a prompt from other output.
+    """
+    stripped = strip_trailing(template)
+    if not ends_in_newline(stripped):
+        return PromptPattern(PatternStatus.NO_NEWLINE, None)
+    # drop the final %c, then keep the last line of a multi-line prompt
+    tokens = _PROMPT_TOKEN.findall(strip_colour_codes(stripped))[:-1]
+    segment: list[str] = []
+    for token in tokens:
+        if token == "%c":  # nosec B105  # newline token, not a password
+            segment = []
+        else:
+            segment.append(token)
+    pieces: list[tuple[bool, str]] = []  # (is_wildcard, text)
+    for token in segment:
+        if token == "%%":  # nosec B105  # escaped percent token, not a password
+            pieces.append((False, "%"))
+        elif token.startswith("%") and len(token) == 2:
+            pieces.append((True, ""))
+        else:
+            pieces.append((False, token))
+    while pieces and not pieces[-1][0]:
+        text = pieces[-1][1].rstrip()
+        if text:
+            pieces[-1] = (False, text)
+            break
+        pieces.pop()
+    literal = sum(len("".join(text.split())) for wild, text in pieces if not wild)
+    if literal < MIN_PROMPT_LITERAL:
+        return PromptPattern(PatternStatus.TOO_LOOSE, None)
+    return PromptPattern(
+        PatternStatus.OK, re.compile(rf"\A{_pattern_body(pieces)}{_FLAG_SUFFIX}\Z")
+    )
+
+
+def _pattern_body(pieces: list[tuple[bool, str]]) -> str:
+    """Turn the pieces of a prompt line into regex text that cannot backtrack badly.
+
+    A value (a ``%`` code) runs up to the first character of the fixed text after it, and it
+    is possessive, so a line that almost matches fails in linear time instead of trying every
+    split between several wildcards. Adjacent codes are one value. A value that contains the
+    first character of the text after it does not match, which leaves that line unmarked.
+    """
+    merged: list[tuple[bool, str]] = []
+    for wild, text in pieces:
+        if wild and merged and merged[-1][0]:
+            continue
+        merged.append((wild, text))
+    parts: list[str] = []
+    for index, (wild, text) in enumerate(merged):
+        if not wild:
+            parts.append(re.escape(text))
+        elif index + 1 < len(merged):
+            parts.append(f"[^{re.escape(merged[index + 1][1][0])}]*+")
+        else:
+            # the last value runs to the trailing flags; it cannot contain their "*["
+            parts.append(r"(?:[^*]|\*(?!\[))*+")
+    return "".join(parts)
+
+
+def is_prompt_text(text: str, patterns: Iterable[re.Pattern[str]]) -> bool:
+    """Return True when the line of text matches any prompt pattern."""
+    if len(text) > MAX_PROMPT_LINE:
+        return False
+    return any(pattern.search(text) for pattern in patterns)

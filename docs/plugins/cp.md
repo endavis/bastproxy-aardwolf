@@ -78,7 +78,8 @@ refreshed by a new `campaign check`.
   triggers still fire on hidden lines, so `cantake`, need to level and `shtime` update. A
   `campaign check`, `cp check` or `campaign info` the player types is shown in full, because those
   groups are on only while a queued command runs. If no prompt comes, the window ends after
-  `HIDE_MAX_LINES` (60) hidden lines, and a disconnect ends it too.
+  `HIDE_MAX_LINES` (60) hidden lines and a warning is logged, and a disconnect ends it too. Aardwolf
+  sends no GA, so the prompt is recognised through the [promptfix plugin](promptfix.md).
 - **Mobs.** Each `cp_mob` line adds a mob with `name`, `nocolorname`, `location` and `mobdead`. The
   mobs left are saved in the state under `mobsleft`, so they survive a restart. The first check of a
   campaign copies them to `mobs` and raises `cp_mobsorig`; every check raises `cp_mobsleft`. When

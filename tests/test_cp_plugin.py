@@ -1044,7 +1044,7 @@ def test_window_ends_at_the_prompt(env: Env) -> None:
     assert env.fake.shown[-1] == "Some other line."
 
 
-def test_window_ends_at_the_line_cap(env: Env) -> None:
+def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture) -> None:
     """Without a prompt, HIDE_MAX_LINES lines after the opener are hidden and the next is shown.
 
     The opener is not counted: it is hidden by its own omit, before the watcher exists.
@@ -1053,11 +1053,15 @@ def test_window_ends_at_the_line_cap(env: Env) -> None:
     env.fake.feed(RAT)
     assert is_hiding(env)
     others = [f"line {i}" for i in range(HIDE_MAX_LINES + 1)]
-    env.fake.feed(*others)
+    with caplog.at_level(logging.WARNING):
+        env.fake.feed(*others)
     assert env.fake.hidden[-HIDE_MAX_LINES:] == others[:HIDE_MAX_LINES]
     assert env.fake.shown == [others[-1]]
     assert not is_hiding(env)
     assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+    caps = [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    assert len(caps) == 1
+    assert caps[0].levelno == logging.WARNING
 
 
 def test_disconnect_ends_the_hide_window(env: Env) -> None:
@@ -1077,3 +1081,41 @@ def test_one_hide_watcher_for_several_openers(env: Env) -> None:
     env.take_cp(RAT)
     env.fake.feed(RAT, BAT, TIME)
     assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == [env.plugin._hide_line]
+
+
+def test_issue_90_session_closes_every_window_at_the_marked_prompt(
+    env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Aardwolf sends no GA: prompts recognised from the template close the hide windows."""
+    from aardwolf.promptfix.libs import build_prompt_pattern, is_prompt_text
+
+    template = "@R[@W%h@R/@W%H@Rhp %m/%Mmn %v/%Vmv %qqt %Xtnl@R] >%c"
+    regex = build_prompt_pattern(template).regex
+    assert regex is not None
+    prompt_line = "[201/201hp 176/176mn 630/630mv 0qt 773tnl] >*[NOEXP]*"
+
+    def feed(*lines: str) -> None:
+        for text in lines:
+            env.fake.feed(text, prompt=is_prompt_text(text, [regex]))
+
+    fake = env.fake
+    fake.record = {"is_character_active": True}
+    with caplog.at_level(logging.WARNING):
+        env.plugin._eventcb_character_active()
+        info = [*info_for(RAT), "", prompt_line]
+        check = [RAT, TIME, INFO_NEEDTOLEVEL, "", prompt_line]
+        whois = [
+            "Name: Someone",
+            "Class: Mage",
+            "To see warfare stats, use 'warinfo <player>'",
+            "",
+            prompt_line,
+        ]
+        feed(*info)
+        feed(*check)
+        feed(*whois)
+    assert all(text in fake.hidden for text in [*info, *check])
+    assert fake.shown == whois
+    assert not is_hiding(env)
+    assert fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+    assert not [r for r in caplog.records if "no prompt after" in r.getMessage()]
