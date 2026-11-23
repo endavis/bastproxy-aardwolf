@@ -36,24 +36,35 @@ It depends on the events, triggers, watch and mudcmds core plugins.
       plugin adds a `whois` command type with `plugins.core.mudcmds:type.add`, and mudcmds calls
       its `beforef` just before it sends the line. This plugin queues its own whois this way, see
       below.
+
+  The queued path also arms hiding (see Hiding); the typed path clears it.
 - **Automatic whois.** The plugin queues one `whois` each time the character becomes first active
   (`ev_libs.api_character_active` with `is_character_active` true), and once after it loads when
   `libs.api:character.is.active` is already true. It does not depend on the statdb plugin or on
   what the stats database holds.
 - **Parsing.** The group holds the triggers `whoisheader`, `whoisclasses`, `whois1`, `whois2`,
-  `whois3` and `whoispowerup`; all are off until a whois starts. The header sets the name, level,
+  `whois3`, `whoispowerup` and `whoisstart`; all are off until a whois starts. The header sets the name, level,
   tiers, redos, race, subclass and remorts from GMCP (`char.base.*` and `char.status.level`) and
   the sex from the line. A character with one remort gets its class from `char.base.class`. A
   multiclass line sets the classes (one per remort, as abbreviations) and the remort count from
   the line. Each stat line adds one key per stat, named for the stat in lower case without spaces,
   such as `questscomplete`, with the value as text. The power-up line sets `powerupsall` and
   `powerupsmort`.
+- **Hiding.** Every queued whois is hidden from the client, whether this plugin or another plugin
+  queued it through `mudcmds`. The first 74-dash line of the reply opens a window: the `whoisstart`
+  trigger sets `line.send = False` on it and registers a callback on
+  `t_plugins.core.triggers_beall`, which hides every following line, blank lines and the prompt
+  included. A typed `whois` or `whoi` is shown in full. Parsing and the event are the same either
+  way. The closing dashes do nothing to `whoisstart`, because the flag is already off. The window
+  closes at the prompt (marked by promptfix), after `HIDE_MAX_LINES` (60) lines with a WARNING (the
+  next line is shown), or on disconnect.
 - **End.** The trigger `whoisend` matches the line of 74 dashes. It is not in the group: it is
   turned on at the header, so the dashed line above the header cannot end the whois. At the end
   line the plugin sets `totallevels`, saves the state, turns the triggers off, raises the event and
   calls `plugins.core.mudcmds:command.finish("whois")`. The call does nothing when the current
   command is not a queued whois, as for a typed whois.
-- **Disconnect.** A MUD disconnect turns the group and `whoisend` off, so a whois cut off by a
+- **Disconnect.** A MUD disconnect turns the group and `whoisend` off, closes the hide window and clears the
+  pending flag, so a whois cut off by a
   disconnect does not leave the triggers on.
 - **Persistence.** The state is a `PersistentDict` in `whois.txt` in the plugin's data directory.
   It is synced at the end line and by the `save` hook, which runs on unload and reload.
@@ -79,6 +90,7 @@ state, which keeps the stat lines at the top level.
 | `plugin_whois_savestate` | the `save` plugin hook |
 | `GMCP.getv` | `libs.net.protocols:gmcp.value.get` |
 | a whois sent by a plugin | a queued command type, so the plugin parses it too |
+| the old plugin never sent a whois itself | a queued whois is hidden from the client |
 
 Fixes in the port:
 

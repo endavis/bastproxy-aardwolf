@@ -1,9 +1,11 @@
 """Pure helpers for the whois plugin."""
 
 from ._parse import (
+    BEFORE_ALL_LINES_ID,
     CLASSES_REGEX,
     END_REGEX,
     HEADER_REGEX,
+    HIDE_MAX_LINES,
     POWERUP_REGEX,
     STAT1_REGEX,
     STAT2_REGEX,
@@ -18,9 +20,11 @@ from ._parse import (
 )
 
 __all__ = [
+    "BEFORE_ALL_LINES_ID",
     "CLASSES_REGEX",
     "END_REGEX",
     "HEADER_REGEX",
+    "HIDE_MAX_LINES",
     "POWERUP_REGEX",
     "STAT1_REGEX",
     "STAT2_REGEX",

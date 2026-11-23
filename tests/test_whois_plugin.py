@@ -1,5 +1,6 @@
 """Tests for the Aardwolf whois plugin, with a stubbed API that drives its triggers."""
 
+import logging
 import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -12,6 +13,7 @@ from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf.whois.libs import BEFORE_ALL_LINES_ID, HIDE_MAX_LINES
 
 if TYPE_CHECKING:
     from aardwolf.whois.plugin._whois import WhoisPlugin
@@ -33,6 +35,20 @@ MULTI = [
     "[Multiclass Player: Mage/Thief/Ranger ]",
     "Monsters Killed   : [ 456 ]",
     DASHES,
+]
+PROMPT = "[201/201hp 176/176mn 630/630mv 13qt 773tnl] >*[NOEXP]*"
+REAL_REPLY = [
+    DASHES,
+    "[  4 T0   Half Thi] Cyrinik [C] (Male Ninja)",
+    "",
+    "Quests Complete   : [ 12 ]   Campaigns Fld   : [ 3 ]",
+    "Monsters Killed   : [ 456 ]   Hours Online   : [ 7 ]",
+    "",
+    "Powerups Taken   : [ 5 ]   Powerups   : [ 3 ] [ 2 ]",
+    DASHES,
+    "To see warfare stats, use 'warinfo <player>'",
+    "",
+    PROMPT,
 ]
 GMCP: dict[str, Any] = {
     "char.base.name": "Bast",
@@ -59,6 +75,9 @@ class FakeApi:
         self.raised: list[tuple[str, dict[str, Any]]] = []
         self.triggers: dict[str, dict[str, Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
+        self.before_all: list[Callable[..., Any]] = []
+        self.shown: list[str] = []
+        self.hidden: list[str] = []
         self.group_toggles: list[tuple[str, bool]] = []
         self.trigger_toggles: list[tuple[str, bool]] = []
         self.add_ok = True
@@ -82,6 +101,7 @@ class FakeApi:
             "libs.api:character.is.active": lambda: self.active,
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
+            "plugins.core.triggers:trigger.unregister": self._trigger_unregister,
             "plugins.core.triggers:trigger.toggle.enable": self._trigger_toggle,
             "plugins.core.triggers:group.toggle.enable": self._group_toggle,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
@@ -109,7 +129,15 @@ class FakeApi:
         return SimpleNamespace(success=self.add_ok, trigger=SimpleNamespace(trigger_id=name))
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        self.callbacks[trigger_id] = func
+        if trigger_id == BEFORE_ALL_LINES_ID:
+            self.before_all.append(func)
+        else:
+            self.callbacks[trigger_id] = func
+        return True
+
+    def _trigger_unregister(self, trigger_id: str, func: Callable[..., Any]) -> bool:
+        assert trigger_id == BEFORE_ALL_LINES_ID
+        self.before_all.remove(func)
         return True
 
     def _trigger_toggle(self, name: str, flag: bool) -> bool:
@@ -126,16 +154,31 @@ class FakeApi:
                 trigger["enabled"] = flag
         return True
 
-    def feed(self, lines: list[str]) -> None:
-        """Run each line through the enabled triggers, as the triggers plugin does."""
-        for line in lines:
+    def feed(
+        self,
+        lines: list[str],
+        prompt: bool = False,
+        is_prompt: Callable[[str], bool] | None = None,
+    ) -> None:
+        """Run each line through the triggers, as the triggers plugin does.
+
+        The before-all-lines callbacks run first. prompt marks the last line as a prompt;
+        is_prompt decides per line instead.
+        """
+        for index, text in enumerate(lines):
+            marked = is_prompt(text) if is_prompt else prompt and index == len(lines) - 1
+            line = SimpleNamespace(noansi=text, is_prompt=marked, send=True)
+            self.record = {"matches": {}, "line": line}
+            for func in list(self.before_all):
+                func()
             for name, trigger in list(self.triggers.items()):
                 if not trigger["enabled"]:
                     continue
-                match = re.match(trigger["regex"], line)
+                match = re.match(trigger["regex"], text)
                 if match and name in self.callbacks:
-                    self.record = {"matches": match.groupdict()}
+                    self.record = {"matches": match.groupdict(), "line": line}
                     self.callbacks[name]()
+            (self.shown if line.send else self.hidden).append(text)
 
     def enabled(self) -> set[str]:
         """The names of the enabled triggers."""
@@ -228,6 +271,7 @@ def test_after_load(env: Env) -> None:
         "whois3",
         "whoispowerup",
         "whoisend",
+        "whoisstart",
     }
     assert not fake.enabled()
     assert {n for n, t in fake.triggers.items() if t["group"] == PLUGIN_ID} == set(
@@ -260,6 +304,7 @@ def test_single_class_typed_whois(env: Env) -> None:
         "whois2",
         "whois3",
         "whoispowerup",
+        "whoisstart",
     }
     env.fake.feed(SINGLE)
     assert len(env.fake.raised) == 1
@@ -415,3 +460,122 @@ def test_raised_keys_are_all_described(env: Env) -> None:
     assert payload["stats"]["monsterskilled"] == "456"
     assert "questscomplete" not in payload
     assert payload["powerupsall"] == "3"
+
+
+def test_queued_whois_is_hidden_to_the_prompt(env: Env) -> None:
+    """Every line of a queued whois is hidden, blanks and the prompt included."""
+    env.queued_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.hidden == REAL_REPLY
+    assert env.fake.shown == []
+    assert env.fake.before_all == []
+    assert env.fake.finished == ["whois"]
+    env.fake.feed(["Next line"])
+    assert env.fake.shown == ["Next line"]
+
+
+def test_typed_whois_is_shown(env: Env) -> None:
+    """A typed whois is shown in full and never registers the hide watcher."""
+    env.typed_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.shown == REAL_REPLY
+    assert env.fake.hidden == []
+    assert env.fake.before_all == []
+
+
+def test_hidden_and_typed_whois_parse_the_same(env: Env) -> None:
+    """Hiding does not change the saved state or the event payload."""
+    env.queued_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    queued_state = dict(env.plugin.whois)
+    env.typed_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert queued_state["name"] == "Bast"
+    assert dict(env.plugin.whois) == queued_state
+    assert len(env.fake.raised) == 2
+    assert env.fake.raised[0] == env.fake.raised[1]
+    assert env.fake.finished == ["whois", "whois"]
+
+
+def test_lines_before_the_first_dashes_are_shown(env: Env) -> None:
+    """Lines between the queued send and the reply are not hidden."""
+    env.queued_whois()
+    env.fake.feed(["You say 'hi'"])
+    env.fake.feed(["[1/1hp] >"], prompt=True)
+    assert env.fake.shown == ["You say 'hi'", "[1/1hp] >"]
+    assert env.fake.before_all == []
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.hidden == REAL_REPLY
+
+
+def test_closing_dashes_do_not_restart_the_window(env: Env) -> None:
+    """The watcher is registered once, at the first dashes."""
+    env.queued_whois()
+    env.fake.feed(REAL_REPLY[:7])
+    assert env.fake.before_all == [env.plugin._hide_line]
+    env.fake.feed(REAL_REPLY[7:8])
+    assert env.fake.before_all == [env.plugin._hide_line]
+
+
+def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture) -> None:
+    """Without a prompt, the dashes and HIDE_MAX_LINES lines are hidden and the next is shown."""
+    env.queued_whois()
+    others = [f"line {i}" for i in range(HIDE_MAX_LINES + 1)]
+    with caplog.at_level(logging.WARNING):
+        env.fake.feed([DASHES, *others])
+    assert env.fake.hidden == [DASHES, *others[:HIDE_MAX_LINES]]
+    assert env.fake.shown == [others[-1]]
+    assert env.fake.before_all == []
+    caps = [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    assert len(caps) == 1
+    assert caps[0].levelno == logging.WARNING
+
+
+def test_disconnect_mid_window_closes_it(env: Env) -> None:
+    """A disconnect closes the window and clears the flag."""
+    env.queued_whois()
+    env.fake.feed(REAL_REPLY[:3])
+    assert env.fake.before_all
+    env.plugin._eventcb_disconnect()
+    assert env.fake.before_all == []
+    assert env.plugin._hide_pending is False
+    env.fake.feed(["Hello"])
+    assert env.fake.shown == ["Hello"]
+
+
+def test_disconnect_before_the_dashes_clears_the_flag(env: Env) -> None:
+    """A later typed whois is shown after a disconnect that followed a queued send."""
+    env.queued_whois()
+    env.plugin._eventcb_disconnect()
+    assert env.plugin._hide_pending is False
+    env.typed_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.shown == REAL_REPLY
+
+
+def test_typed_whois_after_an_unanswered_queued_one_is_shown(env: Env) -> None:
+    """The typed path clears a stale flag from a queued whois the MUD never answered."""
+    env.queued_whois()
+    env.typed_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.shown == REAL_REPLY
+    assert env.fake.hidden == []
+
+
+def test_marked_prompt_from_promptfix_closes_the_window(
+    env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The window closes at a prompt recognised from the template, with no cap warning."""
+    from aardwolf.promptfix.libs import build_prompt_pattern, is_prompt_text
+
+    template = "@R[@W%h@R/@W%H@Rhp %m/%Mmn %v/%Vmv %qqt %Xtnl@R] >%c"
+    regex = build_prompt_pattern(template).regex
+    assert regex is not None
+    env.queued_whois()
+    with caplog.at_level(logging.WARNING):
+        env.fake.feed(REAL_REPLY, is_prompt=lambda text: is_prompt_text(text, [regex]))
+        env.fake.feed(["Next line"])
+    assert env.fake.hidden == REAL_REPLY
+    assert env.fake.shown == ["Next line"]
+    assert env.fake.before_all == []
+    assert not [r for r in caplog.records if "no prompt after" in r.getMessage()]
