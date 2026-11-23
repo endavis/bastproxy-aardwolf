@@ -315,6 +315,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_promptfix_plugin.py",
     "tests/test_quest_libs.py",
     "tests/test_quest_plugin.py",
+    "tests/test_scanh_libs.py",
+    "tests/test_scanh_plugin.py",
     "tests/test_statdb_plugin.py",
     "tests/test_statdb_report.py",
     "tests/test_statdb_schema.py",

@@ -33,6 +33,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
+- [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
@@ -113,6 +114,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
+- [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
@@ -219,6 +221,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
+- [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
