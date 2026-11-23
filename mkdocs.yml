@@ -116,6 +116,7 @@ nav:
       - mobk: plugins/mobk.md
       - cp: plugins/cp.md
       - gq: plugins/gq.md
+      - promptfix: plugins/promptfix.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md
