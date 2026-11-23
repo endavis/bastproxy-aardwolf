@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795464263141,
+  "lastUpdate": 1795465071580,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1443,6 +1443,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.432327872509295e-7",
             "extra": "mean: 5.694004802385647 usec\nrounds: 181160"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a083405ddd1711333a72d14c25ccbb3c3fabb660",
+          "message": "feat: hide all output of the campaign commands the cp plugin queues (merges PR #88, addresses #70)\n\nThe cp plugin omitted the target and time lines of the campaign info\nand check it queues itself, but the state line (\"You will have to\nlevel ...\"), the campaigns-completed count, the blank line and the\nprompt still reached the client. After a cp req that showed up as\nthree extra prompts and the state line.\n\nThe first omitted line of a queued info or check now opens a hide\nwindow. A watcher on the core's before-all-lines trigger hides every\nline through the next prompt, which is hidden too. The triggers still\nmatch the hidden lines, so the state line still updates cantake,\nneed to level and shtime. A check or info the player types is shown\nin full, because those groups are only on for queued commands.\n\nThe window closes on disconnect, and after 60 hidden lines with no\nprompt, so output is never hidden for good.\n\nAddresses #70\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T20:17:14Z",
+          "tree_id": "c195ebf7695df00ecf98ca06d092663c96c6229d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a083405ddd1711333a72d14c25ccbb3c3fabb660"
+        },
+        "date": 1795465070813,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5796630.87907837,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1042807476687904e-8",
+            "extra": "mean: 172.51400354113875 nsec\nrounds: 58738"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 287150.4840757552,
+            "unit": "iter/sec",
+            "range": "stddev: 3.9346834930415797e-7",
+            "extra": "mean: 3.4824945645440146 usec\nrounds: 153989"
           }
         ]
       }
