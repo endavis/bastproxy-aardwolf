@@ -474,3 +474,46 @@ def test_raised_keys_are_all_described(env: Env) -> None:
     env.kill()
     assert len(env.fake.kills()) == 1
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+def test_last_without_a_kill(env: Env) -> None:
+    """The last command says so when no kill was raised."""
+    result = env.plugin._command_last()
+    assert result.success
+    assert result.message == ["No kill since the plugin loaded"]
+
+
+def test_last_shows_the_kill(env: Env) -> None:
+    """The last command shows the fields of the last raised kill."""
+    fake = env.fake
+    env.gmcp_enemy("@RA rat@w")
+    fake.feed(HIT, "[1] Your slash misses A rat. [0]", HIT)
+    env.clock["now"] = 1010.0
+    fake.feed(
+        XP,
+        "You receive 7 bonus experience points.",
+        GOLD,
+        "You assassinate A rat with cold efficiency.",
+        SAC,
+    )
+    result = env.plugin._command_last()
+    assert result.success
+    text = "\n".join(result.message)
+    assert "Mob: A rat" in text
+    assert "Room: 4321" in text
+    assert "total 107" in text
+    assert "Special kills: assassinate" in text
+    assert "Gold: 1234" in text
+    assert "Fight time: 10.0s" in text
+    assert "slash" in text
+    assert any(
+        line.startswith("@wslash") and "4" in line and "60" in line for line in result.message
+    )
+
+
+def test_last_is_a_copy_kept_after_reset(env: Env) -> None:
+    """The kept kill is not the live one, so the next kill does not change it."""
+    env.kill()
+    env.plugin.kill["name"] = "Other"
+    assert env.plugin.last_kill is not None
+    assert env.plugin.last_kill["name"] == "A rat"
