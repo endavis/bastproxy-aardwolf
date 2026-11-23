@@ -70,18 +70,24 @@ listens to the level plugin's events by name and does not depend on it.
 
 ## MUD output
 
-These forms are inferred from the old plugin's regexes, not captured from Aardwolf:
+The block forms below were checked against Aardwolf's own `slist noprompt` and
+`slist spellup noprompt` output. A full list is about 680 lines; the spellup list ends at
+`{/spellheaders}` with no recoveries section, and neither sends a prompt:
 
 ```text
 {spellheaders noprompt}                      # also: affected, learned and spellup before noprompt
-14,armor,2,0,85,-1,1                         # sn,name,target,duration,pct,rcvy,type
+3,acid blast,1,0,0,-1,1                      # sn,name,target,duration,pct,rcvy,type
 {/spellheaders}
 {recoveries noprompt}                        # full and affected only
-4,leadership,0                               # sn,name,duration
+0,Augmentation,0                             # sn,name,duration
 {/recoveries}
 ```
 
-The tags: `{affon}14,600`, `{affoff}14`, `{recon}4,300`, `{recoff}4`, `{skillgain}14,86` and
+A typed `slist` without `noprompt` starts with a bare `{spellheaders}`, which the plugin does not
+match, so its output is shown.
+
+These tags are inferred from the old plugin's regexes and were not captured from Aardwolf:
+`{affon}14,600`, `{affoff}14`, `{recon}4,300`, `{recoff}4`, `{skillgain}14,86` and
 `{sfail}14,0,2,-1` (sn, target, reason, recovery). Target codes 0 to 5 are `special`, `attack`,
 `spellup`, `selfonly`, `object` and `other`; type 1 is a spell and 2 a skill. A code the plugin
 does not know is kept as its number.
