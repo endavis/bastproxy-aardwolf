@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795392352933,
+  "lastUpdate": 1795431046634,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -911,6 +911,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.413169830475275e-7",
             "extra": "mean: 3.6906209286067067 usec\nrounds: 144238"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa52729263b2895296772732dbeabe4d07b624e7",
+          "message": "fix: send a whois every time the character is first active (merges PR #42, addresses #41)\n\nThe whois plugin now queues a whois on ev_libs.api_character_active,\nand after load when the character is already active. Before, only\nstatdb queued one, and only when its database had no kills yet, so a\nhome that already held a whois sent none on later logins, including a\nnew character's.\n\nstatdb no longer queues the whois or listens to char.status and the\ndisconnect for it, and drops its plugins.core.mudcmds dependency. It\nstill saves whois_received. The statdb tests of the removed queue are\nremoved with it.\n\nAddresses #41\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T10:50:12Z",
+          "tree_id": "7368f737fe53e9fc853480324693cd96f9583597",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/fa52729263b2895296772732dbeabe4d07b624e7"
+        },
+        "date": 1795431046124,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5165690.095711805,
+            "unit": "iter/sec",
+            "range": "stddev: 1.4085509716413194e-8",
+            "extra": "mean: 193.58497731602796 nsec\nrounds: 53565"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 273498.963242719,
+            "unit": "iter/sec",
+            "range": "stddev: 4.573993457419754e-7",
+            "extra": "mean: 3.6563209898259883 usec\nrounds: 144718"
           }
         ]
       }
