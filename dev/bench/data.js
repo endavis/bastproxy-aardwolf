@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795444950657,
+  "lastUpdate": 1795445710269,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1177,6 +1177,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.071292586716228e-7",
             "extra": "mean: 5.857828582927691 usec\nrounds: 176336"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cbc8853837138d7a6e6ebd5bf051b51b559e7b4d",
+          "message": "feat: add an aardwolf config plugin with a questmaster list (merges PR #58, addresses #57)\n\nplugins.aardwolf.config holds settings shared by the aardwolf plugins.\nIts first one is the list of questmasters, a read-only core list setting\nthat defaults to Commander Barcett and A QuestoR and is saved across\nrestarts.\n\n- #bp.aard.config.questmaster lists the names; add <name> and\n  remove <name> change one entry. Names may hold spaces and match\n  exactly, case included, as the questmaster's tell does.\n- The questmasters.get API returns a copy of the list.\n- ev_plugins.aardwolf.config_questmasters_changed carries the new list\n  whenever it changes; the load-time settings event is not passed on.\n\nAddresses #57\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T14:54:27Z",
+          "tree_id": "af418628443a679a332c9b2fb228e463db43079f",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/cbc8853837138d7a6e6ebd5bf051b51b559e7b4d"
+        },
+        "date": 1795445709611,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3971723.8401812566,
+            "unit": "iter/sec",
+            "range": "stddev: 1.623671139441319e-8",
+            "extra": "mean: 251.77984176119438 nsec\nrounds: 41330"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 224312.39765344208,
+            "unit": "iter/sec",
+            "range": "stddev: 4.5081779348234974e-7",
+            "extra": "mean: 4.4580683478091965 usec\nrounds: 116646"
           }
         ]
       }
