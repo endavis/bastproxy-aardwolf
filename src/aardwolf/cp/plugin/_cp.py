@@ -182,7 +182,7 @@ class CpPlugin(BasePlugin):
         if self._hidden_count >= HIDE_MAX_LINES:
             log_to(
                 [self.plugin_id],
-                logging.DEBUG,
+                logging.WARNING,
                 "no prompt after %d hidden lines, showing output again",
                 HIDE_MAX_LINES,
             )

@@ -1,6 +1,7 @@
 """Aardwolf prompt fixer plugin: make the prompt and battle prompt end in %c."""
 
 import logging
+import re
 from typing import Any
 
 from bastproxy.libs.logger import get_logger, log_to
@@ -16,15 +17,20 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from ..libs import (
     EVENT_AUTOFIX_MODIFIED,
     EVENT_DISCONNECT,
+    EVENT_LINE_MODIFY,
     EVENT_PROMPTS,
     GMCP_REQUEST,
     PROMPT_KINDS,
+    PROMPT_MARK_PRIORITY,
     PROMPT_SET_REGEX,
     PROMPT_SET_TRIGGER,
     SETTING_AUTOFIX,
+    PatternStatus,
     PromptStatus,
+    build_prompt_pattern,
     fix_prompt,
     fixed_message,
+    is_prompt_text,
     too_long_message,
 )
 
@@ -38,6 +44,8 @@ class PromptFixPlugin(BasePlugin):
     def _phook_init_plugin(self) -> None:
         """Initialize the state."""
         self._requesting = False
+        self._prompt_patterns: dict[str, re.Pattern[str]] = {}
+        self._prompt_templates: dict[str, str] = {}
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -81,17 +89,57 @@ class PromptFixPlugin(BasePlugin):
     def _eventcb_prompts(self) -> None:
         """Fix the prompts that do not end in %c."""
         self._requesting = False
-        if not self._enabled():
-            return
         record = self.api("plugins.core.events:event.current.record.get")() or {}
         data = record.get("data")
         if not isinstance(data, dict):
+            return
+        self._update_patterns(data)
+        if not self._enabled():
             return
         for key, command, label in PROMPT_KINDS:
             prompt = data.get(key)
             if not isinstance(prompt, str):
                 continue
             self._fix_one(command, label, prompt)
+
+    def _update_patterns(self, data: dict[str, Any]) -> None:
+        """Build the prompt line patterns from the templates; the template text is never logged."""
+        for key, _command, label in PROMPT_KINDS:
+            template = data.get(key)
+            if not isinstance(template, str):
+                continue
+            result = build_prompt_pattern(template)
+            if result.regex is not None:
+                self._prompt_patterns[key] = result.regex
+            else:
+                self._prompt_patterns.pop(key, None)
+            if (
+                result.status == PatternStatus.TOO_LOOSE
+                and self._prompt_templates.get(key) != template
+            ):
+                log_to(
+                    self.plugin_id,
+                    logging.WARNING,
+                    "the %s has too little fixed text to recognise; "
+                    "its lines are not marked as prompts",
+                    label,
+                )
+            self._prompt_templates[key] = template
+
+    @RegisterToEvent(event_name=EVENT_LINE_MODIFY, priority=PROMPT_MARK_PRIORITY)
+    def _eventcb_mark_prompt(self) -> None:
+        """Mark a mud line that matches a prompt pattern, as Aardwolf sends no GA or EOR."""
+        if not self._prompt_patterns:
+            return
+        record = self.api("plugins.core.events:event.current.record.get")() or {}
+        line = record.get("line")
+        if line is None or not getattr(line, "frommud", False) or getattr(line, "is_prompt", False):
+            return
+        text = getattr(line, "noansi", None)
+        if not isinstance(text, str):
+            return
+        if is_prompt_text(text, self._prompt_patterns.values()):
+            line.is_prompt = True
 
     def _fix_one(self, command: str, label: str, prompt: str) -> None:
         """Fix one prompt and tell the client; the prompt text itself is never shown."""
@@ -105,8 +153,10 @@ class PromptFixPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
     def _eventcb_disconnect(self) -> None:
-        """Forget a waiting request when the mud disconnects."""
+        """Forget a waiting request and the prompt patterns when the mud disconnects."""
         self._requesting = False
+        self._prompt_patterns.clear()
+        self._prompt_templates.clear()
 
     @RegisterToEvent(event_name=EVENT_AUTOFIX_MODIFIED)
     def _eventcb_autofix_modified(self) -> None:

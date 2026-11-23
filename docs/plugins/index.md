@@ -47,7 +47,7 @@ lists every discovered plugin, loaded or not.
 | [mobk](mobk.md) | `plugins.aardwolf.mobk` | Follows the combat output and raises an event for each mob kill, with its experience, gold, damage and special kills. |
 | [cp](cp.md) | `plugins.aardwolf.cp` | Follows the campaigns of the character and raises the mobs left, the completion and the failure as events. |
 | [gq](gq.md) | `plugins.aardwolf.gq` | Follows the global quests of the character and raises the declaration, the mobs left and the end as events. |
-| [promptfix](promptfix.md) | `plugins.aardwolf.promptfix` | Makes the prompt and the battle prompt end in `%c`, so the next line from the MUD never sticks to them. |
+| [promptfix](promptfix.md) | `plugins.aardwolf.promptfix` | Makes the prompt and the battle prompt end in `%c`, so the next line from the MUD never sticks to them, and marks the prompt lines as prompts. |
 | [scanh](scanh.md) | `plugins.aardwolf.scanh` | Highlights the campaign, global quest and quest mobs in the `scan` output. |
 | [move](move.md) | `plugins.aardwolf.move` | Raises an event when the character moves to another room, with the rooms and the direction. |
 | [skills](skills.md) | `plugins.aardwolf.skills` | Keeps the character's skills, spells and recoveries up to date from `slist` and raises events when an affect or recovery turns on or off. |

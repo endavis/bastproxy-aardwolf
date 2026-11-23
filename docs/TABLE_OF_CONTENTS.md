@@ -32,7 +32,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The move Plugin](plugins/move.md) - Raise an event when the character moves to another room on Aardwolf
-- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
+- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them, and mark prompt lines as prompts
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
 - [The repop Plugin](plugins/repop.md) - Send a message to a channel when an Aardwolf area repops
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
@@ -116,7 +116,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The move Plugin](plugins/move.md) - Raise an event when the character moves to another room on Aardwolf
-- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
+- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them, and mark prompt lines as prompts
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
 - [The repop Plugin](plugins/repop.md) - Send a message to a channel when an Aardwolf area repops
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
@@ -226,7 +226,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
 - [The mobk Plugin](plugins/mobk.md) - Follow the combat output of Aardwolf and raise an event for each mob kill
 - [The move Plugin](plugins/move.md) - Raise an event when the character moves to another room on Aardwolf
-- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them
+- [The promptfix Plugin](plugins/promptfix.md) - Make the Aardwolf prompt and battle prompt end in %c so the next line never sticks to them, and mark prompt lines as prompts
 - [The quest Plugin](plugins/quest.md) - Turn the GMCP quest messages of Aardwolf into quest events and keep the current quest
 - [The repop Plugin](plugins/repop.md) - Send a message to a channel when an Aardwolf area repops
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
