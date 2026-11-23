@@ -214,7 +214,9 @@ class StatStore:
     def save_level(self, info: Mapping[str, Any]) -> int:
         """Save a level or a pup and update the stats. Returns the new row id.
 
-        A level adds a ``totallevels`` milestone.
+        A level adds a ``totallevels`` milestone. The row marks when the level or pup was
+        reached; saving never changes another row. ``finishtime`` is kept for old databases
+        and written as -1.
         """
         row = dict(info)
         total = _int(row.get("totallevels"))
@@ -230,11 +232,6 @@ class StatStore:
         row["level"] = total if total > 0 else self.get_stat("totallevels")
         row["finishtime"] = -1
         rowid = self._insert("levels", row)
-        if rowid > 1:
-            self.db.modify(
-                "UPDATE levels SET finishtime = ? WHERE level_id = ?",
-                (row.get("starttime"), rowid - 1),
-            )
         if row.get("type") == "level":
             self.add_milestone(str(row["level"]))
         return rowid

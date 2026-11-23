@@ -66,7 +66,7 @@ warning and sends the same message to the client, then saves the whois as before
 | `stats` | the current stats and one row per milestone | whois, and every event below |
 | `quests` | one row per quest, completed or failed | quest events |
 | `classes` | each class and the remort it was taken at, -1 when not taken | whois |
-| `levels` | one row per level or power-up, with its gains | level gain event |
+| `levels` | one row per level or power-up, with its gains; a row marks when the level or power-up was reached | level gain event |
 | `campaigns`, `cpmobs` | one row per campaign and its mobs | cp events |
 | `gquests`, `gqmobs` | one row per global quest and its mobs | gq events |
 | `mobkills` | one row per mob kill | mob kill event |
@@ -115,7 +115,7 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 | `list` | List the milestones: the range of level milestones, then the named ones three to a line. |
 | `comp [milestone1] [milestone2]` | Compare two milestones. With one name it compares that milestone to `current`; with none, `start` to `current`. |
 | `quests [count] [-n number]` | Quest totals and averages, the last `count` quests, or the quest with the id `number`. |
-| `levels [count] [-n number]` | Level and power-up totals, averages and times, the last `count` rows, or the row with the id `number`. |
+| `levels [count] [-n number]` | Level and power-up totals, averages and times, the last `count` rows, or the row with the id `number`. "Time" is each row's gap to the next row's `starttime` in `level_id` order, rows of either type; the last row has none. |
 | `cps [count] [-n number]` | Campaign totals and averages, the last `count` campaigns, or one campaign with its mobs. |
 | `gqs [count] [-n number]` | Global quest totals and averages, the last `count`, or one global quest with its mobs. |
 | `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
@@ -152,7 +152,7 @@ payload it is given, and a column that is not in the payload takes its SQL defau
 A global quest event counts a win in `gquestswon` only when `won` is 1. A level event with
 `totallevels` above zero sets `totallevels` and `level` in the stats, and adds one to each
 otherwise; a `pup` adds one to `powerupsall`; a `level` also adds a milestone named for the total
-level.
+level. `save_level` writes `finishtime` -1 and never changes an earlier row; the column stays for old databases.
 
 It also listens to the two setting events
 `ev_plugins.aardwolf.statdb_var_backupstart_modified` and

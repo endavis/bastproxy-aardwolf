@@ -13,7 +13,7 @@ and blanks instead of failing, and the finish and start times are compared to th
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from aardwolf.libs.aardu import convert_level
 
@@ -387,6 +387,29 @@ def _level_bonus(item: dict[str, Any]) -> int:
     return max(int(item["bonustrains"]), 0) + max(int(item["blessingtrains"]), 0)
 
 
+def _next_level_start(store: StatStore, level_id: int) -> float | None:
+    """Return the starttime of the row after ``level_id``, or None for the last row."""
+    rows = store.db.select(
+        "SELECT starttime FROM levels WHERE level_id > ? ORDER BY level_id LIMIT 1",
+        (level_id,),
+    )
+    if not rows:
+        return None
+    return cast("float | None", rows[0]["starttime"])
+
+
+def _gap_text(fmt: Formatters, start: object, nextstart: object) -> str:
+    """Return the time between a row's start and the next row's start, or "" when unknown."""
+    if (
+        isinstance(start, (int, float))
+        and isinstance(nextstart, (int, float))
+        and start > 0
+        and nextstart > 0
+    ):
+        return fmt.format_time(nextstart - start)
+    return ""
+
+
 def show_level(
     store: StatStore, number: int, fmt: Formatters, perlevel: float | None = None
 ) -> list[str]:
@@ -398,7 +421,8 @@ def show_level(
     div = _divider(fmt)
     parts = convert_level(item["level"])
     actual = f"re{parts['redos']}t{parts['tier']}r{parts['remort']}l{parts['level']}"
-    ttime = _time_text(fmt, item)
+    nextstart = _next_level_start(store, int(item["level_id"]))
+    ttime = _gap_text(fmt, item["starttime"], nextstart)
     ltype = "lev" if item["type"] == "level" else "pup"
 
     msg = [
@@ -420,30 +444,29 @@ def show_level(
         % ("", item["str"], item["int"], item["wis"], item["con"], item["dex"], item["luc"]),
     ]
 
-    kills = store.db.select(
-        "SELECT count(*) as count, AVG(totalxp) as average FROM "
-        "mobkills where time > ? and time < ? and xp > 0",
-        (item["starttime"], item["finishtime"]),
-    )[0]
-    count = kills["count"]
-    average = kills["average"]
+    count = 0
+    average = None
+    if nextstart is not None:
+        kills = store.db.select(
+            "SELECT count(*) as count, AVG(totalxp) as average FROM "
+            "mobkills where time > ? and time < ? and xp > 0",
+            (item["starttime"], nextstart),
+        )[0]
+        count = kills["count"]
+        average = kills["average"]
 
-    if item["starttime"] or item["finishtime"]:
+    if item["starttime"]:
         msg.append(div)
-        if item["starttime"]:
-            msg.append(
-                "Started  : " + time.strftime(TIME_FORMAT, time.localtime(item["starttime"]))
-            )
-        if item["finishtime"]:
-            if item["finishtime"] == -1:
-                finished = "Current"
-            else:
-                finished = time.strftime(TIME_FORMAT, time.localtime(item["finishtime"]))
-            msg.append(f"Finished : {finished}")
+        msg.append("Started  : " + time.strftime(TIME_FORMAT, time.localtime(item["starttime"])))
+        if nextstart is None:
+            finished = "Current"
+        else:
+            finished = time.strftime(TIME_FORMAT, time.localtime(nextstart))
+        msg.append(f"Finished : {finished}")
 
     if count > 0 and average and average > 0:
         msg.append(div)
-        length = item["finishtime"] - item["starttime"]
+        length = (nextstart or 0) - item["starttime"]
         text = f"It took {ttime} with " if ttime else ""
         text += f"@G{count}@w mobs killed"
         text += f" (@G{average:02.02f}@w xp/mob)"
@@ -490,8 +513,11 @@ def level_report(
     )
     levels.update(
         store.db.select(
-            """SELECT AVG(finishtime - starttime) as avetime FROM levels
-             where type = 'level' and finishtime <> -1 and trains > 0"""
+            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
+                 FROM levels)
+             SELECT AVG(nextstart - starttime) as avetime FROM timed
+             where type = 'level' and trains > 0 and nextstart IS NOT NULL
+             and starttime > 0 and nextstart > 0"""
         )[0]
     )
     pups.update(
@@ -507,8 +533,11 @@ def level_report(
     )
     pups.update(
         store.db.select(
-            """SELECT AVG(finishtime - starttime) as avetime FROM levels
-             where type = 'pup' and finishtime <> -1"""
+            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
+                 FROM levels)
+             SELECT AVG(nextstart - starttime) as avetime FROM timed
+             where type = 'pup' and nextstart IS NOT NULL
+             and starttime > 0 and nextstart > 0"""
         )[0]
     )
 
@@ -568,7 +597,8 @@ def level_report(
                 )
             )
             msg.append(div)
-            for item in last:
+            for index, item in enumerate(last):
+                nextstart = last[index - 1]["starttime"] if index > 0 else None
                 msg.append(
                     "%-6s %-3s %2s %2s %2s %-2s %-2s %-2s %-2s %-1s %-1s %-1s %-1s %-1s %-1s   %s"  # noqa: UP031  # %-formats keep the old column layout
                     % (
@@ -587,7 +617,7 @@ def level_report(
                         item["con"],
                         item["dex"],
                         item["luc"],
-                        _time_text(fmt, item),
+                        _gap_text(fmt, item["starttime"], nextstart),
                     )
                 )
     return msg

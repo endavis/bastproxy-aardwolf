@@ -32,7 +32,6 @@ from ..libs import (
     TriggerSpec,
     bonus_stat_key,
     new_record,
-    next_starttime,
     should_finish,
     to_int,
 )
@@ -190,7 +189,7 @@ class LevelPlugin(BasePlugin):
             total = aardu.actual_level_from_gmcp(self._gmcp_value)
         else:
             total = aardu.actual_level_from_gmcp(self._gmcp_value, level)
-        starttime = next_starttime(dict(self.levelinfo), self._now())
+        starttime = self._now()
         self.levelinfo.clear()
         self.levelinfo.update(new_record(kind, level, total, starttime))
         self._toggle_group(GROUP_LINFO, True)

@@ -587,7 +587,7 @@ def test_disconnect_while_idle(env: Env) -> None:
 
 
 def test_persistence_and_starttime(env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The record survives a rebuilt plugin, and the next starttime is the last finishtime."""
+    """The record survives a rebuilt plugin, and the next starttime is the new now."""
     from bastproxy.libs.persistentdict import PersistentDict
 
     env.clock["now"] = 1500.0
@@ -601,12 +601,12 @@ def test_persistence_and_starttime(env: Env, monkeypatch: pytest.MonkeyPatch) ->
     env.clock["now"] = 2000.0
     env.fake.raised.clear()
     env.level("You raise a level! You are now level 52.")
-    assert env.fake.raised[0][1]["starttime"] == 1500.0
+    assert env.fake.raised[0][1]["starttime"] == 2000.0
     assert env.fake.raised[0][1]["finishtime"] == 2000.0
 
 
-def test_starttime_survives_a_failed_superhero(env: Env) -> None:
-    """After a failed superhero, the next level still starts at the last real finish."""
+def test_starttime_after_a_failed_superhero_is_its_own_now(env: Env) -> None:
+    """After a failed superhero, the next level starts when it is reached, not at an old time."""
     env.clock["now"] = 1500.0
     env.level()
     env.clock["now"] = 1600.0
@@ -615,7 +615,72 @@ def test_starttime_survives_a_failed_superhero(env: Env) -> None:
     env.clock["now"] = 1700.0
     env.fake.raised.clear()
     env.level("You raise a level! You are now level 52.")
-    assert env.fake.raised[0][1]["starttime"] == 1500.0
+    assert env.fake.raised[0][1]["starttime"] == 1700.0
+    assert all(payload["starttime"] != 1600.0 for _, payload in env.fake.raised)
+
+
+def test_two_level_ups_start_when_each_was_reached(env: Env) -> None:
+    """Each level's starttime is its own level-up time, not the previous record's finish."""
+    env.clock["now"] = 1000.0
+    env.fake.feed("You raise a level! You are now level 51.", GAINS)
+    env.clock["now"] = 1100.0
+    env.fake.feed("")
+    env.clock["now"] = 5000.0
+    env.fake.raised.clear()
+    env.fake.feed("You raise a level! You are now level 52.", GAINS)
+    env.clock["now"] = 5050.0
+    env.fake.feed("")
+    payload = env.fake.raised[0][1]
+    assert payload["starttime"] == 5000.0
+    assert payload["finishtime"] == 5050.0
+
+
+def test_pup_between_levels_starts_at_its_own_line(env: Env) -> None:
+    """A level, a powerup and a level each start at the clock of their own start line."""
+    env.fake.gmcp["char.status.level"] = 51
+    starts: list[tuple[str, float]] = []
+    for clock, lines in (
+        (1000.0, ("You raise a level! You are now level 51.", GAINS)),
+        (2000.0, ("Congratulations, hero. You have increased your powers!", "You gain 10 trains.")),
+        (3000.0, ("You raise a level! You are now level 52.", GAINS)),
+    ):
+        env.fake.raised.clear()
+        env.clock["now"] = clock
+        env.fake.feed(*lines)
+        env.clock["now"] = clock + 50
+        env.fake.feed("")
+        payload = env.fake.raised[0][1]
+        starts.append((payload["type"], payload["starttime"]))
+    assert starts == [("level", 1000.0), ("pup", 2000.0), ("level", 3000.0)]
+
+
+def test_remort_starts_at_the_complete_line(env: Env) -> None:
+    """A remort record starts when the transformation completes, not at an earlier time."""
+    env.clock["now"] = 1000.0
+    env.level()
+    env.fake.gmcp["char.status.level"] = 1
+    env.clock["now"] = 1500.0
+    env.fake.feed("You are now flagged as remorting.")
+    env.clock["now"] = 2500.0
+    env.fake.raised.clear()
+    env.fake.feed("* Remort transformation complete!", "")
+    assert env.fake.raised[0][1]["starttime"] == 2500.0
+
+
+def test_tier_starts_at_the_base_frame(env: Env) -> None:
+    """A tier record starts when the base frame arrives, not at the tier line or state 2."""
+    fake = env.fake
+    env.clock["now"] = 1000.0
+    fake.feed("## You have already remorted the max number of times.")
+    env.clock["now"] = 1100.0
+    fake.gmcp_message("status", {"state": "2"})
+    env.clock["now"] = 1200.0
+    fake.gmcp_message("status", {"state": "3", "level": "1"})
+    env.clock["now"] = 1300.0
+    fake.gmcp_message("base", {"remorts": 1, "tier": 2, "redos": 0})
+    env.clock["now"] = 1400.0
+    fake.feed("")
+    assert fake.raised[0][1]["starttime"] == 1300.0
 
 
 def test_first_level_starts_now(env: Env) -> None:

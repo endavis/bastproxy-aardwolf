@@ -53,12 +53,15 @@ loads `connect` too.
   and `finishtime` -1. A powerup takes its level from `char.status.level`. The plugin turns the
   `linfo` group on and registers `_finish` on the core empty-line trigger
   (`t_plugins.core.triggers_emptyline`).
-- **Start time.** It is the `finishtime` of the previous record. When the previous record never
-  finished, for example a failed superhero, it is that record's own `starttime`, which came from
-  the last finish. With no record it is the current time.
+- **Start time.** `starttime` is the time the level or powerup was reached: the current time when
+  the record starts. For a level it is the "You raise a level" or "You gain a level" line, for a
+  powerup the powerup line, for a superhero the time the superhero command was typed, for a
+  remort the `* Remort transformation complete!` line, and for a tier the GMCP `char.base` frame
+  after state 2 and then 3. A failed superhero never saves its record, so the next record takes
+  its own time. The time spent at a level is the gap to the next record, which statdb works out.
 - **Finish.** On an empty line the level finishes when trains were gained, or a remort is
   complete, or a tier is in progress. Otherwise the empty line is ignored and the plugin keeps
-  waiting for the gains. A finish sets `finishtime`, saves the record, turns the `linfo` and
+  waiting for the gains. A finish sets `finishtime`, which is when the gain lines ended and not the end of the level, saves the record, turns the `linfo` and
   `superhero` groups off, unregisters from the empty line and raises `level_gain`. Then it raises
   one more event: `level_hero` for a level of type `level` at 200, `level_superhero` at 201, and
   at level 1 `level_tier` when tiering, else `level_remort`. A powerup raises none of these.
