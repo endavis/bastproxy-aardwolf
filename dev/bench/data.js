@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795434017911,
+  "lastUpdate": 1795434566184,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1025,6 +1025,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.678803125840188e-7",
             "extra": "mean: 3.6508556769504565 usec\nrounds: 144426"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a4d09b1e5d7b649b8e372beaab6469c7d37098a",
+          "message": "feat: warn when a whois names a different character than the stats hold (merges PR #49, addresses #44)\n\nstatdb keeps one database per home with no character column. A whois\nfor a character whose name differs from the name already stored now logs\na warning and tells the client that a home holds one character. The\nwhois is still saved. The docs state the one-character-per-home rule.\n\nAddresses #44\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T11:48:48Z",
+          "tree_id": "a5babb231839651702dcac7a93091f9d665fb917",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/4a4d09b1e5d7b649b8e372beaab6469c7d37098a"
+        },
+        "date": 1795434565320,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4116225.340890472,
+            "unit": "iter/sec",
+            "range": "stddev: 1.6730756409428087e-8",
+            "extra": "mean: 242.94102416260523 nsec\nrounds: 42132"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 223675.98585209178,
+            "unit": "iter/sec",
+            "range": "stddev: 4.400955921557234e-7",
+            "extra": "mean: 4.4707526209865955 usec\nrounds: 115701"
           }
         ]
       }
