@@ -21,6 +21,11 @@ EVENT_QUESTMASTERS_CHANGED = "ev_plugins.aardwolf.config_questmasters_changed"
 API_QUESTMASTERS_GET = "plugins.aardwolf.config:questmasters.get"
 # the id of the core trigger that fires for every line, which belongs to plugins.core.triggers
 ALL_LINES_ID = "t_plugins.core.triggers_all"
+# the core raises this trigger for every line before it matches the regexes
+# (create_trigger_id("beall", plugin_id) gives "t_<owner>_<name>")
+BEFORE_ALL_LINES_ID = "t_plugins.core.triggers_beall"
+# the most lines hidden without a prompt; enough for an info with many targets
+HIDE_MAX_LINES = 60
 
 CMDTYPE = "cpcheck"
 CMD = "campaign check"

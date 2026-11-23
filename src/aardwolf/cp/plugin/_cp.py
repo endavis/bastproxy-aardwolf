@@ -18,6 +18,7 @@ from aardwolf.libs import aardu
 from ..libs import (
     ALL_LINES_ID,
     API_QUESTMASTERS_GET,
+    BEFORE_ALL_LINES_ID,
     CMD,
     CMD_INFO,
     CMD_INFO_REGEX,
@@ -38,6 +39,7 @@ from ..libs import (
     GROUP_IN,
     GROUP_INFO,
     GROUP_REW,
+    HIDE_MAX_LINES,
     NEW_TRIGGER,
     TRIGGERS,
     TriggerSpec,
@@ -72,6 +74,10 @@ class CpPlugin(BasePlugin):
         self._info: dict[str, Any] = {}
         # True while _after_info_none is registered on the every-line trigger
         self._waiting_info = False
+        # True while _hide_line is registered on the before-all-lines trigger
+        self._hiding = False
+        # the lines hidden in the current hide window
+        self._hidden_count = 0
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -151,8 +157,50 @@ class CpPlugin(BasePlugin):
             return
         if func is not None:
             self.api("plugins.core.triggers:trigger.register")(result.trigger.trigger_id, func)
+        if spec.omit and spec.group in (GROUP_CHECK, GROUP_INFO):
+            self.api("plugins.core.triggers:trigger.register")(
+                result.trigger.trigger_id, self._start_hiding
+            )
         if spec.group:
             self._groups_ready.add(spec.group)
+
+    def _start_hiding(self) -> None:
+        """Output of a queued check or info began: hide every line up to the next prompt."""
+        if self._hiding:
+            return
+        registered = self.api("plugins.core.triggers:trigger.register")(
+            BEFORE_ALL_LINES_ID, self._hide_line
+        )
+        self._hiding = bool(registered)
+        self._hidden_count = 0
+
+    def _hide_line(self) -> None:
+        """Hide the line; the prompt ends the window, and so does the line cap."""
+        line = self._record().get("line")
+        if line is None:
+            return
+        if self._hidden_count >= HIDE_MAX_LINES:
+            log_to(
+                [self.plugin_id],
+                logging.DEBUG,
+                "no prompt after %d hidden lines, showing output again",
+                HIDE_MAX_LINES,
+            )
+            self._stop_hiding()
+            return
+        line.send = False
+        self._hidden_count += 1
+        if getattr(line, "is_prompt", False):
+            self._stop_hiding()
+
+    def _stop_hiding(self) -> None:
+        """End the hide window."""
+        if self._hiding:
+            self.api("plugins.core.triggers:trigger.unregister")(
+                BEFORE_ALL_LINES_ID, self._hide_line
+            )
+        self._hiding = False
+        self._hidden_count = 0
 
     def _toggle_group(self, suffix: str, flag: bool) -> None:
         """Turn a trigger group on or off, when it exists."""
@@ -461,6 +509,7 @@ class CpPlugin(BasePlugin):
         if self._waiting_done:
             self._finish_comp()
         self._stop_waiting_info()
+        self._stop_hiding()
         self._info = {}
         self._toggle_all_groups(False)
 
