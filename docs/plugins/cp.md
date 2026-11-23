@@ -33,7 +33,11 @@ refreshed by a new `campaign check`.
 
 - **Triggers.** Their names carry a `cp_` prefix because trigger names are global: `cp_new`,
   `cp_none`, `cp_time`, `cp_mob`, `cp_scramble`, `cp_needtolevel`, `cp_cantake`, `cp_shnext`,
-  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`. Only `cp_new` is always on.
+  `cp_mobdead`, `cp_complete`, `cp_clear`, `cp_reward` and `cp_compdone`. Only `cp_new` is always on, and it
+  matches the new-campaign tell from any questmaster, such as Commander Barcett or A QuestoR. A player
+  can send the same text with a `tell`; that is self-correcting, because the trigger only queues the
+  plugin's own `campaign check` and the MUD's "You are not currently on a campaign." reply sets
+  `oncp` False and turns the groups off, with no `cp_mobsorig` raised.
   The others sit in four groups, named `<plugin id>.<suffix>`: `cpcheck` (the output of
   `campaign check`, omitted from the client), `cpin` (while on a campaign), `cprew` (the rewards)
   and `cpdone` (the line under the rewards).

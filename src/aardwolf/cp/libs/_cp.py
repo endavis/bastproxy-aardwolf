@@ -86,7 +86,7 @@ _DASHES = "^" + "-" * 62 + "$"
 TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
         "cp_new",
-        "^Commander Barcett tells you 'Type 'campaign info' to see what you must kill.'$",
+        r"^.+ tells you 'Type 'campaign info' to see what you must kill\.'$",
         None,
         True,
         False,

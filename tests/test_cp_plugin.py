@@ -39,6 +39,7 @@ GMCP: dict[str, Any] = {
 WHOIS = {"name": "Bast", "level": 50, "totallevels": 50, "remorts": 1, "classes": []}
 LEVEL = actual_level(50, 2, 1, 0)
 NEW = "Commander Barcett tells you 'Type 'campaign info' to see what you must kill.'"
+QUESTOR_NEW = "A QuestoR tells you 'Type 'campaign info' to see what you must kill.'"
 NONE = "You are not currently on a campaign."
 TIME = "You have 30 minutes to finish this campaign."
 RAT = "You still have to kill * A rat (Sewers)"
@@ -304,6 +305,24 @@ def test_new_campaign_resets_state_and_queues_a_check(env: Env) -> None:
     assert env.fake.queued == [CMDTYPE]
     assert env.fake.started == [CMDTYPE]
     assert env.fake.group_on("cpcheck")
+
+
+def test_new_campaign_from_another_questmaster(env: Env) -> None:
+    """A QuestoR starts the state and the check like Commander Barcett."""
+    env.fake.feed(QUESTOR_NEW)
+    assert env.plugin.cp["oncp"] is True
+    assert env.fake.queued == [CMDTYPE]
+    assert env.fake.group_on("cpcheck")
+
+
+def test_spoofed_new_campaign_is_corrected_by_the_check(env: Env) -> None:
+    """A player's tell of the line queues a check; the MUD's reply turns it all off."""
+    env.fake.feed("Some Player tells you 'Type 'campaign info' to see what you must kill.'")
+    assert env.fake.queued == [CMDTYPE]
+    env.fake.feed(NONE)
+    assert env.plugin.cp["oncp"] is False
+    assert not any(env.fake.group_on(group) for group in GROUPS)
+    assert env.fake.events(EVENT_MOBSORIG) == []
 
 
 def test_check_output_raises_the_mobs(env: Env) -> None:

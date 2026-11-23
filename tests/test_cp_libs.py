@@ -67,6 +67,12 @@ def test_reward_line_amount_is_int() -> None:
     assert SPECS["cp_reward"].argtypes == {"amount": int}
 
 
+@pytest.mark.parametrize("speaker", ["Commander Barcett", "A QuestoR"])
+def test_new_matches_any_questmaster(speaker: str) -> None:
+    """The new-campaign line matches whichever questmaster sends it."""
+    groups("cp_new", f"{speaker} tells you 'Type 'campaign info' to see what you must kill.'")
+
+
 def test_new_none_and_single_line_triggers() -> None:
     """The other triggers match their lines."""
     groups(
