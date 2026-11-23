@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
@@ -139,6 +140,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     result = Env(plugin, fake)
     result.clock = clock
     yield result
+    assert_raised_described(fake.raised, EVENTS)
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -465,3 +467,10 @@ def test_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
         assert row["totalxp"] == 100
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """A kill raises only keys its event describes in arg_descriptions (#43)."""
+    env.kill()
+    assert len(env.fake.kills()) == 1
+    assert_raised_described(env.fake.raised, EVENTS)

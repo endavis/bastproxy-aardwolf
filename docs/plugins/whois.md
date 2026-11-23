@@ -62,9 +62,11 @@ It depends on the events, triggers, watch and mudcmds core plugins.
 
 | Event | Payload keys |
 | :--- | :--- |
-| `ev_plugins.aardwolf.whois_received` | `name`, `level`, `tiers`, `redos`, `race`, `sex`, `subclass`, `remorts`, `classes` (a list of `remort` and `class`), `powerupsall`, `powerupsmort`, `totallevels`, and one key per stat line |
+| `ev_plugins.aardwolf.whois_received` | `name`, `level`, `tiers`, `redos`, `race`, `sex`, `subclass`, `remorts`, `classes` (a list of `remort` and `class`), `powerupsall`, `powerupsmort`, `totallevels`, and `stats`, a dict with one key per stat line |
 
-The payload is a plain dict copy of the state; changing it does not change the saved state.
+The payload is a plain dict copy of the state, with the stat lines nested under `stats` so every
+top-level key is described in the event's `arg_descriptions`; changing it does not change the saved
+state, which keeps the stat lines at the top level.
 
 ## From the old plugin
 

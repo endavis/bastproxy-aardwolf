@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
+from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
@@ -265,9 +266,9 @@ def test_single_class_typed_whois(env: Env) -> None:
     name, payload = env.fake.raised[0]
     assert name == "ev_plugins.aardwolf.whois_received"
     assert payload["classes"] == [{"remort": 1, "class": "mag"}]
-    assert payload["questscomplete"] == "12"
-    assert payload["campaignsfld"] == "3"
-    assert payload["monsterskilled"] == "456"
+    assert payload["stats"]["questscomplete"] == "12"
+    assert payload["stats"]["campaignsfld"] == "3"
+    assert payload["stats"]["monsterskilled"] == "456"
     assert payload["powerupsall"] == "3"
     assert payload["powerupsmort"] == "2"
     assert payload["sex"] == "male"
@@ -298,7 +299,7 @@ def test_multiclass(env: Env) -> None:
     ]
     assert payload["remorts"] == 3
     assert payload["totallevels"] == 3 * 1407 + 2 * 201 + 50
-    assert payload["monsterskilled"] == "456"
+    assert payload["stats"]["monsterskilled"] == "456"
 
 
 def test_multiclass_line_overrides_gmcp_remorts(env: Env) -> None:
@@ -399,3 +400,18 @@ def test_payload_is_saved_by_statdb(env: Env, tmp_path: Path) -> None:
         assert store.get_classes() == ["mage", "thief", "ranger"]
     finally:
         database.close()
+
+
+def test_raised_keys_are_all_described(env: Env) -> None:
+    """The payload has only described top-level keys, and the stat lines are under stats (#43)."""
+    from aardwolf.whois.plugin._whois import EVENT_ARGS, EVENT_WHOIS
+
+    env.typed_whois()
+    env.fake.feed(SINGLE)
+    event = {EVENT_WHOIS: {"arg_descriptions": EVENT_ARGS}}
+    assert_raised_described(env.fake.raised, event)
+    payload = env.fake.raised[0][1]
+    assert payload["stats"]["questscomplete"] == "12"
+    assert payload["stats"]["monsterskilled"] == "456"
+    assert "questscomplete" not in payload
+    assert payload["powerupsall"] == "3"

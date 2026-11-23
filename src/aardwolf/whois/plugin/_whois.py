@@ -19,6 +19,7 @@ from ..libs import (
     STAT2_REGEX,
     STAT3_REGEX,
     WHOIS_COMMAND_REGEX,
+    event_payload,
     header_values,
     multiclass_classes,
     single_class,
@@ -46,7 +47,10 @@ EVENT_ARGS = {
     "powerupsall": "the powerups of all kinds",
     "powerupsmort": "the powerups of the mortal kind",
     "totallevels": "the total level",
-    "stats": "one key per stat line, named for the stat in lower case without spaces",
+    "stats": (
+        "a dict with one key per stat line, named for the stat in lower case without spaces,"
+        " such as questscomplete, monsterskilled and hoursonline"
+    ),
 }
 
 
@@ -168,7 +172,7 @@ class WhoisPlugin(BasePlugin):
         self.whois.sync()
         self._toggle_triggers(False, end=False)
         self.api("plugins.core.events:event.raise")(
-            EVENT_WHOIS, event_args=copy.deepcopy(dict(self.whois))
+            EVENT_WHOIS, event_args=copy.deepcopy(event_payload(self.whois, EVENT_ARGS))
         )
         self.api("plugins.core.mudcmds:command.finish")(WHOIS_NAME)
         log_to(self.plugin_id, logging.DEBUG, "whois: %s", dict(self.whois))

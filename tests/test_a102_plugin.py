@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from event_keys import assert_raised_described
 
 if TYPE_CHECKING:
     from aardwolf.a102.plugin._a102 import A102Plugin
@@ -23,6 +24,7 @@ class FakeApi:
         self.send_result = True
         self.registered: list[int] = []
         self.added: list[str] = []
+        self.declared: dict[str, dict[str, Any]] = {}
         self.raised: list[tuple[str, dict[str, Any]]] = []
         self.record: dict[str, Any] = {}
         self.mud_enabled = False
@@ -52,6 +54,7 @@ class FakeApi:
 
     def _add(self, name: str, created_by: str, **kwargs: object) -> None:
         self.added.append(name)
+        self.declared[name] = {"arg_descriptions": kwargs["arg_descriptions"]}
 
     def _raise(self, name: str, args: dict[str, Any]) -> None:
         self.raised.append((name, args))
@@ -331,3 +334,12 @@ def test_unload_sends_before_the_option_is_unregistered(enabled: A102Plugin, api
     assert events.count("send") == 2
     assert events.index("send") < unregister
     assert max(i for i, e in enumerate(events) if e == "send") < unregister
+
+
+def test_raised_keys_are_all_described(plugin: A102Plugin, api: FakeApi) -> None:
+    """The events of a two-byte message raise only keys their arg_descriptions describe (#43)."""
+    plugin._phook_initialize()
+    api.record = {"data": bytes([100, 3])}
+    plugin._eventcb_mud_data()
+    assert len(api.raised) == 2
+    assert_raised_described(api.raised, api.declared)
