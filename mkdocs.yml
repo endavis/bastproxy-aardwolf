@@ -106,6 +106,7 @@ nav:
       - Basics: usage/basics.md
   - Plugins:
       - Overview: plugins/index.md
+      - config: plugins/config.md
       - connect: plugins/connect.md
       - a102: plugins/a102.md
       - statdb: plugins/statdb.md

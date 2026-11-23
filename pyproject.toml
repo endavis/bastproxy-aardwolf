@@ -300,6 +300,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_a102_plugin.py",
     "tests/test_aardu.py",
     "tests/test_bastproxy_entry_point.py",
+    "tests/test_config_libs.py",
+    "tests/test_config_plugin.py",
     "tests/test_connect_plugin.py",
     "tests/test_cp_libs.py",
     "tests/test_cp_plugin.py",
