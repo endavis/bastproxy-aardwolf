@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795471196954,
+  "lastUpdate": 1795474951157,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1595,6 +1595,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000025396505755239818",
             "extra": "mean: 6.637139750611997 usec\nrounds: 176679"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e6ebcb0665d8efc68b39b255a7f2f20266ac97c1",
+          "message": "refactor: hide queued cp, slist and whois output through mudcmds (merges PR #95, addresses #94)\n\ncp, skills and whois each kept their own hide window on the\nbefore-all-lines trigger. They now pass hide_output, hide_start,\nhide_end and hide_max to plugins.core.mudcmds:type.add, and the core\nwindow (endavis/bastproxy#738, #740) does the hiding. Their\n_start_hiding, _hide_line and _stop_hiding, the hiding state and\nBEFORE_ALL_LINES_ID are removed.\n\n- cp: hide_start is an alternation of each group's omit trigger\n  regexes; the window closes at the first prompt after finish, or on\n  the prompt itself for an info that finishes there.\n- skills: the spellup slist gets its own type, slistspellup, so each\n  type closes at its own end tag ({/spellheaders} or {/recoveries}).\n- whois: the window opens at the first 74-dash line; the whoisstart\n  trigger is gone.\n- hide_max is HIDE_MAX_LINES + 1, since mudcmds counts the opening line.\n\nBehaviour changes:\n- A whois typed while a queued whois waits for its reply is hidden\n  until the queued one finishes or times out.\n- The cap warning now comes from plugins.core.mudcmds, at WARNING.\n- uv.lock moves the core from 26be624f to a55e622a, which also brings\n  the mudcmds command timeout (5s by default).\n\nTests drive a real core MUDCmdsPlugin window through\ntests/mudcmds_support.py.\n\nAddresses #94\n\nBREAKING CHANGE: aardwolf.cp.libs, aardwolf.skills.libs and\naardwolf.whois.libs no longer export BEFORE_ALL_LINES_ID. Use the core\ntriggers plugin's before-all-lines trigger id,\n\"t_plugins.core.triggers_beall\", or hide a queued command's output with\nmudcmds' hide_output.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T23:01:42Z",
+          "tree_id": "9a924fb79600b0f44cc02ba11a24704d5d6e77f2",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/e6ebcb0665d8efc68b39b255a7f2f20266ac97c1"
+        },
+        "date": 1795474950388,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3175816.742518827,
+            "unit": "iter/sec",
+            "range": "stddev: 5.464923752952101e-8",
+            "extra": "mean: 314.8796297379781 nsec\nrounds: 196503"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 171631.99523170583,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010829470200383612",
+            "extra": "mean: 5.826419477615374 usec\nrounds: 179180"
           }
         ]
       }
