@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795455903814,
+  "lastUpdate": 1795456820208,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1329,6 +1329,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.804794481118348e-7",
             "extra": "mean: 4.146090171822649 usec\nrounds: 126647"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1618784ab1316d78fa7aeb13f2fe434cbbaf6d05",
+          "message": "feat: track campaigns from campaign info (merges PR #65, addresses #64)\n\ncp started tracking a campaign only on the questmaster's tell, so a\ncampaign was lost when the tell came from a questmaster not on the\nlist, or when the proxy or cp started mid-campaign. campaign check\ncould not recover it: it lists only the targets left.\n\ncp now reads campaign info, server output that lists the campaign's\nlevel, rewards and every target. It is queued as a second mudcmds\ncommand type: on the new-campaign tell, on a CAMPAIGN-mob kill while\ncp is off a campaign, and at load and first active ahead of the check.\n\n- A campaign cp is not on, or with a different Complete By, starts a\n  new state: the start time is now minus (7 days - Time Left), the\n  level comes from Level Taken, and the original targets from the\n  \"Find and kill\" lines. A target of count n is stored n times.\n- The campaign cp already tracks is left alone.\n- The not-on-a-campaign reply is assumed to match campaign check's; a\n  prompt fallback finishes the command if it does not.\n- The tell no longer clears the state, so a faked tell costs one\n  campaign info. completeby is added to the state and the comp/failed\n  payloads.\n\nAddresses #64\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T17:59:39Z",
+          "tree_id": "49a71cfb32bae90659360aaae80ab641e0d03d84",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/1618784ab1316d78fa7aeb13f2fe434cbbaf6d05"
+        },
+        "date": 1795456819552,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3769160.8060106994,
+            "unit": "iter/sec",
+            "range": "stddev: 3.6070841792848857e-8",
+            "extra": "mean: 265.3110470652499 nsec\nrounds: 196387"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 208601.79009363567,
+            "unit": "iter/sec",
+            "range": "stddev: 7.182417611412775e-7",
+            "extra": "mean: 4.79382271624384 usec\nrounds: 109195"
           }
         ]
       }
