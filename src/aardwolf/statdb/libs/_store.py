@@ -67,6 +67,11 @@ class StatStore:
             return None
         return row.get(stat)
 
+    def stored_name(self) -> str | None:
+        """Return the character name of the current row, or None when there is none."""
+        name = self.get_stat("name")
+        return name if isinstance(name, str) and name.strip() else None
+
     def set_stat(self, stat: str, value: object) -> bool:
         """Set one stat of the current row. Returns False for an unknown stat."""
         if not self.db.checkcolumnexists("stats", stat):

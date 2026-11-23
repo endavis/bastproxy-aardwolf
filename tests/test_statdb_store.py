@@ -57,6 +57,15 @@ def _current(db: "Sqldb") -> dict[str, Any]:
     return db.select("SELECT * FROM stats WHERE milestone = 'current'")[0]
 
 
+def test_stored_name(store: "StatStore") -> None:
+    """The stored name is None without a row or a name, then the saved name."""
+    assert store.stored_name() is None
+    store.save_whois({**WHOIS, "name": "  "})
+    assert store.stored_name() is None
+    store.save_whois(WHOIS)
+    assert store.stored_name() == "Tester"
+
+
 def test_whois_first_inserts_current_and_start(store: "StatStore", db: "Sqldb") -> None:
     """The first whois inserts the current row and a start milestone."""
     store.save_whois(WHOIS)

@@ -55,6 +55,12 @@ The database is `stats.sqlite` in the plugin's data directory,
 `<BASTPROXY_HOME>/data/plugins/plugins.aardwolf.statdb/`. It is opened through bastproxy's
 `plugins.core.sqldb:database.add` and its `user_version` is 17, the old plugin's final version.
 
+A `BASTPROXY_HOME` holds one character. The `stats` rows carry the character's `name`, but the
+other tables do not, so the plugin does not keep two characters apart. When a whois arrives for a
+name other than the one in the `stats` row (compared without regard to case), the plugin logs a
+warning and sends the same message to the client, then saves the whois as before. Use a separate
+`BASTPROXY_HOME` for each character.
+
 | Table | Holds | Filled by |
 | :--- | :--- | :--- |
 | `stats` | the current stats and one row per milestone | whois, and every event below |
