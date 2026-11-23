@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795470197961,
+  "lastUpdate": 1795471196954,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1557,6 +1557,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.077288943686773e-7",
             "extra": "mean: 3.704797109374022 usec\nrounds: 144467"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "544dd85b091d442b6ee2a74e29997f0f8e70c5b5",
+          "message": "feat: hide all output of the whois the whois plugin queues (merges PR #93, addresses #92)\n\nThe whois plugin sends whois itself on first active and at load, but\nhid none of the output, so every login showed a whois the player\nnever asked for. The old plugin only parsed a whois the player typed.\n\nA queued whois (mudcmds runs the type's beforef only for a queued\ncommand) arms a hide flag. A new whoisstart trigger on the opening\n74-dash line opens a hide window when the flag is set: every line\nthrough the next marked prompt is hidden, the prompt included, using\nthe core before-all-lines trigger and line.send = False, as cp does.\nLines that arrive between the send and the reply stay visible. A\ntyped whois clears the flag and is always shown in full. The window\ncloses on disconnect, and after HIDE_MAX_LINES hidden lines with a\nwarning. Parsing and whois_received are unchanged.\n\nTwo existing assertions list the plugin's triggers and now include\nwhoisstart: test_after_load (the trigger set) and\ntest_single_class_typed_whois (the triggers enabled by a typed whois).\n\nAddresses #92\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T21:59:20Z",
+          "tree_id": "90a5e5ff809934fdde861e2a6ba9f218c88382fd",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/544dd85b091d442b6ee2a74e29997f0f8e70c5b5"
+        },
+        "date": 1795471196408,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2568980.855606168,
+            "unit": "iter/sec",
+            "range": "stddev: 6.035011322313592e-8",
+            "extra": "mean: 389.25942083910286 nsec\nrounds: 193837"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 150667.3111573087,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000025396505755239818",
+            "extra": "mean: 6.637139750611997 usec\nrounds: 176679"
           }
         ]
       }
