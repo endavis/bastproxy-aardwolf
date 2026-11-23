@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795445710269,
+  "lastUpdate": 1795446173126,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1215,6 +1215,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.5081779348234974e-7",
             "extra": "mean: 4.4580683478091965 usec\nrounds: 116646"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b0d301b10c0dfed1c5dec8c2903460a902c6f2b2",
+          "message": "fix: recognise a new campaign from any listed questmaster (merges PR #59, addresses #54)\n\n* fix: recognise a new campaign from any questmaster\n\nThe cp plugin started tracking a campaign only when Commander Barcett\ngave it. A newbie's questmaster, A QuestoR, sends the same\n\"Type 'campaign info' to see what you must kill.\" tell, so a campaign\nfrom it was never tracked or recorded in statdb.\n\nThe cp_new trigger now matches that tell from any sender. A spoofed tell\nfrom a player only queues a campaign check, which answers \"You are not\ncurrently on a campaign.\" and leaves tracking off.\n\nAddresses #54\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: only start a campaign from a known questmaster\n\nMatching the new-campaign tell from any sender let a player's tell, or\nan emote that names a questmaster after the player's name, clear the\ntracked campaign. The cp_new trigger is now built from the questmaster\nlist of plugins.aardwolf.config, each name escaped and anchored at the\nstart of the line, and is updated when that list changes. With an empty\nlist it matches nothing.\n\ncp now depends on plugins.aardwolf.config, and reads the list through\nits API and its changed event.\n\nAddresses #54\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T15:02:06Z",
+          "tree_id": "98806bd2471105f1e71bc83a95e07ad620e3457f",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/b0d301b10c0dfed1c5dec8c2903460a902c6f2b2"
+        },
+        "date": 1795446172570,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5106742.233697574,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5171461370675454e-8",
+            "extra": "mean: 195.81955662483927 nsec\nrounds: 53634"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 269984.793103966,
+            "unit": "iter/sec",
+            "range": "stddev: 4.7513852716200184e-7",
+            "extra": "mean: 3.703912314849967 usec\nrounds: 144614"
           }
         ]
       }
