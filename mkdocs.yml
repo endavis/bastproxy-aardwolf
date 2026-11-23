@@ -119,6 +119,7 @@ nav:
       - promptfix: plugins/promptfix.md
       - scanh: plugins/scanh.md
       - move: plugins/move.md
+      - skills: plugins/skills.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md

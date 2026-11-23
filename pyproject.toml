@@ -255,7 +255,7 @@ skips = [
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
-ignore-words-list = "crate,thi,remorted,cpcheck"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type
+ignore-words-list = "crate,thi,remorted,cpcheck,uptodate"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type; uptodate: the old skills plugin's event and API name
 
 [tool.vulture]
 min_confidence = 80
@@ -320,6 +320,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_quest_plugin.py",
     "tests/test_scanh_libs.py",
     "tests/test_scanh_plugin.py",
+    "tests/test_skills_libs.py",
+    "tests/test_skills_plugin.py",
     "tests/test_statdb_plugin.py",
     "tests/test_statdb_report.py",
     "tests/test_statdb_schema.py",
