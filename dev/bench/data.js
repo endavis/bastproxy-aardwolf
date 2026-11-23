@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795431046634,
+  "lastUpdate": 1795431864989,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -949,6 +949,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.573993457419754e-7",
             "extra": "mean: 3.6563209898259883 usec\nrounds: 144718"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d00e985ec70422e368ab904aca33ae7a41512ec0",
+          "message": "chore: upgrade the locked bastproxy and document running against a local core (merges PR #47, addresses #46)\n\nMove the uv.lock pin of bastproxy from d6b01433 to 26be624f, which\nlets #bp.core.pluginm.load take several plugins or a whole package\n(bastproxy #724).\n\nThe docs now show loading the whole package with\n#bp.core.pluginm.load aardwolf, and describe running the proxy against\na local bastproxy checkout with uv run --with-editable ../bastproxy,\nwhich needs no lock bump. CI still uses the pinned commit, so a plugin\nchange that needs a newer core API moves the pin in its own PR.\n\nAddresses #46\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T11:03:50Z",
+          "tree_id": "2d28166ef93178cc26edaf55ed704858cbbae5ea",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/d00e985ec70422e368ab904aca33ae7a41512ec0"
+        },
+        "date": 1795431864664,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3054146.0841135536,
+            "unit": "iter/sec",
+            "range": "stddev: 4.225695309722392e-8",
+            "extra": "mean: 327.4237618172883 nsec\nrounds: 189754"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170486.13280617612,
+            "unit": "iter/sec",
+            "range": "stddev: 9.637151637496795e-7",
+            "extra": "mean: 5.865579701645819 usec\nrounds: 177305"
           }
         ]
       }
