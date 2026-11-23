@@ -255,7 +255,7 @@ skips = [
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
-ignore-words-list = "crate,thi,remorted,cpcheck,uptodate"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type; uptodate: the old skills plugin's event and API name
+ignore-words-list = "crate,thi,remorted,cpcheck,uptodate,anid"  # thi: thief abbreviation; remorted: Aardwolf game text; cpcheck: cp plugin command type; uptodate: the old skills plugin's event and API name; anid: the old eqdb affectmod key column, kept so old databases open
 
 [tool.vulture]
 min_confidence = 80
@@ -305,6 +305,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_connect_plugin.py",
     "tests/test_cp_libs.py",
     "tests/test_cp_plugin.py",
+    "tests/test_eqdb_libs.py",
+    "tests/test_eqdb_plugin.py",
     "tests/test_gq_libs.py",
     "tests/test_gq_plugin.py",
     "tests/test_itemu.py",
