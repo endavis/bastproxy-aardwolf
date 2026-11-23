@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795391067339,
+  "lastUpdate": 1795392352933,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -873,6 +873,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.339591110281754e-7",
             "extra": "mean: 5.736167658378634 usec\nrounds: 180832"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bacef92912a563c3e754961bda132d65d02294c8",
+          "message": "feat: add the gq plugin, which follows Aardwolf global quests (merges PR #37, addresses #30)\n\n* feat: add the gq plugin, which follows Aardwolf global quests\n\nPort the gq plugin from the old bastproxy as plugins.aardwolf.gq. It\nfollows declared, joined, started, cancelled, won and finished global\nquests from the MUD output, keeps its state and the mobs left in\nPersistentDicts and the joined and maxkills settings, and raises the gq\nevents. The plugin's own gq check goes through a core mudcmds command\ntype; a check typed by the client is seen by a watch. A target kill is\nmatched against the mobk plugin's mobk_kill event. statdb already saves\ngq_won, gq_completed and gq_done.\n\nFixes from the old plugin: the kill listener handles one kill per\nmob-dead line; a kill of the first mob in the list counts it down;\njoined resets to -1; the mobs left are always a list; the level comes\nfrom actual_level_from_gmcp. Debug echoes go to the log.\n\nAddresses #30\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: match only the joined gquest's win announcement\n\nThe gq_wonannounce trigger now starts at the beginning of the line,\ntakes a number for the gquest and a single word for the winner, and\nescapes the final period. The plugin raises gq_won only when the\nannounced gquest is the one joined.\n\nAddresses #30\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T00:05:10Z",
+          "tree_id": "d798061751049e9acd74deb16cd507ded7047fac",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/bacef92912a563c3e754961bda132d65d02294c8"
+        },
+        "date": 1795392352396,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5150293.59178303,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3983207224049932e-8",
+            "extra": "mean: 194.16368837602525 nsec\nrounds: 53571"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 270957.1151696478,
+            "unit": "iter/sec",
+            "range": "stddev: 5.413169830475275e-7",
+            "extra": "mean: 3.6906209286067067 usec\nrounds: 144238"
           }
         ]
       }
