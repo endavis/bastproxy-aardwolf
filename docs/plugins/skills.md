@@ -36,8 +36,8 @@ listens to the level plugin's events by name and does not depend on it.
   triggers are always on and are not omitted, as in the old plugin. The slist triggers sit in three
   groups, named `<plugin id>.<suffix>` and off by default: `slist` (the start and end tags),
   `slist_spells` (a spell line) and `slist_recoveries` (a recovery line). They are omitted.
-- **Queue.** An `slist` command type runs through the mudcmds queue. A refresh queues
-  `slist noprompt` and then `slist spellup noprompt`. Before one is sent the groups `slist` and
+- **Queue.** Two `slist` command types, `slist` and `slistspellup`, run through the mudcmds queue. A
+  refresh queues `slist noprompt` and then `slist spellup noprompt`, the second under its own type. Before one is sent the groups `slist` and
   `slist_spells` are turned on; the block ends at its end tag, which turns the groups off and
   finishes the command. An `slist` the player types is not queued, so its groups are off and its
   output is shown.
@@ -49,12 +49,17 @@ listens to the level plugin's events by name and does not depend on it.
     - `learned`: sets the percents. Ends at `{/spellheaders}`, with no recoveries.
     - `spellup`: flags the spellups. Ends at `{/spellheaders}`. The first one since a reset raises
       `skills_uptodate`.
-- **Hide window.** The start tag opens a hide window on the core before-all-lines trigger that
-  hides every line of the block, including the `{/spellheaders}` line of a full slist, and the end
-  tag closes it. It does not run to the prompt, because `noprompt` asks for none and a window that
-  waited for one could swallow the next lines of the player. A prompt after the block is shown. If
-  the end tag is lost, the window ends after `HIDE_MAX_LINES` (1000) hidden lines, and a disconnect
-  ends it too.
+- **Hide window.** The window is the `hide_output` option of the two mudcmds types. Each has its
+  own `hide_start` and `hide_end`: `slist` opens at `{spellheaders noprompt}` and ends at
+  `{/recoveries}`, `slistspellup` opens at `{spellheaders spellup noprompt}` and ends at
+  `{/spellheaders}`. The types are separate because a full slist prints `{/spellheaders}` partway
+  through, and one end regex would close its window there. The window hides every line of the
+  block, including the `{/spellheaders}` line of a full slist, and the end tag closes it. It does
+  not run to the prompt, because `noprompt` asks for none and a window that waited for one could
+  swallow the next lines of the player. A prompt after the block is shown. If the end tag is lost,
+  the window ends at the cap (mudcmds counts the opening line, so the types pass `HIDE_MAX_LINES`
+  + 1, which is 1001) with a WARNING from mudcmds, or at the command timeout, and a disconnect ends
+  it too.
 - **a102 toggles.** When it loads the plugin asks the a102 plugin for `SPELLUPTAGS` and
   `SKILLGAINTAGS`, and takes the requests back in an `uninitialize` hook, on reload and unload
   alike, so the counts stay balanced.
@@ -65,8 +70,10 @@ listens to the level plugin's events by name and does not depend on it.
   queues a refresh.
 - **Disconnect.** The table and the up-to-date flag are cleared, the hide window ends, and the
   groups are turned off, which abandons a block in progress.
-- **No command timeout.** The core this plugin runs on may not time out a queued command: a lost
-  `slist` reply blocks the queue until `#bp.core.mudcmds.fixqueue`.
+- **Command timeout.** The core times out a queued command (5 seconds by default). A lost `slist`
+  reply makes mudcmds finish the command without running `afterf`, close its hide window and send
+  the next command. The plugin does not listen to `cmd_<type>_timeout`, so its trigger groups stay
+  on until a later block ends or the link drops.
 
 ## MUD output
 

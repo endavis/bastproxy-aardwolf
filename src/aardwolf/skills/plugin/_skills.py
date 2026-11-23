@@ -1,6 +1,7 @@
 """Aardwolf skills plugin: keep the skills, spells and recoveries up to date from slist."""
 
 import copy
+import functools
 import logging
 import time
 from collections.abc import Callable
@@ -18,10 +19,11 @@ from ..libs import (
     API_A102_TOGGLE,
     ARGS_FULL,
     ARGS_SPELLUP,
-    BEFORE_ALL_LINES_ID,
     CMD,
     CMD_REGEX,
+    CMD_SPELLUP_REGEX,
     CMDTYPE,
+    CMDTYPE_SPELLUP,
     EVENT_AFFECTED_UPDATE,
     EVENT_AFFOFF,
     EVENT_AFFON,
@@ -37,7 +39,11 @@ from ..libs import (
     GROUP_RECOVERIES,
     GROUP_SLIST,
     GROUP_SPELLS,
+    HIDE_END_FULL,
+    HIDE_END_SPELLUP,
     HIDE_MAX_LINES,
+    HIDE_START_FULL,
+    HIDE_START_SPELLUP,
     TRIGGERS,
     SkillTable,
     TriggerSpec,
@@ -61,9 +67,8 @@ class SkillsPlugin(BasePlugin):
         self._current: str | None = None
         # True from the start tag of a block until its end
         self._started = False
-        # True while _hide_line is registered on the before-all-lines trigger
-        self._hiding = False
-        self._hidden_count = 0
+        # the command type of the slist being read
+        self._cmdtype: str = CMDTYPE
         # True while the a102 tag options are requested by this plugin
         self._tags_on = False
 
@@ -78,9 +83,21 @@ class SkillsPlugin(BasePlugin):
                 description=info["description"],
                 arg_descriptions=info["arg_descriptions"],
             )
-        self.api("plugins.core.mudcmds:type.add")(
-            CMDTYPE, CMD, CMD_REGEX, beforef=self._slist_before, afterf=self._slist_after
-        )
+        for cmdtype, regex, hide_start, hide_end in (
+            (CMDTYPE, CMD_REGEX, HIDE_START_FULL, HIDE_END_FULL),
+            (CMDTYPE_SPELLUP, CMD_SPELLUP_REGEX, HIDE_START_SPELLUP, HIDE_END_SPELLUP),
+        ):
+            self.api("plugins.core.mudcmds:type.add")(
+                cmdtype,
+                CMD,
+                regex,
+                beforef=functools.partial(self._slist_before, cmdtype),
+                afterf=self._slist_after,
+                hide_output=True,
+                hide_start=hide_start,
+                hide_end=hide_end,
+                hide_max=HIDE_MAX_LINES + 1,
+            )
         callbacks = self._trigger_callbacks()
         for spec in TRIGGERS:
             self._add_trigger(spec, callbacks.get(spec.name))
@@ -179,13 +196,14 @@ class SkillsPlugin(BasePlugin):
     def _refresh(self) -> None:
         """Queue the full slist and the spellup slist."""
         self.api("plugins.core.mudcmds:command.queue")(CMDTYPE, ARGS_FULL)
-        self.api("plugins.core.mudcmds:command.queue")(CMDTYPE, ARGS_SPELLUP)
+        self.api("plugins.core.mudcmds:command.queue")(CMDTYPE_SPELLUP, ARGS_SPELLUP)
 
-    def _slist_before(self) -> None:
+    def _slist_before(self, cmdtype: str) -> None:
         """Before an slist is sent: read its output."""
+        self._cmdtype = cmdtype
         self._toggle_group(GROUP_SLIST, True)
         self._toggle_group(GROUP_SPELLS, True)
-        self.api("plugins.core.mudcmds:command.start")(CMDTYPE)
+        self.api("plugins.core.mudcmds:command.start")(cmdtype)
 
     def _slist_after(self) -> None:
         """After an slist finished: raise what it made known."""
@@ -198,49 +216,10 @@ class SkillsPlugin(BasePlugin):
         self._current = None
 
     def _end_block(self) -> None:
-        """The block is over: stop reading and hiding, and finish the command."""
+        """The block is over: stop reading, and finish the command, which ends its hide window."""
         self._toggle_all_groups(False)
-        self._stop_hiding()
         self._started = False
-        self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
-
-    # the hide window: from the start tag of a block to its end tag
-
-    def _start_hiding(self) -> None:
-        """Hide every line up to the end tag of the block."""
-        if self._hiding:
-            return
-        registered = self.api("plugins.core.triggers:trigger.register")(
-            BEFORE_ALL_LINES_ID, self._hide_line
-        )
-        self._hiding = bool(registered)
-        self._hidden_count = 0
-
-    def _hide_line(self) -> None:
-        """Hide the line; the end tag closes the window, and so does the line cap."""
-        line = self._record().get("line")
-        if line is None:
-            return
-        if self._hidden_count >= HIDE_MAX_LINES:
-            log_to(
-                [self.plugin_id],
-                logging.DEBUG,
-                "no end tag after %d hidden lines, showing output again",
-                HIDE_MAX_LINES,
-            )
-            self._stop_hiding()
-            return
-        line.send = False
-        self._hidden_count += 1
-
-    def _stop_hiding(self) -> None:
-        """End the hide window."""
-        if self._hiding:
-            self.api("plugins.core.triggers:trigger.unregister")(
-                BEFORE_ALL_LINES_ID, self._hide_line
-            )
-        self._hiding = False
-        self._hidden_count = 0
+        self.api("plugins.core.mudcmds:command.finish")(self._cmdtype)
 
     # slist triggers
 
@@ -253,7 +232,6 @@ class SkillsPlugin(BasePlugin):
             self.table.reset()
         elif kind == "affected":
             self.table.reset_affected()
-        self._start_hiding()
 
     def _trigger_spell_line(self) -> None:
         """A line of the spell section."""
@@ -387,7 +365,6 @@ class SkillsPlugin(BasePlugin):
         self.table.reset()
         self._current = None
         self._started = False
-        self._stop_hiding()
         self._toggle_all_groups(False)
 
     # APIs

@@ -9,14 +9,15 @@ from unittest.mock import MagicMock
 
 import pytest
 from event_keys import assert_raised_described
+from mudcmds_support import CoreHide
 
 import aardwolf
 from aardwolf.skills.libs import (
     A102_OPTIONS,
     ARGS_FULL,
     ARGS_SPELLUP,
-    BEFORE_ALL_LINES_ID,
     CMDTYPE,
+    CMDTYPE_SPELLUP,
     EVENT_AFFECTED_UPDATE,
     EVENT_AFFOFF,
     EVENT_AFFON,
@@ -26,7 +27,11 @@ from aardwolf.skills.libs import (
     EVENT_RECON,
     EVENT_UPTODATE,
     EVENTS,
+    HIDE_END_FULL,
+    HIDE_END_SPELLUP,
     HIDE_MAX_LINES,
+    HIDE_START_FULL,
+    HIDE_START_SPELLUP,
     TRIGGERS,
 )
 
@@ -85,7 +90,10 @@ class FakeApi:
         self.hidden: list[str] = []
         self.types: dict[str, dict[str, Any]] = {}
         self.queued: list[str] = []
-        self.pending: list[str] = []
+        self.pending: list[tuple[str, str]] = []
+        self.cmds: dict[str, str] = {}
+        # the real core hide window; the queue below is the fake's own
+        self.core = CoreHide(lambda: self.record)
         self.started: list[str] = []
         self.finished: list[str] = []
         self.current: str | None = None
@@ -126,7 +134,7 @@ class FakeApi:
         return SimpleNamespace(success=self.add_ok, trigger=SimpleNamespace(trigger_id=name))
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        assert trigger_id == BEFORE_ALL_LINES_ID or trigger_id in self.trigger_cbs
+        assert trigger_id in self.trigger_cbs
         self.trigger_cbs.setdefault(trigger_id, []).append(func)
         return True
 
@@ -142,18 +150,25 @@ class FakeApi:
 
     def _type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: object) -> None:
         self.types[cmdtype] = dict(kwargs)
+        self.cmds[cmdtype] = cmd
+        self.core.add_type(cmdtype, cmd, regex, **kwargs)
 
     def _command_queue(self, cmdtype: str, arguments: str = "") -> None:
         """Queue a command like mudcmds: one already pending or running is not queued twice."""
-        cmd = f"{cmdtype} {arguments}".strip()
-        if cmd in self.pending or cmd == self.current:
+        cmd = f"{self.cmds[cmdtype]} {arguments}".strip()
+        if cmd in [queued for _, queued in self.pending] or cmd == self.current:
             return
         self.queued.append(cmd)
         if self.current is None:
-            self.current = cmd
-            self.types[cmdtype]["beforef"]()
+            self.begin(cmdtype, cmd)
         else:
-            self.pending.append(cmd)
+            self.pending.append((cmdtype, cmd))
+
+    def begin(self, cmdtype: str, cmd: str) -> None:
+        """Send a command: its beforef runs, then core arms the hide window."""
+        self.current = cmd
+        self.types[cmdtype]["beforef"]()
+        self.core.sent(cmdtype, cmd)
 
     def _command_finish(self, cmdtype: str) -> None:
         """Finish the command, run its after function and send the next one."""
@@ -161,9 +176,13 @@ class FakeApi:
         if self.current is not None:
             self.current = None
             self.types[cmdtype]["afterf"]()
+            self.core.finished(cmdtype)
             if self.pending and self.current is None:
-                self.current = self.pending.pop(0)
-                self.types[cmdtype]["beforef"]()
+                self.begin(*self.pending.pop(0))
+
+    def disconnect(self) -> None:
+        """The MUD link closed: the core drops its hide windows."""
+        self.core.disconnect()
 
     def group_on(self, suffix: str) -> bool:
         """Return True when every trigger of the group is on."""
@@ -175,10 +194,9 @@ class FakeApi:
     def feed(self, *lines: str, prompt: bool = False) -> None:
         """Run each line through the before-all callbacks and the enabled triggers."""
         for line in lines:
-            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt, send=True)
+            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt, send=True, internal=False)
             self.record = {"matches": {}, "line": line_obj}
-            for func in list(self.trigger_cbs.get(BEFORE_ALL_LINES_ID, [])):
-                func()
+            self.core.line()
             for name, regex in list(self.triggers.items()):
                 match = re.match(regex, line)
                 if not match or not self.enabled[name]:
@@ -205,6 +223,11 @@ class Env:
         self.plugin = plugin
         self.fake = fake
         self.sent = sent
+
+    def disconnect(self) -> None:
+        """The MUD link closes: the plugin and the core hide window see it."""
+        self.plugin._eventcb_disconnect()
+        self.fake.disconnect()
 
     def load_all(self) -> None:
         """Run the queued full and spellup slists, as the MUD answers them."""
@@ -271,7 +294,7 @@ def test_after_load_adds_events_type_triggers_and_tags(env: Env) -> None:
     """The 8 events, the slist type, the triggers and the tag toggles are added."""
     assert set(env.fake.events_added) == set(EVENTS)
     assert len(env.fake.events_added) == 8
-    assert set(env.fake.types) == {CMDTYPE}
+    assert set(env.fake.types) == {CMDTYPE, CMDTYPE_SPELLUP}
     assert set(env.fake.triggers) == {spec.name for spec in TRIGGERS}
     omitted = {n for n, k in env.fake.kwargs.items() if k.get("omit")}
     assert omitted == {s.name for s in TRIGGERS if s.omit}
@@ -317,7 +340,7 @@ def test_full_slist_fills_the_table_and_hides_every_line(env: Env) -> None:
             next(n for n, k in env.fake.kwargs.items() if k.get("group") == f"{PLUGIN_ID}.{suffix}")
         ]
     assert env.fake.finished[0] == CMDTYPE
-    assert not env.plugin._hiding
+    assert not env.fake.core.is_open()
 
 
 def test_spellup_block_flags_spellups_and_raises_uptodate_once(env: Env) -> None:
@@ -342,8 +365,7 @@ def test_affected_block_resets_and_sets_durations(env: Env) -> None:
     env.plugin.table.set_duration(15, 99, NOW)
     env.plugin.table.set_recovery_duration(4, 99, NOW)
     env.fake.raised.clear()
-    env.fake.current = f"{CMDTYPE} affected noprompt"
-    env.fake.types[CMDTYPE]["beforef"]()
+    env.fake.begin(CMDTYPE, f"{CMDTYPE} affected noprompt")
     env.fake.feed(
         "{spellheaders affected noprompt}",
         "14,armor,2,600,85,-1,1",
@@ -371,12 +393,11 @@ def test_affected_block_resets_and_sets_durations(env: Env) -> None:
 def test_learned_block_updates_percents(env: Env) -> None:
     """A learned slist sets the percents and ends at the spell headers."""
     env.load_all()
-    env.fake.current = f"{CMDTYPE} learned noprompt"
-    env.fake.types[CMDTYPE]["beforef"]()
+    env.fake.begin(CMDTYPE, f"{CMDTYPE} learned noprompt")
     env.fake.feed("{spellheaders learned noprompt}", "14,armor,2,0,99,-1,1", "{/spellheaders}")
     assert env.plugin.table.skills[14]["percent"] == 99
     assert len(env.fake.finished) == 3  # full, spellup, learned
-    assert not env.plugin._hiding
+    assert not env.fake.core.is_open()
 
 
 def test_typed_slist_is_shown(env: Env) -> None:
@@ -395,7 +416,7 @@ def test_hide_window_stops_at_the_cap(env: Env) -> None:
     env.fake.feed(*junk)
     assert env.fake.hidden == ["{spellheaders noprompt}", *junk[:HIDE_MAX_LINES]]
     assert env.fake.shown == junk[HIDE_MAX_LINES:]
-    assert not env.plugin._hiding
+    assert not env.fake.core.is_open()
 
 
 def test_affon_and_affoff(env: Env) -> None:
@@ -493,11 +514,11 @@ def test_disconnect_resets_and_abandons_a_block(env: Env) -> None:
     env.load_all()
     env.plugin._refresh()
     env.fake.feed("{spellheaders noprompt}", SPELLS[0])
-    assert bool(env.plugin._hiding)
-    env.plugin._eventcb_disconnect()
+    assert env.fake.core.is_open()
+    env.disconnect()
     assert env.plugin.table.count() == 0
     assert not env.plugin.table.uptodate
-    assert not env.plugin._hiding
+    assert not env.fake.core.is_open()
     assert env.plugin._current is None
     assert not env.fake.group_on("slist")
     env.fake.feed(SPELLS[1])
@@ -599,3 +620,55 @@ def test_failed_trigger_add_is_logged_and_group_not_toggled(
     plugin = build(fake)
     plugin._toggle_all_groups(True)
     assert fake.toggles == []
+
+
+def test_types_hide_their_output_through_mudcmds(env: Env) -> None:
+    """Each slist type asks mudcmds to hide its reply between its own start and end tags."""
+    expected = {
+        CMDTYPE: (HIDE_START_FULL, HIDE_END_FULL),
+        CMDTYPE_SPELLUP: (HIDE_START_SPELLUP, HIDE_END_SPELLUP),
+    }
+    for cmdtype, (start, end) in expected.items():
+        kwargs = env.fake.types[cmdtype]
+        assert kwargs["hide_output"] is True
+        assert kwargs["hide_start"] == start
+        assert kwargs["hide_end"] == end
+        # mudcmds counts the opening line, so the type gets one more than the cap
+        assert kwargs["hide_max"] == HIDE_MAX_LINES + 1
+        assert env.fake.core.core.cmds[cmdtype].hide_output is True
+
+
+def test_refresh_queues_each_slist_under_its_own_type(env: Env) -> None:
+    """The full and the spellup slist are two types, and each block finishes its own."""
+    env.plugin._refresh()
+    assert env.fake.queued == [FULL_Q, SPELLUP_Q]
+    assert env.fake.pending == [(CMDTYPE_SPELLUP, SPELLUP_Q)]
+    env.fake.feed(*full_block())
+    assert env.fake.started == [CMDTYPE, CMDTYPE_SPELLUP]
+    env.fake.feed(*spellup_block(SPELLS[0]))
+    assert env.fake.finished == [CMDTYPE, CMDTYPE_SPELLUP]
+
+
+def test_spellup_window_closes_at_the_end_of_the_spell_headers(env: Env) -> None:
+    """A spellup slist has no recoveries, so its window ends at the spell headers."""
+    env.plugin._refresh()
+    env.fake.feed(*full_block())
+    env.fake.feed(*spellup_block(SPELLS[0]))
+    assert not env.fake.core.is_open()
+    env.fake.feed("after")
+    assert env.fake.hidden == [*full_block(), *spellup_block(SPELLS[0])]
+    assert env.fake.shown == ["after"]
+
+
+def test_full_window_stays_open_past_the_end_of_the_spell_headers(env: Env) -> None:
+    """A full slist prints the end of the spell headers midway; it ends at the recoveries."""
+    env.plugin._refresh()
+    env.fake.feed("{spellheaders noprompt}", SPELLS[0], "{/spellheaders}")
+    assert env.fake.core.is_open()
+    env.fake.feed("a stray line", "{recoveries noprompt}", *RECOVERIES)
+    assert env.fake.core.is_open()
+    env.fake.feed("{/recoveries}")
+    assert not env.fake.core.is_open()
+    env.fake.feed("after")
+    assert "a stray line" in env.fake.hidden
+    assert env.fake.shown == ["after"]

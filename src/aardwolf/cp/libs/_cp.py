@@ -21,10 +21,8 @@ EVENT_QUESTMASTERS_CHANGED = "ev_plugins.aardwolf.config_questmasters_changed"
 API_QUESTMASTERS_GET = "plugins.aardwolf.config:questmasters.get"
 # the id of the core trigger that fires for every line, which belongs to plugins.core.triggers
 ALL_LINES_ID = "t_plugins.core.triggers_all"
-# the core raises this trigger for every line before it matches the regexes
-# (create_trigger_id("beall", plugin_id) gives "t_<owner>_<name>")
-BEFORE_ALL_LINES_ID = "t_plugins.core.triggers_beall"
-# the most lines hidden without a prompt; enough for an info with many targets
+# the most lines hidden after the opening line; enough for an info with many targets.
+# mudcmds counts the opening line too, so the command type gets HIDE_MAX_LINES + 1
 HIDE_MAX_LINES = 60
 
 CMDTYPE = "cpcheck"
@@ -305,6 +303,24 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         None,
     ),
 )
+
+
+def _hide_start(group: str) -> str:
+    """Return one regex matching the first line of any omitted trigger of a group.
+
+    The named groups become plain groups, so alternatives that share a group name still compile.
+    """
+    parts = [
+        re.sub(r"\(\?P<\w+>", "(?:", spec.regex)
+        for spec in TRIGGERS
+        if spec.group == group and spec.omit
+    ]
+    return "(?:" + "|".join(parts) + ")"
+
+
+# the lines that open the hide window of a queued ``campaign check`` and ``campaign info``
+CHECK_HIDE_START = _hide_start(GROUP_CHECK)
+INFO_HIDE_START = _hide_start(GROUP_INFO)
 
 
 def new_state(now: float, level: int) -> dict[str, Any]:

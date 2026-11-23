@@ -10,10 +10,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from event_keys import assert_raised_described
+from mudcmds_support import CoreHide
 from statdb_support import make_db
 
 import aardwolf
-from aardwolf.whois.libs import BEFORE_ALL_LINES_ID, HIDE_MAX_LINES
+from aardwolf.whois.libs import END_REGEX, HIDE_MAX_LINES
 
 if TYPE_CHECKING:
     from aardwolf.whois.plugin._whois import WhoisPlugin
@@ -75,7 +76,8 @@ class FakeApi:
         self.raised: list[tuple[str, dict[str, Any]]] = []
         self.triggers: dict[str, dict[str, Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
-        self.before_all: list[Callable[..., Any]] = []
+        # the real core hide window; the whois queue is the tests' own
+        self.core = CoreHide(lambda: self.record)
         self.shown: list[str] = []
         self.hidden: list[str] = []
         self.group_toggles: list[tuple[str, bool]] = []
@@ -96,12 +98,11 @@ class FakeApi:
                 (wname, regex)
             ),
             "plugins.core.mudcmds:type.add": self._type_add,
-            "plugins.core.mudcmds:command.finish": self.finished.append,
+            "plugins.core.mudcmds:command.finish": self._command_finish,
             "plugins.core.mudcmds:command.queue": self.queued.append,
             "libs.api:character.is.active": lambda: self.active,
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
-            "plugins.core.triggers:trigger.unregister": self._trigger_unregister,
             "plugins.core.triggers:trigger.toggle.enable": self._trigger_toggle,
             "plugins.core.triggers:group.toggle.enable": self._group_toggle,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
@@ -119,6 +120,12 @@ class FakeApi:
 
     def _type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: object) -> None:
         self.types[cmdtype] = {"cmd": cmd, "regex": regex, **kwargs}
+        self.core.add_type(cmdtype, cmd, regex, **kwargs)
+
+    def _command_finish(self, cmdtype: str) -> None:
+        """Record the finish; the core closes the hide window of the command it sent."""
+        self.finished.append(cmdtype)
+        self.core.finished(cmdtype)
 
     def _trigger_add(self, name: str, regex: str, **kwargs: object) -> SimpleNamespace:
         self.triggers[name] = {
@@ -129,15 +136,7 @@ class FakeApi:
         return SimpleNamespace(success=self.add_ok, trigger=SimpleNamespace(trigger_id=name))
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        if trigger_id == BEFORE_ALL_LINES_ID:
-            self.before_all.append(func)
-        else:
-            self.callbacks[trigger_id] = func
-        return True
-
-    def _trigger_unregister(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        assert trigger_id == BEFORE_ALL_LINES_ID
-        self.before_all.remove(func)
+        self.callbacks[trigger_id] = func
         return True
 
     def _trigger_toggle(self, name: str, flag: bool) -> bool:
@@ -162,15 +161,14 @@ class FakeApi:
     ) -> None:
         """Run each line through the triggers, as the triggers plugin does.
 
-        The before-all-lines callbacks run first. prompt marks the last line as a prompt;
+        The core hide window sees each line first. prompt marks the last line as a prompt;
         is_prompt decides per line instead.
         """
         for index, text in enumerate(lines):
             marked = is_prompt(text) if is_prompt else prompt and index == len(lines) - 1
-            line = SimpleNamespace(noansi=text, is_prompt=marked, send=True)
+            line = SimpleNamespace(noansi=text, is_prompt=marked, send=True, internal=False)
             self.record = {"matches": {}, "line": line}
-            for func in list(self.before_all):
-                func()
+            self.core.line()
             for name, trigger in list(self.triggers.items()):
                 if not trigger["enabled"]:
                     continue
@@ -198,8 +196,14 @@ class Env:
         self.fake.registered["watch_whois"]()
 
     def queued_whois(self) -> None:
-        """A queued whois: mudcmds calls the type's beforef before it sends the line."""
+        """A queued whois: mudcmds calls the type's beforef, then arms the hide window and sends."""
         self.fake.types["whois"]["beforef"]()
+        self.fake.core.sent("whois", "whois")
+
+    def disconnect(self) -> None:
+        """The MUD link closes: the plugin and the core hide window see it."""
+        self.plugin._eventcb_disconnect()
+        self.fake.core.disconnect()
 
 
 @pytest.fixture
@@ -271,7 +275,6 @@ def test_after_load(env: Env) -> None:
         "whois3",
         "whoispowerup",
         "whoisend",
-        "whoisstart",
     }
     assert not fake.enabled()
     assert {n for n, t in fake.triggers.items() if t["group"] == PLUGIN_ID} == set(
@@ -304,7 +307,6 @@ def test_single_class_typed_whois(env: Env) -> None:
         "whois2",
         "whois3",
         "whoispowerup",
-        "whoisstart",
     }
     env.fake.feed(SINGLE)
     assert len(env.fake.raised) == 1
@@ -468,19 +470,20 @@ def test_queued_whois_is_hidden_to_the_prompt(env: Env) -> None:
     env.fake.feed(REAL_REPLY, prompt=True)
     assert env.fake.hidden == REAL_REPLY
     assert env.fake.shown == []
-    assert env.fake.before_all == []
+    assert not env.fake.core.is_open()
     assert env.fake.finished == ["whois"]
     env.fake.feed(["Next line"])
     assert env.fake.shown == ["Next line"]
 
 
 def test_typed_whois_is_shown(env: Env) -> None:
-    """A typed whois is shown in full and never registers the hide watcher."""
+    """A typed whois is shown in full and never arms a hide window."""
     env.typed_whois()
     env.fake.feed(REAL_REPLY, prompt=True)
     assert env.fake.shown == REAL_REPLY
     assert env.fake.hidden == []
-    assert env.fake.before_all == []
+    assert not env.fake.core.is_armed()
+    assert not env.fake.core.is_open()
 
 
 def test_hidden_and_typed_whois_parse_the_same(env: Env) -> None:
@@ -503,18 +506,21 @@ def test_lines_before_the_first_dashes_are_shown(env: Env) -> None:
     env.fake.feed(["You say 'hi'"])
     env.fake.feed(["[1/1hp] >"], prompt=True)
     assert env.fake.shown == ["You say 'hi'", "[1/1hp] >"]
-    assert env.fake.before_all == []
+    assert not env.fake.core.is_open()
+    assert env.fake.core.is_armed()
     env.fake.feed(REAL_REPLY, prompt=True)
     assert env.fake.hidden == REAL_REPLY
 
 
 def test_closing_dashes_do_not_restart_the_window(env: Env) -> None:
-    """The watcher is registered once, at the first dashes."""
+    """The window opens at the first dashes; the closing dashes keep the same open window."""
     env.queued_whois()
     env.fake.feed(REAL_REPLY[:7])
-    assert env.fake.before_all == [env.plugin._hide_line]
+    window = env.fake.core.core._hide_open
+    assert window is not None
     env.fake.feed(REAL_REPLY[7:8])
-    assert env.fake.before_all == [env.plugin._hide_line]
+    assert env.fake.core.core._hide_open is window
+    assert not env.fake.core.is_armed()
 
 
 def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture) -> None:
@@ -525,20 +531,19 @@ def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture)
         env.fake.feed([DASHES, *others])
     assert env.fake.hidden == [DASHES, *others[:HIDE_MAX_LINES]]
     assert env.fake.shown == [others[-1]]
-    assert env.fake.before_all == []
-    caps = [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    assert not env.fake.core.is_open()
+    caps = [r for r in caplog.records if "reached its cap" in r.getMessage()]
     assert len(caps) == 1
     assert caps[0].levelno == logging.WARNING
 
 
 def test_disconnect_mid_window_closes_it(env: Env) -> None:
-    """A disconnect closes the window and clears the flag."""
+    """A disconnect closes the window."""
     env.queued_whois()
     env.fake.feed(REAL_REPLY[:3])
-    assert env.fake.before_all
-    env.plugin._eventcb_disconnect()
-    assert env.fake.before_all == []
-    assert env.plugin._hide_pending is False
+    assert env.fake.core.is_open()
+    env.disconnect()
+    assert not env.fake.core.is_open()
     env.fake.feed(["Hello"])
     assert env.fake.shown == ["Hello"]
 
@@ -546,20 +551,44 @@ def test_disconnect_mid_window_closes_it(env: Env) -> None:
 def test_disconnect_before_the_dashes_clears_the_flag(env: Env) -> None:
     """A later typed whois is shown after a disconnect that followed a queued send."""
     env.queued_whois()
-    env.plugin._eventcb_disconnect()
-    assert env.plugin._hide_pending is False
+    assert env.fake.core.is_armed()
+    env.disconnect()
+    assert not env.fake.core.is_armed()
     env.typed_whois()
     env.fake.feed(REAL_REPLY, prompt=True)
     assert env.fake.shown == REAL_REPLY
 
 
-def test_typed_whois_after_an_unanswered_queued_one_is_shown(env: Env) -> None:
-    """The typed path clears a stale flag from a queued whois the MUD never answered."""
+def test_typed_whois_after_a_queued_one_timed_out_is_shown(env: Env) -> None:
+    """After the unanswered queued whois times out, its window is gone and a typed one shows."""
     env.queued_whois()
+    env.fake.core.timed_out("whois")
+    assert not env.fake.core.is_armed()
     env.typed_whois()
     env.fake.feed(REAL_REPLY, prompt=True)
     assert env.fake.shown == REAL_REPLY
     assert env.fake.hidden == []
+
+
+def test_typed_whois_reply_before_the_queued_one_times_out_is_hidden(env: Env) -> None:
+    """Behaviour change: the armed window opens on the first dashes, whoever sent the whois."""
+    env.queued_whois()
+    env.typed_whois()
+    env.fake.feed(REAL_REPLY, prompt=True)
+    assert env.fake.hidden == REAL_REPLY
+    assert env.fake.shown == []
+    assert env.fake.finished == ["whois"]
+    assert not env.fake.core.is_open()
+
+
+def test_whois_type_hides_its_output_through_mudcmds(env: Env) -> None:
+    """The type opens on the first 74-dash line, has no end regex and caps at the cap plus one."""
+    kwargs = env.fake.types["whois"]
+    assert kwargs["hide_output"] is True
+    assert kwargs["hide_start"] == END_REGEX
+    assert "hide_end" not in kwargs
+    assert kwargs["hide_max"] == HIDE_MAX_LINES + 1
+    assert env.fake.core.core.cmds["whois"].hide_output is True
 
 
 def test_marked_prompt_from_promptfix_closes_the_window(
@@ -577,5 +606,5 @@ def test_marked_prompt_from_promptfix_closes_the_window(
         env.fake.feed(["Next line"])
     assert env.fake.hidden == REAL_REPLY
     assert env.fake.shown == ["Next line"]
-    assert env.fake.before_all == []
-    assert not [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    assert not env.fake.core.is_open()
+    assert not [r for r in caplog.records if "reached its cap" in r.getMessage()]

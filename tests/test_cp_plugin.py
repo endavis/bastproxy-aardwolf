@@ -10,12 +10,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from event_keys import assert_raised_described
+from mudcmds_support import CoreHide
 from statdb_support import make_db
 
 import aardwolf
 from aardwolf.cp.libs import (
     ALL_LINES_ID,
-    BEFORE_ALL_LINES_ID,
+    CHECK_HIDE_START,
     CMDTYPE,
     CMDTYPE_INFO,
     CP_DURATION,
@@ -26,6 +27,7 @@ from aardwolf.cp.libs import (
     EVENT_QUESTMASTERS_CHANGED,
     EVENTS,
     HIDE_MAX_LINES,
+    INFO_HIDE_START,
     TRIGGERS,
 )
 from aardwolf.libs.aardu import actual_level
@@ -124,6 +126,9 @@ class FakeApi:
         self.shown: list[str] = []
         self.hidden: list[str] = []
         self.types: dict[str, dict[str, Any]] = {}
+        self.cmds: dict[str, str] = {}
+        # the real core hide window; the queue below is the fake's own
+        self.core = CoreHide(lambda: self.record)
         self.queued: list[str] = []
         self.pending: list[str] = []
         self.started: list[str] = []
@@ -169,7 +174,7 @@ class FakeApi:
         return True
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
-        assert trigger_id in (ALL_LINES_ID, BEFORE_ALL_LINES_ID) or trigger_id in self.trigger_cbs
+        assert trigger_id == ALL_LINES_ID or trigger_id in self.trigger_cbs
         self.trigger_cbs.setdefault(trigger_id, []).append(func)
         return True
 
@@ -185,6 +190,8 @@ class FakeApi:
 
     def _type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: object) -> None:
         self.types[cmdtype] = dict(kwargs)
+        self.cmds[cmdtype] = cmd
+        self.core.add_type(cmdtype, cmd, regex, **kwargs)
 
     def _command_queue(self, cmdtype: str, arguments: str = "") -> None:
         """Queue a command like mudcmds: one already pending or running is not queued twice."""
@@ -194,6 +201,7 @@ class FakeApi:
         if self.current is None:
             self.current = cmdtype
             self.types[cmdtype]["beforef"]()
+            self.core.sent(cmdtype, self.cmds[cmdtype])
         else:
             self.pending.append(cmdtype)
 
@@ -203,9 +211,15 @@ class FakeApi:
         if self.current == cmdtype:
             self.current = None
             self.types[cmdtype]["afterf"]()
+            self.core.finished(cmdtype)
             if self.pending and self.current is None:
                 self.current = self.pending.pop(0)
                 self.types[self.current]["beforef"]()
+                self.core.sent(self.current, self.cmds[self.current])
+
+    def disconnect(self) -> None:
+        """The MUD link closed: the core drops its hide windows."""
+        self.core.disconnect()
 
     def group_on(self, suffix: str) -> bool:
         """Return True when every trigger of the group is on."""
@@ -217,10 +231,9 @@ class FakeApi:
     def feed(self, *lines: str, prompt: bool = False) -> None:
         """Run each line through the enabled triggers and then the every-line callbacks."""
         for line in lines:
-            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt, send=True)
+            line_obj = SimpleNamespace(noansi=line, is_prompt=prompt, send=True, internal=False)
             self.record = {"matches": {}, "line": line_obj}
-            for func in list(self.trigger_cbs.get(BEFORE_ALL_LINES_ID, [])):
-                func()
+            self.core.line()
             for name, regex in list(self.triggers.items()):
                 match = re.match(regex, line)
                 if not match or not self.enabled[name]:
@@ -251,6 +264,11 @@ class Env:
         self.plugin = plugin
         self.fake = fake
         self.home = home
+
+    def disconnect(self) -> None:
+        """The MUD link closes: the plugin and the core hide window see it."""
+        self.plugin._eventcb_disconnect()
+        self.fake.disconnect()
 
     def kill(self, name: str) -> None:
         """The mobk plugin raises a kill."""
@@ -965,8 +983,8 @@ STATE = "You cannot take another campaign for 3m 4s."
 
 
 def is_hiding(env: Env) -> bool:
-    """Whether the hide window is open; a function so mypy does not narrow the attribute."""
-    return env.plugin._hiding
+    """Whether the core hide window is open."""
+    return env.fake.core.is_open()
 
 
 def test_cp_req_shows_only_the_tell_and_one_prompt(env: Env) -> None:
@@ -980,7 +998,7 @@ def test_cp_req_shows_only_the_tell_and_one_prompt(env: Env) -> None:
     fake.feed(PROMPT, prompt=True)
     assert fake.shown == [NEW, PROMPT]
     assert env.plugin.cp["cantake"] is False
-    assert fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
+    assert not fake.core.is_open()
 
 
 def test_hidden_state_line_still_updates_state(env: Env) -> None:
@@ -1047,7 +1065,7 @@ def test_window_ends_at_the_prompt(env: Env) -> None:
 def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture) -> None:
     """Without a prompt, HIDE_MAX_LINES lines after the opener are hidden and the next is shown.
 
-    The opener is not counted: it is hidden by its own omit, before the watcher exists.
+    mudcmds counts the opener too, so the type gets HIDE_MAX_LINES + 1.
     """
     env.plugin._queue_check()
     env.fake.feed(RAT)
@@ -1058,29 +1076,30 @@ def test_window_ends_at_the_line_cap(env: Env, caplog: pytest.LogCaptureFixture)
     assert env.fake.hidden[-HIDE_MAX_LINES:] == others[:HIDE_MAX_LINES]
     assert env.fake.shown == [others[-1]]
     assert not is_hiding(env)
-    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
-    caps = [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    caps = [r for r in caplog.records if "reached its cap" in r.getMessage()]
     assert len(caps) == 1
     assert caps[0].levelno == logging.WARNING
 
 
 def test_disconnect_ends_the_hide_window(env: Env) -> None:
-    """A disconnect while hiding unregisters the watcher; the next line is shown."""
+    """A disconnect while hiding closes the window; the next line is shown."""
     env.plugin._queue_check()
     env.fake.feed(RAT)
     assert is_hiding(env)
-    env.plugin._eventcb_disconnect()
+    env.disconnect()
     assert not is_hiding(env)
-    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
     env.fake.feed("Hello")
     assert env.fake.shown == ["Hello"]
 
 
-def test_one_hide_watcher_for_several_openers(env: Env) -> None:
-    """Several opener lines in one window register the watcher once."""
-    env.take_cp(RAT)
-    env.fake.feed(RAT, BAT, TIME)
-    assert env.fake.trigger_cbs[BEFORE_ALL_LINES_ID] == [env.plugin._hide_line]
+def test_one_hide_window_for_several_openers(env: Env) -> None:
+    """Several opener lines in one queued check leave the same window open."""
+    env.plugin._queue_check()
+    env.fake.feed(RAT)
+    window = env.fake.core.core._hide_open
+    assert window is not None
+    env.fake.feed(BAT)
+    assert env.fake.core.core._hide_open is window
 
 
 def test_issue_90_session_closes_every_window_at_the_marked_prompt(
@@ -1117,5 +1136,42 @@ def test_issue_90_session_closes_every_window_at_the_marked_prompt(
     assert all(text in fake.hidden for text in [*info, *check])
     assert fake.shown == whois
     assert not is_hiding(env)
-    assert fake.trigger_cbs[BEFORE_ALL_LINES_ID] == []
-    assert not [r for r in caplog.records if "no prompt after" in r.getMessage()]
+    assert not [r for r in caplog.records if "reached its cap" in r.getMessage()]
+
+
+def test_types_hide_their_output_through_mudcmds(env: Env) -> None:
+    """Both types ask mudcmds to hide the output, opening on the group's omitted lines."""
+    for cmdtype, start in ((CMDTYPE, CHECK_HIDE_START), (CMDTYPE_INFO, INFO_HIDE_START)):
+        kwargs = env.fake.types[cmdtype]
+        assert kwargs["hide_output"] is True
+        assert kwargs["hide_start"] == start
+        assert "hide_end" not in kwargs
+        # mudcmds counts the opening line, so the type gets one more than the cap
+        assert kwargs["hide_max"] == HIDE_MAX_LINES + 1
+        assert env.fake.core.core.cmds[cmdtype].hide_output is True
+
+
+def test_info_not_on_a_campaign_without_a_limit_line_closes_at_its_prompt(env: Env) -> None:
+    """The reply, a state line and the prompt are hidden; the window is closed after it."""
+    fake = env.fake
+    env.plugin._queue_info()
+    fake.feed(NONE, STATE)
+    assert is_hiding(env)
+    fake.feed(PROMPT, prompt=True)
+    assert fake.finished == [CMDTYPE_INFO]
+    assert not is_hiding(env)
+    fake.feed("Some other line.")
+    assert fake.hidden == [NONE, STATE, PROMPT]
+    assert fake.shown == ["Some other line."]
+
+
+def test_without_promptfix_a_queued_check_closes_at_cp_time(env: Env) -> None:
+    """Before any prompt is seen, finishing closes the window at once and the prompt is shown."""
+    fake = env.fake
+    fake.core.prompts_seen = False
+    env.plugin._queue_check()
+    fake.feed(RAT, TIME)
+    assert fake.finished == [CMDTYPE]
+    assert not is_hiding(env)
+    fake.feed(PROMPT, prompt=True)
+    assert fake.shown == [PROMPT]

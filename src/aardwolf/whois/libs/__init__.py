@@ -1,7 +1,6 @@
 """Pure helpers for the whois plugin."""
 
 from ._parse import (
-    BEFORE_ALL_LINES_ID,
     CLASSES_REGEX,
     END_REGEX,
     HEADER_REGEX,
@@ -20,7 +19,6 @@ from ._parse import (
 )
 
 __all__ = [
-    "BEFORE_ALL_LINES_ID",
     "CLASSES_REGEX",
     "END_REGEX",
     "HEADER_REGEX",
