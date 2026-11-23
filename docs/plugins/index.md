@@ -51,6 +51,7 @@ lists every discovered plugin, loaded or not.
 | [scanh](scanh.md) | `plugins.aardwolf.scanh` | Highlights the campaign, global quest and quest mobs in the `scan` output. |
 | [move](move.md) | `plugins.aardwolf.move` | Raises an event when the character moves to another room, with the rooms and the direction. |
 | [skills](skills.md) | `plugins.aardwolf.skills` | Keeps the character's skills, spells and recoveries up to date from `slist` and raises events when an affect or recovery turns on or off. |
+| [repop](repop.md) | `plugins.aardwolf.repop` | Sends a message to a channel when an area repops, from GMCP `comm.repop`. |
 
 Libraries that plugins share, such as `aardwolf.libs.aardu` and `aardwolf.libs.itemu`, are documented in the
 [API Reference](../reference/api.md).

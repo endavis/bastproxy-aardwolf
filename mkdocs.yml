@@ -120,6 +120,7 @@ nav:
       - scanh: plugins/scanh.md
       - move: plugins/move.md
       - skills: plugins/skills.md
+      - repop: plugins/repop.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - Adding a Plugin: development/adding-a-plugin.md
