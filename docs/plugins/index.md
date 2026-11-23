@@ -23,6 +23,13 @@ From a client connected to the proxy:
 #bp.core.pluginm.load plugins.aardwolf.<name>
 ```
 
+The command takes several names at once, and `aardwolf` (or `plugins.aardwolf`) loads every
+Aardwolf plugin that is not loaded yet, with its dependencies:
+
+```text
+#bp.core.pluginm.load aardwolf
+```
+
 A loaded plugin is remembered and loaded again when bastproxy starts. `#bp.core.pluginm.list`
 lists every discovered plugin, loaded or not.
 

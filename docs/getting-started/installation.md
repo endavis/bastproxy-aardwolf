@@ -79,7 +79,15 @@ uv lock --upgrade-package bastproxy
 When bastproxy is published on PyPI, the git reference is replaced by a version floor. Until then
 PyPI does not accept an upload of this package, because PyPI rejects direct references.
 
-To work on both repositories at once, install a local bastproxy checkout in editable mode:
+To run against a local bastproxy checkout without touching `.venv` or `uv.lock`, layer it over
+the environment for one run:
+
+```bash
+uv run --with-editable ../bastproxy bastproxy
+```
+
+[Working against a local bastproxy checkout](../usage/basics.md#working-against-a-local-bastproxy-checkout)
+covers when the pin still needs moving. To install the checkout into `.venv` instead:
 
 ```bash
 uv pip install -e ../bastproxy
