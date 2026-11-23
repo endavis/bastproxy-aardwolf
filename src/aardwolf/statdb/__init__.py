@@ -14,5 +14,4 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.timers",
     "plugins.core.proxy",
     "plugins.core.utils",
-    "plugins.core.mudcmds",
 ]

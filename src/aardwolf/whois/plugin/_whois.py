@@ -29,6 +29,7 @@ from ..libs import (
 EVENT_WHOIS = "ev_plugins.aardwolf.whois_received"
 EVENT_WATCH = "watch_whois"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
+EVENT_CHAR_ACTIVE = "ev_libs.api_character_active"
 WHOIS_NAME = "whois"
 END_TRIGGER = "whoisend"
 
@@ -84,6 +85,19 @@ class WhoisPlugin(BasePlugin):
         self._add_trigger("whoispowerup", POWERUP_REGEX, self._trigger_stats, grouped=True)
         # not in the group: it is turned on at the header, so the dashed line above it cannot end
         self._add_trigger(END_TRIGGER, END_REGEX, self._trigger_end, grouped=False)
+        if self.api("libs.api:character.is.active")():
+            self._queue_whois()
+
+    def _queue_whois(self) -> None:
+        """Queue a whois for the MUD."""
+        self.api("plugins.core.mudcmds:command.queue")(WHOIS_NAME)
+
+    @RegisterToEvent(event_name=EVENT_CHAR_ACTIVE)
+    def _eventcb_character_active(self) -> None:
+        """The character is first active: queue a whois."""
+        record = self.api("plugins.core.events:event.current.record.get")() or {}
+        if record.get("is_character_active"):
+            self._queue_whois()
 
     def _add_trigger(self, name: str, regex: str, func: Callable[[], None], grouped: bool) -> None:
         """Add a disabled trigger and register its callback."""

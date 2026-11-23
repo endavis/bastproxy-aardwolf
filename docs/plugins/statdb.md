@@ -35,13 +35,8 @@ can be upgraded, the plugin logs the error and loads without a database. Its com
 
 ## Behaviour
 
-- **Whois.** On the first GMCP `char.status` update where the state is 3 (active), the plugin
-  checks the `stats` table. When the current row has no kills (a new database, or a new
-  character) it queues `whois` once with `plugins.core.mudcmds:command.queue`, when the
-  [whois plugin](whois.md) is loaded; when it is not, nothing is sent (the plugin logs that at
-  debug level). The whois plugin raises the whois event with the result, and
-  that fills the `stats` table. `char.status` itself is never written to `stats`. The plugin checks
-  once per connection; a MUD disconnect allows it again.
+- **Whois.** The plugin does not queue a whois. The [whois plugin](whois.md) queues one each time
+  the character is first active. The whois event it raises with the result fills the `stats` table.
 - **Stats.** The `stats` table has a `current` row, kept up to date by the events, and a milestone
   row for each milestone: `start` (added with the first whois), a row named for each total level
   reached, and one named like `t2r3l10` for each hero, superhero, tier or remort level.
@@ -152,8 +147,7 @@ A global quest event counts a win in `gquestswon` only when `won` is 1. A level 
 otherwise; a `pup` adds one to `powerupsall`; a `level` also adds a milestone named for the total
 level.
 
-It also listens to `ev_libs.net.mud_gmcp_char.status` (the whois above),
-`ev_libs.net.mud_muddisconnect` (the whois is allowed again) and the two setting events
+It also listens to the two setting events
 `ev_plugins.aardwolf.statdb_var_backupstart_modified` and
 `ev_plugins.aardwolf.statdb_var_backupinterval_modified`.
 
@@ -179,8 +173,8 @@ plugin adds no SQL triggers, because the file must stay as the old plugin wrote 
 | `sqldb.baseclass` and the `Statdb` subclass | `plugins.core.sqldb:database.add` with plain table and migration data |
 | `stats.select`, `stats.modify`, `stats.modifymany`, `stats.getrow` | `plugins.aardwolf.statdb:stats.select`, `.modify`, `.modify.many`, `.row.get` |
 | events `aard_quest_comp`, `aard_quest_failed`, `aard_cp_comp`, `aard_cp_failed`, `aard_whois`, `aard_level_*`, `aard_mobkill`, `aard_gq_*` | the events in the table above, with the `ev_plugins.aardwolf.` prefix |
-| event `GMCP:char.status`, unregistered after the first active state | `ev_libs.net.mud_gmcp_char.status`, checked once per connection |
-| `send.execute('whois')` | the whois is queued with `plugins.core.mudcmds:command.queue` when the whois plugin is loaded, and not sent otherwise |
+| event `GMCP:char.status`, unregistered after the first active state | the whois plugin queues the whois on `ev_libs.api_character_active`; statdb does not |
+| `send.execute('whois')` | the [whois plugin](whois.md) queues it with `plugins.core.mudcmds:command.queue`; statdb does not |
 | event `trigger_dead` | a trigger on `^You die\.$` |
 | timer `stats_backup` at local time | UTC, with a one-time timer that adds the interval timer |
 | plugin version 2, which moved the files from the old `data/db` layout | dropped; copy the file as above |
