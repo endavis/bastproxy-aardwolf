@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795466819752,
+  "lastUpdate": 1795470197961,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1519,6 +1519,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.958315648767612e-7",
             "extra": "mean: 5.867570156577487 usec\nrounds: 178572"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2d289ee2aa07d131f32906b4b4dcca19a855c288",
+          "message": "fix: mark Aardwolf prompt lines so the cp hide window closes at them (merges PR #91, addresses #90)\n\n* fix: mark Aardwolf prompt lines so the cp hide window closes at them\n\nAardwolf sends no IAC GA or EOR after a prompt, so no MUD line ever\nreached the triggers with is_prompt set. cp's hide window (#70) could\nnot close at a prompt and ran to its 60-line cap, hiding the next\nqueued command's output (whois) and letting its last blank line and\nprompt through.\n\npromptfix now builds an anchored pattern from each prompt template it\ngets in GMCP char.prompts and marks matching MUD lines as prompts, at\npriority 30 on ev_to_client_data_modify, before the core waiters (40)\nand triggers (50) read the flag. The pattern comes from the last line\nof the template; colour codes are stripped, each %-code is a wildcard,\nliteral text is escaped, and only trailing Aardwolf flags such as\n*[NOEXP]* are allowed after it. A template that does not end in %c, or\nhas fewer than 3 fixed characters, gets no pattern, with one warning.\nPatterns are built even with autofix off and cleared on disconnect.\n\nEvery consumer of is_prompt works unchanged: cp's window, the core's\non_prompt triggers and prompt trigger. Clients now get IAC GA or EOR\nafter a marked prompt, as they would from a MUD that sends GA.\n\ncp keeps HIDE_MAX_LINES as a safety net and logs at warning level when\nthe cap ends a window, so a missed prompt shows in the log.\n\nAddresses #90\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: keep the prompt patterns from backtracking catastrophically\n\nEach %-code in a prompt template became a lazy .*? wildcard, and every\nMUD line is tested against the pattern. A line that nearly matched a\ntemplate with many codes made the regex try every split between the\nwildcards: with 12 codes, one 22-character near-miss line did not\nfinish within 60 seconds, which would freeze the proxy.\n\nA value now runs up to the first character of the fixed text after\nit and is possessive, so a near-miss fails in linear time. Adjacent\ncodes are merged into one value, the last value stops at Aardwolf's\n*[FLAG]* markers, and lines longer than MAX_PROMPT_LINE (400) are not\ntested. A value that contains the first character of the fixed text\nafter it now leaves its line unmarked; the docs say so.\n\nAddresses #90\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T21:42:32Z",
+          "tree_id": "5ee91d8207705ab0e0d3df51d07433ce42222884",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/2d289ee2aa07d131f32906b4b4dcca19a855c288"
+        },
+        "date": 1795470197395,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5125841.2702303035,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5295797375513454e-8",
+            "extra": "mean: 195.0899271516205 nsec\nrounds: 53124"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 269920.3142514231,
+            "unit": "iter/sec",
+            "range": "stddev: 5.077288943686773e-7",
+            "extra": "mean: 3.704797109374022 usec\nrounds: 144467"
           }
         ]
       }
