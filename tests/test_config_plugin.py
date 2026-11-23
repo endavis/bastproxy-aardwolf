@@ -111,9 +111,9 @@ def test_load_adds_setting_and_events(env: Env) -> None:
 def test_api_returns_defaults_as_a_copy(env: Env) -> None:
     """The API gives the defaults, and changing the result changes nothing."""
     result = env.plugin._api_questmasters_get()
-    assert result == ["Commander Barcett", "A QuestoR"]
+    assert result == ["Commander Barcett", "A QuestoR", "Questor"]
     result.append("X")
-    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR"]
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR", "Questor"]
 
 
 def test_no_action_lists_names(env: Env) -> None:
@@ -134,7 +134,7 @@ def test_add_multiword_name(env: Env) -> None:
     """A multi-word name is added and the change event is raised."""
     result = env.run("add", "Some", "Name")
     assert result.success
-    expected = ["Commander Barcett", "A QuestoR", "Some Name"]
+    expected = ["Commander Barcett", "A QuestoR", "Questor", "Some Name"]
     assert env.fake.values["questmasters"] == expected
     assert env.fake.raised == [(EVENT_QUESTMASTERS_CHANGED, {"questmasters": expected})]
 
@@ -143,7 +143,7 @@ def test_add_duplicate_changes_nothing(env: Env) -> None:
     """A duplicate is reported and raises no event."""
     result = env.run("add", "Commander", "Barcett")
     assert "already" in result.message[0]
-    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR"]
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR", "Questor"]
     assert env.fake.raised == []
 
 
@@ -151,8 +151,8 @@ def test_remove_name(env: Env) -> None:
     """A removed name goes and the event carries the new list."""
     result = env.run("remove", "A", "QuestoR")
     assert result.success
-    assert env.fake.values["questmasters"] == ["Commander Barcett"]
-    expected = {"questmasters": ["Commander Barcett"]}
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "Questor"]
+    expected = {"questmasters": ["Commander Barcett", "Questor"]}
     assert env.fake.raised == [(EVENT_QUESTMASTERS_CHANGED, expected)]
 
 
@@ -161,7 +161,7 @@ def test_remove_missing_changes_nothing(env: Env, words: tuple[str, ...]) -> Non
     """A missing name or a case miss is reported and raises no event."""
     result = env.run("remove", *words)
     assert "not a questmaster" in result.message[0]
-    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR"]
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR", "Questor"]
     assert env.fake.raised == []
 
 
@@ -170,7 +170,7 @@ def test_action_without_name_fails(env: Env, action: str) -> None:
     """An action with no name fails and changes nothing."""
     result = env.run(action)
     assert not result.success
-    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR"]
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR", "Questor"]
     assert env.fake.raised == []
 
 
@@ -185,7 +185,7 @@ def test_unknown_action_fails(env: Env) -> None:
     """An action other than add or remove fails and changes nothing."""
     result = env.run("rename", "A", "QuestoR")
     assert not result.success
-    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR"]
+    assert env.fake.values["questmasters"] == ["Commander Barcett", "A QuestoR", "Questor"]
     assert env.fake.raised == []
 
 

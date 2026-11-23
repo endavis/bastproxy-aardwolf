@@ -78,7 +78,7 @@ NEW_TRIGGER = "cp_new"
 # matches nothing: used when there are no questmasters
 NEVER_REGEX = r"(?!)"
 _NEW_TEXT = r" tells you 'Type 'campaign info' to see what you must kill\.'$"
-_DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR")
+_DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR", "Questor")
 
 
 def new_campaign_regex(questmasters: Iterable[str]) -> str:
