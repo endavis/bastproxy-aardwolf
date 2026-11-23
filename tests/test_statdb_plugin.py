@@ -237,6 +237,7 @@ def test_loads_when_the_database_fails(env: Env, tmp_path: Path) -> None:
         "cps",
         "gqs",
         "mobs",
+        "mobkills",
     ):
         env.fake.args = {"milestone1": "", "milestone2": "", "count": 0, "number": 0}
         result = getattr(env.plugin, f"_command_{command}")()
@@ -496,6 +497,15 @@ def test_commands_with_an_old_database(env: Env, tmp_path: Path) -> None:
     assert _run(env, "gqs", count=1)[-1].split()[0] == "2"
     assert _run(env, "gqs", number=1)[-2].startswith("@G3")
     assert _run(env, "mobs", count=1)[-1].split()[2] == "bat"
+    assert len(_run(env, "mobkills", count=10)) == 5
+    one = _run(env, "mobkills", count=1)
+    assert len(one) == 3
+    assert "a bat" in one[-1]
+
+
+def test_mobkills_on_an_empty_database(env: Env) -> None:
+    """With no kills the command says so."""
+    assert _run(env, "mobkills", count=10) == ["No kills recorded"]
 
 
 @pytest.mark.parametrize(
@@ -525,3 +535,12 @@ def test_command_arguments_are_declared(env: Env) -> None:
     assert env.plugin._command_mobs.command_data.arguments[0]["kwargs"]["nargs"] == "?"
     assert env.plugin._command_list.command_data.command["kwargs"]["group"] == "Milestones"
     assert env.plugin._command_quests.command_data.command["kwargs"]["group"] == "Stats"
+
+
+def test_mobkills_argument_is_declared(env: Env) -> None:
+    """The count is an optional whole number, 10 by default."""
+    data = env.plugin._command_mobkills.command_data
+    assert [item["args"] for item in data.arguments] == [("-c", "--count")]
+    assert data.arguments[0]["kwargs"]["type"] is int
+    assert data.arguments[0]["kwargs"]["default"] == 10
+    assert data.command["kwargs"]["group"] == "Stats"

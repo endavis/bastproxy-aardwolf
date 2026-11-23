@@ -18,6 +18,7 @@ from aardwolf.libs.aardu import actual_level_from_gmcp
 from ..libs import (
     DB_NAME,
     DB_VERSION,
+    DEFAULT_MOBKILL_COUNT,
     MIGRATIONS,
     TABLES,
     Formatters,
@@ -28,6 +29,7 @@ from ..libs import (
     level_report,
     list_milestones,
     mob_report,
+    mobkill_list,
     quest_report,
 )
 
@@ -380,3 +382,19 @@ class StatdbPlugin(BasePlugin):
             return CommandResult(True, [NO_DB])
         args = self._args()
         return CommandResult(True, mob_report(self.statdb, args["count"], self._formatters()))
+
+    @AddCommand(group="Stats")
+    @AddParser(description="list the most recent mob kills, newest first")
+    @AddArgument(
+        "-c",
+        "--count",
+        help="the number of mobkills to list",
+        type=int,
+        default=DEFAULT_MOBKILL_COUNT,
+    )
+    def _command_mobkills(self) -> CommandResult:
+        """List the most recent mob kills."""
+        if self.statdb is None:
+            return CommandResult(True, [NO_DB])
+        args = self._args()
+        return CommandResult(True, mobkill_list(self.statdb, args["count"], self._formatters()))

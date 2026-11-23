@@ -197,6 +197,16 @@ def test_mobkill(store: "StatStore", db: "Sqldb") -> None:
     assert db.select("SELECT name, xp FROM mobkills")[0] == {"name": "a rat", "xp": 5}
 
 
+def test_recent_mobkills(store: "StatStore") -> None:
+    """The recent kills come newest first and are limited by the count."""
+    assert store.recent_mobkills(5) == []
+    store.save_whois(WHOIS)
+    for name in ("a rat", "a bat", "a cat"):
+        store.save_mobkill({"name": name})
+    assert [row["name"] for row in store.recent_mobkills(5)] == ["a cat", "a bat", "a rat"]
+    assert [row["name"] for row in store.recent_mobkills(2)] == ["a cat", "a bat"]
+
+
 def test_payload_is_not_changed(store: "StatStore") -> None:
     """No save method changes the dict it is given."""
     store.save_whois(WHOIS)
