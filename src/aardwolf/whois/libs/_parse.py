@@ -24,6 +24,12 @@ POWERUP_REGEX = (
     r"(?P<pval2>[\w\d\s]*)\s*\]\s*$"
 )
 END_REGEX = r"^-{74,74}$"
+# the core raises this trigger for every line before it matches the regexes
+# (create_trigger_id("beall", plugin_id) gives "t_<owner>_<name>")
+BEFORE_ALL_LINES_ID = "t_plugins.core.triggers_beall"
+# the most lines hidden without a prompt: a whois reply is about 30 lines including blanks, so
+# the cap only stops a window that never sees a prompt
+HIDE_MAX_LINES = 60
 
 
 def _int(value: object, default: int = 0) -> int:
