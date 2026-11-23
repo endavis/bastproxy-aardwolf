@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795439362714,
+  "lastUpdate": 1795444326715,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1101,6 +1101,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010084995094129154",
             "extra": "mean: 3.343899264270047 usec\nrounds: 155764"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f5226862f3a0380680cd59c2cce6da47e1692cdf",
+          "message": "feat: add a mobk command that shows the last kill (merges PR #55, addresses #51)\n\nfeat: add a mobk last command that shows the last kill\n\nmobk keeps a copy of the last kill it raised, in memory only, and\n#bp.aard.mobk.last shows the mob, room, level, xp, gold, special-kill\nflags, fight time and damage table, or says there is none yet.\n\nAddresses #51\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T14:31:28Z",
+          "tree_id": "ce47a850a344e85a57218352b3123aaeebf92d4a",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/f5226862f3a0380680cd59c2cce6da47e1692cdf"
+        },
+        "date": 1795444325855,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3088738.8613025425,
+            "unit": "iter/sec",
+            "range": "stddev: 4.6829424796739524e-8",
+            "extra": "mean: 323.75673208524114 nsec\nrounds: 196503"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170791.9635954209,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010151825818130333",
+            "extra": "mean: 5.855076427183902 usec\nrounds: 176992"
           }
         ]
       }
