@@ -68,6 +68,17 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
 - **Room and level.** `room_id` is GMCP `room.info.num`, -1 when it is missing. `level` is the
   total level from `aardwolf.libs.aardu.actual_level_from_gmcp`.
 
+## Commands
+
+| Command | What it does |
+| :--- | :--- |
+| `#bp.aard.mobk.last` | show the last kill the plugin raised |
+
+`last` shows the mob name, room, level, xp (normal, rare, bonus, blessing and total), gold, the
+special-kill flags that are set, the fight time and the damage table (type, hits, misses, damage).
+The plugin keeps a copy of the last raised kill in memory only, so it is gone when the plugin
+unloads. With no kill since the plugin loaded, the command says so.
+
 ## Events
 
 | Event | When | Payload keys |

@@ -8,6 +8,7 @@ from typing import Any
 
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf.libs import aardu
@@ -30,6 +31,17 @@ from ..libs import (
     total_xp,
 )
 
+# the special-kill flags of a kill, shown by the last command when set
+SPECIAL_FLAGS = (
+    "tp",
+    "vorpal",
+    "assassinate",
+    "deathblow",
+    "slit",
+    "disintegrate",
+    "banishment",
+)
+
 
 class MobkPlugin(BasePlugin):
     """Collect the facts of a kill and raise an event once, when the corpse is gone."""
@@ -40,6 +52,8 @@ class MobkPlugin(BasePlugin):
         self.kill: dict[str, Any] = new_kill()
         # True once an xp line was seen for the kill, so it is worth raising
         self._pending = False
+        # a copy of the last raised kill, kept in memory only
+        self.last_kill: dict[str, Any] | None = None
         self.mobdamcache: dict[str, dict[str, Any]] = {}
 
     @RegisterPluginHook("after_load")
@@ -290,7 +304,39 @@ class MobkPlugin(BasePlugin):
                 self.kill["name"] = "Unknown"
             self.kill["totalxp"] = total_xp(self.kill)
             log_to([self.plugin_id], logging.DEBUG, "raising a mobkill: %s", self.kill)
+            self.last_kill = copy.deepcopy(dict(self.kill))
             self.api("plugins.core.events:event.raise")(
                 EVENT_KILL, event_args=copy.deepcopy(dict(self.kill))
             )
         self._reset_kill()
+
+    # commands
+
+    @AddCommand()
+    @AddParser(description="show the last kill")
+    def _command_last(self) -> CommandResult:
+        """Show the last raised kill."""
+        kill = self.last_kill
+        if kill is None:
+            return CommandResult(True, ["No kill since the plugin loaded"])
+        flags = [name for name in SPECIAL_FLAGS if kill.get(name)]
+        start, finish = kill.get("starttime"), kill.get("finishtime")
+        fight = f"{finish - start:.1f}s" if start is not None and finish is not None else "unknown"
+        lines = [
+            f"Mob: {kill.get('name', '')}",
+            f"Room: {kill.get('room_id', -1)}  Level: {kill.get('level', -1)}",
+            f"XP: normal {kill.get('xp', 0)}, rare {kill.get('rarexp', 0)}, "
+            f"bonus {kill.get('bonusxp', 0)}, blessing {kill.get('blessingxp', 0)}, "
+            f"total {kill.get('totalxp', 0)}",
+            f"Gold: {kill.get('gold', 0)}",
+            f"Special kills: {', '.join(flags) if flags else 'none'}",
+            f"Fight time: {fight}",
+            f"{'Damage type':<20} {'Hits':>6} {'Misses':>7} {'Damage':>10}",
+            "@G" + "-" * 46,
+        ]
+        for damtype, entry in kill.get("damage", {}).items():
+            lines.append(
+                f"@w{damtype:<20} {entry.get('hits', 0):>6} "
+                f"{entry.get('misses', 0):>7} {entry.get('damage', 0):>10}"
+            )
+        return CommandResult(True, lines)
