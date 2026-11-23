@@ -28,8 +28,9 @@ It loads with `aardwolf` too. It depends on the events and utils core plugins.
 
 ## Behaviour
 
-- **The setting.** `questmasters` is a list setting. The default is `Commander Barcett` and
-  `A QuestoR`. The setting is read-only, so the settings command cannot set it with a string; the
+- **The setting.** `questmasters` is a list setting. The default is `Commander Barcett`,
+  `A QuestoR` and `Questor`. A home that already saved its list keeps it; add the new name with
+  `#bp.aard.config.questmaster add Questor`. The setting is read-only, so the settings command cannot set it with a string; the
   `questmaster` command is the way to change it.
 - **Saved.** The settings plugin saves the list, so it survives a restart of bastproxy.
 - **Exact names.** Matching is case-sensitive for add and remove, because each name becomes a

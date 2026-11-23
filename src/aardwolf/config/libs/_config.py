@@ -4,7 +4,7 @@ from typing import Any
 
 PLUGIN_ID = "plugins.aardwolf.config"
 QUESTMASTERS = "questmasters"
-DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR")
+DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR", "Questor")
 
 EVENT_QUESTMASTERS_CHANGED = "ev_plugins.aardwolf.config_questmasters_changed"
 # the event the core settings plugin raises when the setting changes or loads

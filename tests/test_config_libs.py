@@ -3,6 +3,13 @@
 from aardwolf.config.libs import add_name, normalize_name, remove_name
 
 
+def test_default_questmasters_are_the_three_names() -> None:
+    """The default list is Commander Barcett, A QuestoR and Questor, in that order."""
+    from aardwolf.config.libs import DEFAULT_QUESTMASTERS
+
+    assert DEFAULT_QUESTMASTERS == ("Commander Barcett", "A QuestoR", "Questor")
+
+
 def test_normalize_joins_words() -> None:
     """Words are joined with a single space."""
     assert normalize_name(["A", "QuestoR"]) == "A QuestoR"

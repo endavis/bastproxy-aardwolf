@@ -72,10 +72,16 @@ def test_reward_line_amount_is_int() -> None:
 TELL = " tells you 'Type 'campaign info' to see what you must kill.'"
 
 
-@pytest.mark.parametrize("speaker", ["Commander Barcett", "A QuestoR"])
+@pytest.mark.parametrize("speaker", ["Commander Barcett", "A QuestoR", "Questor"])
 def test_new_matches_the_default_questmasters(speaker: str) -> None:
     """The new-campaign line matches the default questmasters."""
     groups("cp_new", f"{speaker}{TELL}")
+
+
+def test_new_matches_questor_and_not_a_player() -> None:
+    """Questor starts a campaign by default; a player's tell of the same text does not."""
+    assert re.match(SPECS["cp_new"].regex, "Questor" + TELL)
+    assert re.match(SPECS["cp_new"].regex, "Bob" + TELL) is None
 
 
 @pytest.mark.parametrize(
