@@ -5,7 +5,7 @@ import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,7 +19,9 @@ from aardwolf.itemkeep.libs import (
     SETTINGS,
     TYPE_KEEP,
 )
-from aardwolf.itemkeep.plugin import _itemkeep
+
+if TYPE_CHECKING:
+    from aardwolf.itemkeep.plugin import _itemkeep
 
 PLUGIN_ID = "plugins.aardwolf.itemkeep"
 GROUP = f"{PLUGIN_ID}.reply"
@@ -131,7 +133,7 @@ class FakeApi:
 class Env:
     """The plugin under test with its fake API."""
 
-    def __init__(self, plugin: _itemkeep.ItemKeepPlugin, fake: FakeApi) -> None:
+    def __init__(self, plugin: "_itemkeep.ItemKeepPlugin", fake: FakeApi) -> None:
         self.plugin = plugin
         self.fake = fake
 
@@ -156,6 +158,9 @@ class Env:
 def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     """Build an ItemKeepPlugin with a fake API and load it."""
     monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    # importing bastproxy needs BASTPROXY_HOME, so the plugin module is imported here
+    from aardwolf.itemkeep.plugin import _itemkeep
+
     fake = FakeApi()
     plugin = _itemkeep.ItemKeepPlugin.__new__(_itemkeep.ItemKeepPlugin)
     plugin.plugin_id = PLUGIN_ID
