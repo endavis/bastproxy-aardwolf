@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795513789262,
+  "lastUpdate": 1795515150207,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1747,6 +1747,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 2.857752987737414e-7",
             "extra": "mean: 3.174741212555764 usec\nrounds: 159745"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4b22ce7879cd5a876992bc98cadf01dbfc12ef05",
+          "message": "feat: port the itemkeep plugin (merges PR #100, addresses #78)\n\n* feat: port the itemkeep plugin\n\nplugins.aardwolf.itemkeep keeps items of chosen types when they reach\nthe inventory. Each object type has a bool setting, off by default;\nwhen eq reports an item of an enabled type without K in its flags, the\nplugin queues \"keep <serial>\" through mudcmds.\n\n- It listens to eq_inventory_added, eq_taken and eq_removed, so items\n  taken from a bag, the vault or the keyring, and worn items taken off,\n  are kept too. The old plugin listened only to eq_inventory_added.\n- The keep is a hidden queued command type, itemkeep_keep. Its reply,\n  the note lines and {invitem} line after it, and the prompt are\n  hidden; a typed keep is shown. The reply patterns are the three\n  Aardwolf answers recorded on a live character.\n- Serials already sent a keep are skipped until disconnect.\n\nThe old bugs fixed (a setting for type \"none\", \"raw material\" not\nsettable, an IndexError on a bad itype, a visible plain send, and more)\nare listed in docs/plugins/itemkeep.md.\n\nAddresses #78\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* test: import the itemkeep plugin module after BASTPROXY_HOME is set\n\ntests/test_itemkeep_plugin.py imported the plugin module at collection,\nwhich imports bastproxy. Without BASTPROXY_HOME (as in CI) that import\nraised, and the half-imported bastproxy broke the entry point tests.\nThe module is now imported in the fixture after setenv, as the itemid\ntests do.\n\nAddresses #78\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T10:11:52Z",
+          "tree_id": "c0ff98a337f1d918a8eaf677746b521ca2c39405",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/4b22ce7879cd5a876992bc98cadf01dbfc12ef05"
+        },
+        "date": 1795515149438,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3085368.339427954,
+            "unit": "iter/sec",
+            "range": "stddev: 4.4154003666282877e-8",
+            "extra": "mean: 324.11041081254047 nsec\nrounds: 186951"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 166295.31960774836,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000015294416334507054",
+            "extra": "mean: 6.013398346740998 usec\nrounds: 177589"
           }
         ]
       }
