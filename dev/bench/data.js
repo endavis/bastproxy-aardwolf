@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795561694253,
+  "lastUpdate": 1795563050687,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2317,6 +2317,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 6.002918784616196e-7",
             "extra": "mean: 4.047925419777941 usec\nrounds: 147995"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e5753b3b7a67b9464427e68da02ad438a944bd2",
+          "message": "feat: import a MUSHclient Aardwolf.db and add the Aardwolf map searches (merges PR #123, addresses #119)\n\n* feat: import a MUSHclient Aardwolf.db and add the Aardwolf map searches\n\nAdd to plugins.aardwolf.mapper:\n\n- importmush <path>: copies a MUSHclient Aardwolf.db into the core map\n  through the plugins.client.mapper APIs.\n  - Path: absolute or starting with ~, and must be a file.\n  - Reading: the database is opened read-only (mode=ro) in a worker\n    thread and checked for the MUSH tables and columns before anything\n    is written. Older schemas without noportal/norecall, exit levels or\n    bookmarks are read too.\n  - Writing: writes run on the event loop in short time slices with\n    progress lines. One import runs at a time, and it stops if the\n    plugin unloads.\n  - Captured data wins and the import only fills gaps, so importing the\n    same file again writes nothing.\n  - Mapping: MUSH info becomes the room details the adapter already\n    stores. noportal and norecall become flags. Exit levels become\n    {\"level\": n} requirements. Portals and recall (* and **) carry over,\n    and bookmarks become notes.\n  - Not imported: nomap rooms, orphan exits, storage, environments.\n- shops, train, quest and notes [here|<area>]: list the rooms whose\n  details hold shop/bank, trainer or questor, or that have a note. They\n  work on imported and captured rooms alike.\n\nThe MUSH reader uses fixed SELECT * queries and reads optional columns\nby name, so no SQL is built from strings. Docs are in\ndocs/plugins/mapper.md. The new tests (a made-up fixture DB built in\ntmp_path) are in the mutmut selection.\n\nAddresses #119\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* test: keep the special-character import path valid on Windows\n\nWindows does not allow ? in a file name, so the path test left the\nWindows CI job failing with WinError 123. The folder name now uses\n#, % and a space on every platform, and adds ? only off Windows.\n\nAddresses #119\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T23:30:09Z",
+          "tree_id": "ac4512579d4b4a8fa52bf0d6c6a99546f06cde16",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/5e5753b3b7a67b9464427e68da02ad438a944bd2"
+        },
+        "date": 1795563049928,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5437603.810485782,
+            "unit": "iter/sec",
+            "range": "stddev: 9.9699775295395e-8",
+            "extra": "mean: 183.90453494820954 nsec\nrounds: 59015"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 295251.92192725826,
+            "unit": "iter/sec",
+            "range": "stddev: 4.610375519481757e-7",
+            "extra": "mean: 3.3869381559737035 usec\nrounds: 152440"
           }
         ]
       }
