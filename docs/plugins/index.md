@@ -60,6 +60,7 @@ lists every discovered plugin, loaded or not.
 | [promptfix](promptfix.md) | `plugins.aardwolf.promptfix` | Makes the prompt and the battle prompt end in `%c`, so the next line from the MUD never sticks to them, and marks the prompt lines as prompts. |
 | [scanh](scanh.md) | `plugins.aardwolf.scanh` | Highlights the campaign, global quest and quest mobs in the `scan` output. |
 | [move](move.md) | `plugins.aardwolf.move` | Raises an event when the character moves to another room, with the rooms and the direction. |
+| [mapper](mapper.md) | `plugins.aardwolf.mapper` | Feeds the core mapper with Aardwolf rooms, areas, room flags and walking rules. |
 | [skills](skills.md) | `plugins.aardwolf.skills` | Keeps the character's skills, spells and recoveries up to date from `slist` and raises events when an affect or recovery turns on or off. |
 | [su](su.md) | `plugins.aardwolf.su` | Casts the spellups on the character again when they wear off, one at a time, while a cast can work. |
 | [repop](repop.md) | `plugins.aardwolf.repop` | Sends a message to a channel when an area repops, from GMCP `comm.repop`. |

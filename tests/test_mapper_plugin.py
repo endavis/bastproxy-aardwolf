@@ -1,0 +1,312 @@
+"""Tests for the Aardwolf mapper plugin, with a stubbed API."""
+
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
+
+import pytest
+
+import aardwolf
+from aardwolf.mapper.libs import NOPORTAL_REGEX, NORECALL_REGEX
+
+if TYPE_CHECKING:
+    from aardwolf.mapper.plugin._mapper import MapperPlugin
+
+PLUGIN_ID = "plugins.aardwolf.mapper"
+MAPPER = "plugins.client.mapper"
+ROOM_A: dict[str, Any] = {
+    "num": 1234,
+    "name": "@RA Room@w",
+    "zone": "aylor",
+    "terrain": "city",
+    "details": "bank",
+    "exits": {"n": 1235, "s": -1},
+    "coord": {"id": 0, "x": 30, "y": 19, "cont": 0},
+}
+ROOM_B: dict[str, Any] = {**ROOM_A, "num": 1235, "exits": {"s": 1234}}
+ROOM_C: dict[str, Any] = {**ROOM_A, "num": 1236, "zone": "other"}
+
+
+class FakeApi:
+    """A stand-in for the bastproxy API that records what the plugin calls."""
+
+    def __init__(self) -> None:
+        self.gmcp: dict[str, Any] = {}
+        self.record: dict[str, Any] = {}
+        self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
+        self.rooms: dict[str, dict[str, Any]] = {}
+        self.areas: dict[str, dict[str, Any]] = {}
+        self.trigger_adds: list[tuple[str, str]] = []
+        self.trigger_regs: dict[str, Callable[..., Any]] = {}
+        self.callbacks: dict[str, Callable[..., Any]] = {}
+
+    def called(self, name: str) -> list[tuple[Any, ...]]:
+        """Return the arguments of each call of an API."""
+        return [args for api, args, _ in self.calls if api == name]
+
+    def __call__(self, name: str) -> Callable[..., Any]:
+        """Return the fake for an API name."""
+
+        def record(*args: object, **kwargs: object) -> object:
+            self.calls.append((name, args, kwargs))
+            return table[name](*args, **kwargs)
+
+        table: dict[str, Callable[..., Any]] = {
+            f"{MAPPER}:room.add": lambda room: True,
+            f"{MAPPER}:room.get": lambda uid: self.rooms.get(uid),
+            f"{MAPPER}:room.current.set": lambda uid: None,
+            f"{MAPPER}:area.add": lambda **kwargs: True,
+            f"{MAPPER}:area.get": lambda uid: self.areas.get(uid),
+            f"{MAPPER}:requirement.register": self._register("requirement"),
+            f"{MAPPER}:requirement.unregister": lambda owner: None,
+            f"{MAPPER}:movement.register": self._register("movement"),
+            f"{MAPPER}:movement.unregister": lambda owner: None,
+            "plugins.core.events:event.current.record.get": lambda: self.record,
+            "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "libs.net.protocols:gmcp.send": lambda message: None,
+            "plugins.core.triggers:trigger.add": self._trigger_add,
+            "plugins.core.triggers:trigger.register": self._trigger_register,
+            "plugins.core.colors:colorcode.strip": lambda text: text.replace("@R", "").replace(
+                "@w", ""
+            ),
+        }
+        return record if name in table else table[name]
+
+    def _register(self, kind: str) -> Callable[[str, Callable[..., Any]], None]:
+        def register(owner: str, callback: Callable[..., Any]) -> None:
+            assert owner == PLUGIN_ID
+            self.callbacks[kind] = callback
+
+        return register
+
+    def _trigger_add(self, name: str, regex: str, **kwargs: object) -> SimpleNamespace:
+        self.trigger_adds.append((name, regex))
+        return SimpleNamespace(success=True, trigger=SimpleNamespace(trigger_id=name))
+
+    def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
+        self.trigger_regs[trigger_id] = func
+        return True
+
+
+class Env:
+    """The plugin under test with its fake API."""
+
+    def __init__(self, plugin: "MapperPlugin", fake: FakeApi, sent: list[list[str]]) -> None:
+        self.plugin = plugin
+        self.fake = fake
+        self.sent = sent
+
+    def move(self, room: dict[str, Any]) -> None:
+        """The character moves to a room."""
+        self.fake.record = {"to": room}
+        self.plugin._eventcb_move_room()
+
+    def room_info(self, room: dict[str, Any]) -> None:
+        """The MUD sends a Room.Info message."""
+        self.fake.record = {"data": room}
+        self.plugin._eventcb_room_info()
+
+    def area_info(self, data: object) -> None:
+        """The MUD sends a Room.Area message."""
+        self.fake.record = {"data": data}
+        self.plugin._eventcb_room_area()
+
+
+def build(fake: FakeApi, sent: list[list[str]]) -> "MapperPlugin":
+    """Build and load a plugin."""
+    from aardwolf.mapper.plugin import _mapper
+
+    plugin = _mapper.MapperPlugin.__new__(_mapper.MapperPlugin)
+    plugin.plugin_id = PLUGIN_ID
+    plugin.api = MagicMock(side_effect=fake)
+    plugin._client = sent.append  # type: ignore[method-assign,assignment]
+    plugin._phook_init_plugin()
+    plugin._phook_initialize()
+    return plugin
+
+
+def make(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gmcp: dict[str, Any]) -> Env:
+    """Build an Env with a GMCP cache."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    fake = FakeApi()
+    fake.gmcp.update(gmcp)
+    sent: list[list[str]] = []
+    return Env(build(fake, sent), fake, sent)
+
+
+@pytest.fixture
+def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
+    """A loaded plugin with an empty GMCP cache."""
+    yield make(monkeypatch, tmp_path, {})
+
+
+def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The loader finds the plugin and its dependencies include the mapper and move."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    from bastproxy.libs.plugins.imputils import find_packages_and_plugins
+
+    result = find_packages_and_plugins(Path(aardwolf.__file__).resolve().parent, "aardwolf.")
+    assert not result.errors
+    assert "aardwolf.mapper" in {p["plugin_id"] for p in result.plugins}
+    from aardwolf.mapper import PLUGIN_DEPENDENCIES
+
+    assert "plugins.client.mapper" in PLUGIN_DEPENDENCIES
+    assert "plugins.aardwolf.move" in PLUGIN_DEPENDENCIES
+
+
+def test_after_load_registers(env: Env) -> None:
+    """The triggers and both callbacks are set up."""
+    assert env.fake.trigger_adds == [("noportal", NOPORTAL_REGEX), ("norecall", NORECALL_REGEX)]
+    assert set(env.fake.trigger_regs) == {"noportal", "norecall"}
+    assert set(env.fake.callbacks) == {"requirement", "movement"}
+
+
+def test_seed_from_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A room in the GMCP cache at load is stored and made current."""
+    env = make(monkeypatch, tmp_path, {"room.info": ROOM_A})
+    room = env.fake.called(f"{MAPPER}:room.add")[0][0]
+    assert room["uid"] == "1234"
+    assert room["name"] == "A Room"
+    assert env.fake.called(f"{MAPPER}:room.current.set") == [("1234",)]
+
+
+def test_empty_cache_does_nothing(env: Env) -> None:
+    """With no cached room nothing is stored."""
+    assert not env.fake.called(f"{MAPPER}:room.add")
+    assert not env.fake.called(f"{MAPPER}:room.current.set")
+
+
+def test_first_room_info_then_ignored(env: Env) -> None:
+    """The first room.info is taken; later ones are left to move_room."""
+    env.room_info(ROOM_A)
+    assert env.fake.called(f"{MAPPER}:room.current.set") == [("1234",)]
+    env.room_info(ROOM_B)
+    env.room_info(ROOM_A)
+    assert len(env.fake.called(f"{MAPPER}:room.add")) == 1
+
+
+def test_move_room(env: Env) -> None:
+    """A move stores the room with its exits and makes it current, once."""
+    env.move(ROOM_A)
+    room = env.fake.called(f"{MAPPER}:room.add")[0][0]
+    assert room["exits"] == {"n": "1235", "s": "-1"}
+    assert env.fake.called(f"{MAPPER}:room.current.set") == [("1234",)]
+    env.move(ROOM_A)
+    assert len(env.fake.called(f"{MAPPER}:room.add")) == 1
+    env.move(ROOM_B)
+    assert env.fake.called(f"{MAPPER}:room.current.set")[-1] == ("1235",)
+
+
+def test_stored_flags_survive(env: Env) -> None:
+    """The flags of the stored room are sent again so room.add does not wipe them."""
+    env.fake.rooms["1234"] = {"uid": "1234", "flags": ["noportal"]}
+    env.move(ROOM_A)
+    assert env.fake.called(f"{MAPPER}:room.add")[0][0]["flags"] == ["noportal"]
+
+
+def test_nomap_room(env: Env) -> None:
+    """A room with num -1 leads to no calls."""
+    env.move({**ROOM_A, "num": -1})
+    assert not env.fake.called(f"{MAPPER}:room.add")
+    assert not env.fake.called(f"{MAPPER}:room.current.set")
+    assert not env.fake.called("libs.net.protocols:gmcp.send")
+
+
+def test_area_requested_once(env: Env) -> None:
+    """An unknown area is requested once; a known one never."""
+    env.move(ROOM_A)
+    env.move({**ROOM_B, "zone": "aylor"})
+    assert env.fake.called("libs.net.protocols:gmcp.send") == [("request area",)]
+    env.fake.areas["other"] = {"uid": "other"}
+    env.move(ROOM_C)
+    assert len(env.fake.called("libs.net.protocols:gmcp.send")) == 1
+
+
+def test_area_reply(env: Env) -> None:
+    """A room.area reply is stored and clears the pending zone."""
+    env.move(ROOM_A)
+    env.area_info({"id": "aylor", "name": "Aylor", "col": "@W", "flags": "virtual"})
+    call = next(kw for api, _, kw in env.fake.calls if api == f"{MAPPER}:area.add")
+    assert call == {
+        "uid": "aylor",
+        "name": "Aylor",
+        "flags": ["virtual"],
+        "details": {"col": "@W"},
+    }
+    assert "aylor" not in env.plugin._requested_areas
+    env.area_info({"name": "no id"})
+    assert len([1 for api, _, _ in env.fake.calls if api == f"{MAPPER}:area.add"]) == 1
+
+
+def test_disconnect_resets(env: Env) -> None:
+    """After a disconnect the room and the area are handled again."""
+    env.room_info(ROOM_A)
+    env.plugin._eventcb_disconnect()
+    env.room_info(ROOM_A)
+    assert len(env.fake.called(f"{MAPPER}:room.add")) == 2
+    assert len(env.fake.called("libs.net.protocols:gmcp.send")) == 2
+
+
+@pytest.mark.parametrize(("trigger", "flag"), [("noportal", "noportal"), ("norecall", "norecall")])
+def test_flag_triggers(env: Env, trigger: str, flag: str) -> None:
+    """A flag trigger marks the current room, without exits, once."""
+    env.fake.trigger_regs[trigger]()
+    assert not env.fake.called(f"{MAPPER}:room.add")
+    env.move(ROOM_A)
+    env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
+    before = len(env.fake.called(f"{MAPPER}:room.add"))
+    env.fake.trigger_regs[trigger]()
+    added = env.fake.called(f"{MAPPER}:room.add")
+    assert len(added) == before + 1
+    assert flag in added[-1][0]["flags"]
+    assert "exits" not in added[-1][0]
+    assert env.sent == [[f"Mapper: room 1234 marked {flag}"]]
+    env.fake.rooms["1234"]["flags"] = [flag]
+    env.fake.trigger_regs[trigger]()
+    assert len(env.fake.called(f"{MAPPER}:room.add")) == before + 1
+
+
+def test_flag_trigger_unstored_room(env: Env) -> None:
+    """A room the mapper does not have is left alone."""
+    env.move(ROOM_A)
+    env.fake.rooms.clear()
+    before = len(env.fake.called(f"{MAPPER}:room.add"))
+    env.fake.trigger_regs["noportal"]()
+    assert len(env.fake.called(f"{MAPPER}:room.add")) == before
+
+
+def test_requirement_callback(env: Env) -> None:
+    """The requirement callback reads the level and tier from GMCP."""
+    callback = env.fake.callbacks["requirement"]
+    env.fake.gmcp.update({"char.status.level": 50, "char.base.tier": 0})
+    exit_dict = {"fromuid": "1", "dir": "n"}
+    assert not callback({"level": 100}, exit_dict)
+    assert callback({"level": 50}, exit_dict)
+    assert not callback({"tier": 1}, exit_dict)
+    env.fake.gmcp["char.base.tier"] = 1
+    assert callback({"tier": 1}, exit_dict)
+
+
+def test_movement_callback(env: Env) -> None:
+    """The movement callback builds speedwalks."""
+    steps = [{"fromuid": "1", "dir": d} for d in ("n", "n", "n", "e", "e")]
+    assert env.fake.callbacks["movement"](steps) == ["run 3n2e"]
+
+
+def test_room_mismatch_event(env: Env) -> None:
+    """A mismatch event tells the client the uid, the area change and the purge hint."""
+    env.fake.record = {"uid": "1234", "differences": {"area": ("old", "new")}}
+    env.plugin._eventcb_room_mismatch()
+    text = "\n".join(env.sent[0])
+    assert "1234" in text
+    assert "old -> new" in text
+    assert "purge -a old" in text
+
+
+def test_uninitialize(env: Env) -> None:
+    """Both callbacks are taken back."""
+    env.plugin._phook_uninitialize()
+    assert env.fake.called(f"{MAPPER}:requirement.unregister") == [(PLUGIN_ID,)]
+    assert env.fake.called(f"{MAPPER}:movement.unregister") == [(PLUGIN_ID,)]
