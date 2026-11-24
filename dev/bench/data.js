@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795563050687,
+  "lastUpdate": 1795564547119,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2355,6 +2355,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.610375519481757e-7",
             "extra": "mean: 3.3869381559737035 usec\nrounds: 152440"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ae1cdbc5bc547eeef8b115ffb1eaaec573658b2c",
+          "message": "feat: add Aardwolf custom exits, portals and exit locks to the mapper (merges PR #125, addresses #120)\n\n* feat: add Aardwolf custom exits, portals and exit locks to the mapper\n\nAdd to plugins.aardwolf.mapper:\n\n- Custom exits:\n  - cexit <command> records an exit from the current room. It sends the\n    command and stores the exit when the next room arrives, or times\n    out. With -t, it stores the exit directly without sending anything.\n  - cexits lists them, cexitdel deletes them, and cexitpurge removes\n    them for an area or everywhere (it needs -c).\n  - A command may hold several steps separated by \";\" and wait(N)\n    pauses, as MUSHclient writes them.\n- Exit locks: lockexit shows or sets a {\"level\": n} requirement on any\n  existing exit, plain or custom. Level 0 removes the lock.\n- Portals: portal adds a \"*\" exit to a room with a level. Recall-type\n  commands (recall, home) and -r go under \"**\". portals lists them,\n  portalchange, portallevel and portalrecall edit one by number or\n  command, portaldel deletes one, and portalpurge removes them all.\n- Movement: a step whose command holds \";\" or wait(N) is split. The\n  first chunk goes back to the core, and the rest is sent after the\n  delays. A new move, a stopped or failed walk, disconnect or unload\n  cancels what is still waiting.\n- Bounce portal and bounce recall need no commands. The core path\n  search already chains a recall and a portal from noportal and\n  norecall rooms. Path tests over a test map with the real core\n  pathfinder cover both, plus locks and custom exits.\n\nDocs are in docs/plugins/mapper.md, and tests/test_mapper_paths.py is\nin the mutmut selection.\n\nAddresses #120\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* chore: update the bastproxy core pin in uv.lock\n\nMove the bastproxy pin from 02fd7e92 to 80693576. That adds the batched\nmap write (endavis/bastproxy#761) and the fix that keeps an exit's\nrequirement and cost when its room is recaptured (endavis/bastproxy#763).\nWithout the fix, a lockexit lock or an imported level is lost the next\ntime the character walks through the room. Only the bastproxy entry in\nuv.lock changes.\n\nAddresses #120\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T23:55:08Z",
+          "tree_id": "b81802f79c048162f1630cfff3ca85928e6f229a",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/ae1cdbc5bc547eeef8b115ffb1eaaec573658b2c"
+        },
+        "date": 1795564546249,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3085236.3079401557,
+            "unit": "iter/sec",
+            "range": "stddev: 4.425691867627412e-8",
+            "extra": "mean: 324.1242809915087 nsec\nrounds: 197668"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 159395.28639356434,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000017980758726338821",
+            "extra": "mean: 6.2737112409390265 usec\nrounds: 175101"
           }
         ]
       }
