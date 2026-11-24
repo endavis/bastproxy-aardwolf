@@ -53,6 +53,16 @@ You are ready to receive a new daily blessing.
 You bow your head to Ayla and receive your daily blessing.
 ```
 
+On a live character that had taken a blessing the day before, `daily` answered:
+
+```text
+You received your last daily blessing at 23 Nov 2026 08:06:26.
+You can receive a new daily blessing in 56 minutes and 47 seconds.
+```
+
+The wait line matched and `next` showed the time it gives. The first line is not read. The ready and
+took lines have not been seen live yet; they come from the old plugin.
+
 ## Settings, commands and events
 
 The plugin has no settings. It adds one command and raises one event.
@@ -99,4 +109,6 @@ The plugin has no settings. It adds one command and raises one event.
 - The next time is kept in memory, so it is lost when the proxy restarts. The plugin sends
   `daily` again when the character is next active.
 - The `daily` reply is shown, not hidden. A follow-up can hide it after a live check of the reply.
-- The 23 hour wait after receiving a blessing is the old plugin's value.
+- The 23 hour wait after receiving a blessing is the old plugin's value. The live reply above fits
+  it if the MUD reports the last blessing in US Eastern time: 08:06:26 Eastern on 23 Nov plus 23
+  hours is the 12:06:26 UTC on 24 Nov that the wait line gave.
