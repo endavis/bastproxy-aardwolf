@@ -31,6 +31,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The ct Plugin](plugins/ct.md) - Show a table of the damage done, by damage type, after each Aardwolf mob kill
 - [The daily Plugin](plugins/daily.md) - Raise an event when the Aardwolf daily blessing is available
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
@@ -125,6 +126,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The ct Plugin](plugins/ct.md) - Show a table of the damage done, by damage type, after each Aardwolf mob kill
 - [The daily Plugin](plugins/daily.md) - Raise an event when the Aardwolf daily blessing is available
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
@@ -245,6 +247,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The ct Plugin](plugins/ct.md) - Show a table of the damage done, by damage type, after each Aardwolf mob kill
 - [The daily Plugin](plugins/daily.md) - Raise an event when the Aardwolf daily blessing is available
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
