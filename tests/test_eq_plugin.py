@@ -45,6 +45,7 @@ BAGDATA = ["{invdata 2002}", GEM, "{/invdata}"]
 KEYDATA = ["{keyring}", KEY, "{/keyring}"]
 VAULTDATA = ["{vault}", RING, "{/vault}"]
 COUNTS = "{vaultcounts}1,1,50{/vaultcounts}"
+NO_VAULT = "You do not have a vault. See 'help vault' for how to acquire one."
 
 
 class FakeApi:
@@ -254,7 +255,8 @@ def test_after_load(env: Env) -> None:
     assert worn["hide_max"] == HIDE_MAX_LINES + 2
     vault = fake.types["eq_vault"]
     assert vault["cmd"] == "vault data"
-    assert vault["hide_start"] == r"^\{vault\}$"
+    assert re.match(vault["hide_start"], "{vault}")
+    assert re.match(vault["hide_start"], NO_VAULT)
     assert fake.types["eq_keyring"]["cmd"] == "keyring data"
     assert fake.types["eq_inventory"]["regex"] == r"^invdata$"
     assert set(fake.triggers) == {
@@ -263,6 +265,7 @@ def test_after_load(env: Env) -> None:
         "eq_data_start",
         "eq_data_end",
         "eq_vaultcounts",
+        "eq_no_vault",
         "eq_data_line",
     }
     assert fake.enabled() == set(fake.triggers) - {"eq_data_line"}
@@ -386,6 +389,31 @@ def test_queued_vault_hides_through_the_next_prompt_and_stores_int_counts(env: E
     assert fake.shown == ["a later line"]
     assert env.plugin.state.serials("Vault") == [5001]
     assert env.plugin.state.vault_counts == {"items": 1, "total": 1, "max": 50}
+
+
+def test_queued_vault_with_no_vault_finishes_and_is_hidden(env: Env) -> None:
+    """Aardwolf's no-vault answer ends the queued read at once, and it and its prompt are hidden."""
+    fake = env.fake
+    env.fill()
+    fake.finished.clear()
+    fake.shown.clear()
+    env.queued_read("eq_vault")
+    fake.feed([NO_VAULT, ""])
+    fake.feed([PROMPT], prompt=True)
+    fake.feed(["a later line"])
+    assert fake.finished == ["eq_vault"]
+    assert fake.hidden == [NO_VAULT, "", PROMPT]
+    assert fake.shown == ["a later line"]
+    assert env.plugin.state.serials("Vault") == []
+    assert env.plugin.state.vault_counts is None
+
+
+def test_typed_vault_data_with_no_vault_is_shown(env: Env) -> None:
+    fake = env.fake
+    fake.feed([NO_VAULT, ""])
+    fake.feed([PROMPT], prompt=True)
+    assert fake.shown == [NO_VAULT, "", PROMPT]
+    assert env.plugin.state.serials("Vault") == []
 
 
 def test_queued_keyring_is_hidden(env: Env) -> None:

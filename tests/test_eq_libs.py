@@ -1,5 +1,6 @@
 """Tests for the eq plugin's pure helpers: the item line parser, the commands and the state."""
 
+import re
 from typing import Any
 
 import pytest
@@ -135,7 +136,12 @@ def test_container_type_spec() -> None:
     assert spec.regex == r"^invdata 4321$"
     assert spec.hide_start == r"^\{invdata 4321\}$"
     assert type_for("4321") == spec
-    assert type_for(VAULT).hide_start == r"^\{vault\}$"
+    assert re.match(type_for(VAULT).hide_start, "{vault}")
+    assert re.match(
+        type_for(VAULT).hide_start,
+        "You do not have a vault. See 'help vault' for how to acquire one.",
+    )
+    assert not re.match(type_for(VAULT).hide_start, "{vaultcounts}1,1,50{/vaultcounts}")
     assert type_for(WORN).cmdtype == "eq_worn"
 
 

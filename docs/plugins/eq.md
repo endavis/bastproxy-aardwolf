@@ -65,6 +65,9 @@ The character must have Aardwolf's `invmon` turned on, which the plugin does not
   inventory and keyring, then the vault when GMCP `room.info.details` contains `bank`, then the
   bags. A missing value is not a bank. A mismatch that `invmon` shows queues the containers
   involved again.
+- **No vault.** A character without a vault gets "You do not have a vault." instead of a vault
+  block. That line finishes the vault read at once and records an empty vault. When the read was
+  queued, the line and its prompt are hidden.
 - **Disconnect.** The state is cleared, a block that was being read is dropped and the bag types
   are removed.
 
@@ -108,6 +111,7 @@ The forms below are the ones the plugin matches. The item values are made up.
 {vault}
 {/vault}
 {vaultcounts}1,1,50{/vaultcounts}     # items, total, maximum; after {/vault}
+You do not have a vault. See 'help vault' for how to acquire one.   # vault data, no vault
 {invitem}6001,,a new thing,3,6,0,-1,-1
 {invmon}6,2001,2002,-1                # action,serial,container,location
 ```
@@ -202,6 +206,9 @@ The two display commands are left for a second pull request, tracked in
   catch, and an unknown bag raised again inside its own fallback.
 - **Fixed: vault put.** The item stayed in the inventory, and one that was not cached raised.
 - **Fixed: vault take.** The item was never added to the inventory, and a missing one raised.
+- **Fixed: no vault.** The old plugin waited for a vault block that never came for a character
+  without a vault, and the old queue had no timeout, so the queue stopped. The no-vault answer now
+  ends the read.
 - **Fixed: events.** Taking from the vault or the keyring raised nothing, and the names used three
   orders. There are now six fixed names.
 - **Fixed: a removed bag.** Its command type and the items in it stayed behind.

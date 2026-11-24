@@ -80,6 +80,8 @@ class TriggerSpec(NamedTuple):
 
 
 _TAGS = "invdata|eqdata|keyring|vault"
+# what Aardwolf answers to "vault data" for a character with no vault, instead of a vault block
+NO_VAULT_REGEX = r"^You do not have a vault\. See 'help vault' for how to acquire one\.$"
 
 TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
@@ -108,6 +110,7 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         False,
         {"items": int, "total": int, "max": int},
     ),
+    TriggerSpec("eq_no_vault", NO_VAULT_REGEX, None, True, False, None),
     TriggerSpec("eq_data_line", r"^(?P<data>\s*\d+,.*)$", GROUP_DATA, False, False, None),
 )
 
@@ -129,7 +132,13 @@ class TypeSpec(NamedTuple):
 TYPE_WORN = TypeSpec("eq_worn", "eqdata", r"^eqdata$", r"^\{eqdata\}$")
 TYPE_INVENTORY = TypeSpec("eq_inventory", "invdata", r"^invdata$", r"^\{invdata\}$")
 TYPE_KEYRING = TypeSpec("eq_keyring", "keyring data", r"^keyring data$", r"^\{keyring\}$")
-TYPE_VAULT = TypeSpec("eq_vault", "vault data", r"^vault data$", r"^\{vault\}$")
+# the window also opens on the no-vault answer, which ends the command at once
+TYPE_VAULT = TypeSpec(
+    "eq_vault",
+    "vault data",
+    r"^vault data$",
+    r"^(?:\{vault\}|You do not have a vault\. See 'help vault' for how to acquire one\.)$",
+)
 FIXED_TYPES: tuple[TypeSpec, ...] = (TYPE_WORN, TYPE_INVENTORY, TYPE_KEYRING, TYPE_VAULT)
 _FIXED_BY_CID = {
     WORN: TYPE_WORN,

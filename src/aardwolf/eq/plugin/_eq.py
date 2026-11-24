@@ -47,6 +47,7 @@ _CALLBACKS = {
     "eq_data_start": "_trigger_data_start",
     "eq_data_end": "_trigger_data_end",
     "eq_vaultcounts": "_trigger_vaultcounts",
+    "eq_no_vault": "_trigger_no_vault",
     "eq_data_line": "_trigger_data_line",
 }
 _END_TAGS = {"invdata": "invdata", "eqdata": "eqdata", "keyring": "keyring", "vault": "vault"}
@@ -296,6 +297,12 @@ class EqPlugin(BasePlugin):
         self._reading_tag = ""
         self._buffer = []
         self._toggle_data(False)
+
+    def _trigger_no_vault(self) -> None:
+        """The character has no vault: record an empty one and finish the vault read."""
+        self.state.commit(VAULT, [])
+        self.state.vault_counts = None
+        self.api("plugins.core.mudcmds:command.finish")(type_for(VAULT).cmdtype)
 
     def _trigger_vaultcounts(self) -> None:
         """The counts that follow a vault block: the items, the total and the maximum."""
