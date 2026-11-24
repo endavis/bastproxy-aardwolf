@@ -336,6 +336,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_itemu.py",
     "tests/test_level_libs.py",
     "tests/test_level_plugin.py",
+    "tests/test_mapper_libs.py",
+    "tests/test_mapper_plugin.py",
     "tests/test_mobk_libs.py",
     "tests/test_mobk_plugin.py",
     "tests/test_move_libs.py",
