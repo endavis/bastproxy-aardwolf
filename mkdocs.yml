@@ -116,6 +116,7 @@ nav:
       - itemkeep: plugins/itemkeep.md
       - aarch: plugins/aarch.md
       - idle: plugins/idle.md
+      - daily: plugins/daily.md
       - quest: plugins/quest.md
       - whois: plugins/whois.md
       - level: plugins/level.md
