@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795518032778,
+  "lastUpdate": 1795519693946,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1937,6 +1937,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 2.8292104096290346e-7",
             "extra": "mean: 3.1997033169366746 usec\nrounds: 160540"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9df7bc4ab58b5c7d3492543e5ce2ec613f296496",
+          "message": "feat: port the daily plugin (merges PR #105, addresses #83)\n\n* feat: port the daily plugin\n\nAdd plugins.aardwolf.daily: raises ev_plugins.aardwolf.daily_available\nwhen the daily blessing can be received, arms a one-time timer from the\nwait line, and adds the next command. Fixes old bugs (unescaped dots,\nempty numbers, shape-locked wait regexes, stale next time, zero-second\ntimer, unguarded timer removal, check without an active character).\n\nAddresses #83\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: record the daily reply seen on a live character\n\nOn a live character, daily answered with the time of the last blessing\nand \"You can receive a new daily blessing in 56 minutes and 47 seconds.\"\nThe wait line matched and next showed the right time. The docs show that\nreply and say which lines are still unseen.\n\nBatched in the PR for #83.\n\nAddresses #83\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T11:27:32Z",
+          "tree_id": "002b1f348bd212db53015cff1adf6f4929c4ea92",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/9df7bc4ab58b5c7d3492543e5ce2ec613f296496"
+        },
+        "date": 1795519693072,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3035354.032649955,
+            "unit": "iter/sec",
+            "range": "stddev: 4.725931273541471e-8",
+            "extra": "mean: 329.450861165928 nsec\nrounds: 198060"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170610.71758761996,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000001108339166496714",
+            "extra": "mean: 5.861296489104991 usec\nrounds: 177305"
           }
         ]
       }
