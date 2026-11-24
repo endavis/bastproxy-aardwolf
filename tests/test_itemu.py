@@ -146,3 +146,16 @@ def test_round_trip_every_layout(layout: str, data: st.DataObject) -> None:
     if layout == "eqdata":
         item.pop("name")
     assert item == dict(zip(names, values, strict=True))
+
+
+def test_invheader_type_name_becomes_the_number() -> None:
+    """Real Aardwolf sends the type as a name; it is mapped to the number, any case."""
+    base = "3984278750|1|{}|15|2|wield|melt-drop, v3|||||||16"
+    assert parse_item_data(base.format("Weapon"), "invheader")["itype"] == 5
+    assert parse_item_data(base.format("Armor"), "invheader")["itype"] == 7
+    assert parse_item_data(base.format("Light"), "invheader")["itype"] == 1
+    assert parse_item_data(base.format("Container"), "invheader")["itype"] == 11
+    assert parse_item_data(base.format("weapon"), "invheader")["itype"] == 5
+    assert parse_item_data(base.format("Raw Material"), "invheader")["itype"] == 24
+    assert parse_item_data(base.format("Mystery"), "invheader")["itype"] == "Mystery"
+    assert parse_item_data(base.format("5"), "invheader")["itype"] == 5

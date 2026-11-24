@@ -48,7 +48,9 @@ kept from the client: the plugin still reads them, and other lines are shown as 
   container id or `None`), `origcontainer` (where `item.fetch` took it from), `hasbeenided` and
   anything `item.identify.add` merged in. The APIs return copies.
 - **Item lines.** `serial,shortflags,cname,level,itype,unique,wearslot,timer`. The name is taken
-  greedily, so a name that has commas is kept whole.
+  greedily, so a name that has commas is kept whole. Aardwolf sends its colour codes in the name
+  as text (`@WGueldar's@w ...`), and the proxy's colour coded copy of the line escapes each `@` as
+  `@@`, so `cname` turns `@@` back into `@`.
 - **Data commands.** Four mudcmds types, `eq_worn` (`eqdata`), `eq_inventory` (`invdata`),
   `eq_keyring` (`keyring data`) and `eq_vault` (`vault data`), plus one `eq_container_<serial>`
   (`invdata <serial>`) for each bag. The names carry an `eq_` prefix because type names are global.
@@ -147,7 +149,7 @@ All are `plugins.aardwolf.eq:<name>`.
 | `item.put(serial, container=None, location=None)` | the container id, or `None` when nothing was done: puts the item in `container`, or back where it came from, fetching it first when it is in another container |
 | `item.equip(serial, location=None)` | `True` when it was sent; a `location` of `lastworn` uses the place it was last worn |
 | `item.unequip(serial)` | `True` when the item is worn and the remove was sent |
-| `item.identify.add(serial, attributes)` | `True` when the item is known: merges the attributes, sets `hasbeenided` and saves a copy through `plugins.aardwolf.eqdb:item.save` when that API exists |
+| `item.identify.add(serial, attributes)` | `True` when the item is known: merges the attributes except the place keys (`container`, `origcontainer`, `hasbeenided`) and `serial`, sets `hasbeenided` and saves a copy through `plugins.aardwolf.eqdb:item.save` when that API exists. The saved copy has no place keys, and the attributes are laid over it, so an identify `container` detail (capacity and so on) is saved as the detail, not as the place |
 
 `eq.worn.get` is the API the [mobk plugin](mobk.md) calls, by the name in its `EQ_WORN_API`. It
 returns a dict with a `serial`.
@@ -223,6 +225,11 @@ The two display commands are left for a second pull request, tracked in
 - **Fixed: `getworn`.** A digit string indexed the list with text, and an empty slot given by name
   looked up the item `-1`.
 - **Fixed: the vault without GMCP `room.info`** raised.
+- **Fixed: `eq.addidentify` and the place.** The old plugin kept an item's place as an object, so
+  an identify could not overwrite it. In the port the place is the `container` string, and eqdb
+  reads a `container` key as the container detail (a mapping), so saving an item that had a place
+  raised inside eqdb and the identify was lost. The place keys are no longer overwritten by an
+  identify, and the copy saved to eqdb leaves them out.
 - **Fixed: `origcontainer`** was never cleared, so a later put sent the item to an old place.
 - **Fixed: a put into the inventory** sent `put <serial> Inventory`; now it only fetches.
 - **Fixed: `dead`.** The handler emptied the containers without a read and nothing raised its
