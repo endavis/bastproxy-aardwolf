@@ -33,7 +33,9 @@ It depends on the events, triggers, mudcmds, commands and colors core plugins an
 [connect plugin](connect.md). It never imports another plugin: the [eqdb plugin](eqdb.md) is
 called through its API, and only when it is loaded.
 
-The character must have Aardwolf's `invmon` turned on, which the plugin does not toggle, as before.
+The plugin turns on Aardwolf's invmon tags when it loads, by asking the `a102` plugin for option 102
+feature `INVMONTAGS` (20), the setting the `invmon` command toggles. It takes the request back when
+it unloads. The old plugin left this to the player.
 
 ## Behaviour
 
@@ -228,6 +230,8 @@ The two display commands are left for a second pull request, tracked in
   `queue`, `currentcmd` and the `*all` flags.
 - **Dropped: `find_item` identifiers.** The old plugin mapped the word `tokenbag` to the serial of
   one character's item. A word that is not a serial is now sent to the MUD as it is.
+- **Changed: invmon.** The plugin turns on the invmon tags itself, through `a102`'s
+  `INVMONTAGS`, instead of relying on the player to type `invmon`.
 - **Changed: typed data commands.** A typed `eqdata` or `invdata` also updates the state, and is
   shown in full, because mudcmds never hides a typed command.
 - **Changed: a new bag is read when first seen,** and each bag has its own command type, so a typed

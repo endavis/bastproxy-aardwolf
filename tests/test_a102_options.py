@@ -22,19 +22,20 @@ def test_constants() -> None:
     assert (A102_OPTION, ON, OFF) == (102, 1, 2)
 
 
-def test_table_has_the_24_options() -> None:
-    """The table holds every option from the issue."""
-    assert len(OPTIONS) == 24
+def test_table_has_the_25_options() -> None:
+    """The table holds every option from the issue, plus INVMONTAGS for the eq plugin."""
+    assert len(OPTIONS) == 25
     assert OPTIONS["STATMON"] == 1
     assert OPTIONS["SPELLUPTAGS"] == 7
     assert OPTIONS["SCORETAGS"] == 11
+    assert OPTIONS["INVMONTAGS"] == 20
     assert OPTIONS["SHORTMAP"] == 55
-    assert len(set(OPTIONS.values())) == 24
+    assert len(set(OPTIONS.values())) == 25
 
 
 def test_reverse_table() -> None:
     """The reverse table maps every number back to its name."""
-    assert len(OPTION_NAMES) == 24
+    assert len(OPTION_NAMES) == 25
     assert all(OPTIONS[name] == number for number, name in OPTION_NAMES.items())
 
 

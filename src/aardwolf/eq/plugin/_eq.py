@@ -16,6 +16,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from aardwolf.libs.itemu import WEARLOCS
 
 from ..libs import (
+    API_A102_TOGGLE,
     API_EQDB_SAVE,
     EVENT_DISCONNECT,
     EVENTS,
@@ -23,6 +24,7 @@ from ..libs import (
     GROUP_DATA,
     HIDE_MAX_LINES,
     INVENTORY,
+    INVMON_OPTION,
     KEYRING,
     TRIGGERS,
     VAULT,
@@ -68,6 +70,8 @@ class EqPlugin(BasePlugin):
         self._groups_ready = False
         # the bags that have a command type
         self._bag_types: set[str] = set()
+        # True while this plugin asks option 102 for the invmon tags
+        self._invmon_on = False
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -84,6 +88,17 @@ class EqPlugin(BasePlugin):
             self._add_type(spec)
         for trigger in TRIGGERS:
             self._add_trigger(trigger)
+        # nothing is tracked without the invmon tags, so ask for them
+        self.api(API_A102_TOGGLE)(INVMON_OPTION, True)
+        self._invmon_on = True
+
+    @RegisterPluginHook("uninitialize", priority=10)
+    def _phook_uninitialize(self) -> None:
+        """Take back the invmon request, on reload and on unload, so the counts stay balanced."""
+        if not self._invmon_on:
+            return
+        self._invmon_on = False
+        self.api(API_A102_TOGGLE)(INVMON_OPTION, False)
 
     @RegisterPluginHook("character_active")
     def _phook_character_active(self) -> None:

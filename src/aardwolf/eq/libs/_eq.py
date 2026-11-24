@@ -19,6 +19,10 @@ EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 
 # the eqdb plugin is optional: its API is used by name, and only when it exists
 API_EQDB_SAVE = "plugins.aardwolf.eqdb:item.save"
+API_A102_TOGGLE = "plugins.aardwolf.a102:option.toggle"
+# Aardwolf option 102 feature 20: the {invmon} and {invitem} tags,
+# the setting the "invmon" command toggles
+INVMON_OPTION = "INVMONTAGS"
 
 # the most lines hidden after the opening line, without an end tag; a big inventory can run to
 # several hundred lines. mudcmds counts the opening line too, so the types get HIDE_MAX_LINES + 2

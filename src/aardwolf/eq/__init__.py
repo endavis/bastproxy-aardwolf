@@ -14,4 +14,5 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.commands",
     "plugins.core.colors",
     "plugins.aardwolf.connect",
+    "plugins.aardwolf.a102",
 ]

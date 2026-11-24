@@ -25,6 +25,7 @@ OPTIONS: dict[str, int] = {
     "INVTAGS": 17,
     "ROOMDESCTAGS": 18,
     "ROOMNAMETAGS": 19,
+    "INVMONTAGS": 20,
     "REPOPTAGS": 21,
     "QUIETTAGS": 50,
     "AUTOTICK": 51,

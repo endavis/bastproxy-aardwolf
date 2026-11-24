@@ -63,6 +63,7 @@ class FakeApi:
         self.triggers: dict[str, dict[str, Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
         self.group_toggles: list[tuple[str, bool]] = []
+        self.a102: list[tuple[str, bool]] = []
         self.core = CoreHide(lambda: self.record)
         self.shown: list[str] = []
         self.hidden: list[str] = []
@@ -85,6 +86,7 @@ class FakeApi:
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.triggers:group.toggle.enable": self._group_toggle,
+            "plugins.aardwolf.a102:option.toggle": self._a102_toggle,
             "plugins.core.colors:colorcode.strip": lambda text: re.sub(
                 r"@x\d{1,3}|@[A-Za-z]", "", text
             ),
@@ -120,6 +122,10 @@ class FakeApi:
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
         self.callbacks[trigger_id] = func
+        return True
+
+    def _a102_toggle(self, name: str, flag: bool) -> bool:
+        self.a102.append((name, flag))
         return True
 
     def _group_toggle(self, group: str, flag: bool) -> bool:
@@ -818,3 +824,23 @@ def test_state_is_not_shared_between_events_payloads(env: Env) -> None:
     before = copy.deepcopy(env.plugin.state.items[2001])
     env.fake.raised[0][1]["item"]["level"] = 99
     assert env.plugin.state.items[2001] == before
+
+
+# the invmon tags
+
+
+def test_after_load_asks_option_102_for_the_invmon_tags(env: Env) -> None:
+    """Nothing is tracked without the invmon tags, so the plugin turns them on."""
+    assert env.fake.a102 == [("INVMONTAGS", True)]
+
+
+def test_uninitialize_takes_the_invmon_request_back_once(env: Env) -> None:
+    env.plugin._phook_uninitialize()
+    env.plugin._phook_uninitialize()
+    assert env.fake.a102 == [("INVMONTAGS", True), ("INVMONTAGS", False)]
+
+
+def test_eq_depends_on_a102() -> None:
+    from aardwolf import eq
+
+    assert "plugins.aardwolf.a102" in eq.PLUGIN_DEPENDENCIES
