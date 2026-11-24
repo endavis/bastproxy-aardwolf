@@ -1,6 +1,7 @@
 """Constants and helpers of the mapper plugin. No bastproxy imports."""
 
-from collections.abc import Iterable, Mapping
+import re
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 PLUGIN_ID = "plugins.aardwolf.mapper"
@@ -10,6 +11,7 @@ EVENT_GMCP_AREA = "ev_libs.net.mud_gmcp_room.area"
 EVENT_MOVE_ROOM = "ev_plugins.aardwolf.move_room"
 EVENT_ROOM_MISMATCH = "ev_plugins.client.mapper_room_mismatch"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
+EVENT_WALK_FAILED = "ev_plugins.client.mapper_walk_failed"
 GMCP_ROOM = "room.info"
 GMCP_LEVEL = "char.status.level"
 GMCP_TIER = "char.base.tier"
@@ -28,6 +30,14 @@ SEARCHES: dict[str, tuple[str, ...]] = {
     "train": ("trainer",),
     "quest": ("questor",),
 }
+COMMAND_SEPARATOR = ";"
+WAIT_REGEX = r"^wait\((\d*\.?\d+)\)$"
+WAIT_PREFIX_REGEX = r"^wait\(.*\)$"
+CEXIT_TIMEOUT = 5
+CEXIT_MIN_TIMEOUT = 2
+CEXIT_MAX_TIMEOUT = 40
+MAX_WAIT = 40
+RECALL_COMMANDS = ("recall", "home", "hom")
 IMPORT_SLICE = 0.05
 IMPORT_PROGRESS = 2000
 
@@ -134,38 +144,148 @@ def requirement_allowed(
     return have_tier >= wanted_tier and have_level >= wanted_level
 
 
-def steps_to_commands(steps: list[dict[str, Any]]) -> list[str]:
-    """Turn walk steps into commands, joining plain directions into `run` speedwalks."""
-    commands: list[str] = []
-    run: list[str] = []
+def _run_command(run: list[str]) -> str:
+    """Return the command that walks plain directions: one direction, or a `run` speedwalk."""
+    if len(run) == 1:
+        return run[0]
+    body = ""
+    index = 0
+    while index < len(run):
+        end = index
+        while end < len(run) and run[end] == run[index]:
+            end += 1
+        count = end - index
+        body += (str(count) if count > 1 else "") + run[index]
+        index = end
+    return f"run {body}"
 
-    def flush() -> None:
-        if not run:
-            return
-        if len(run) == 1:
-            commands.append(run[0])
+
+def split_command(text: str) -> list[str | float]:
+    """Split a command on `;` into commands and waits; a `wait(N)` becomes the float N.
+
+    This is the lenient form used when walking: a segment that is not a valid wait is sent
+    as text, empty segments are dropped, and a wait over MAX_WAIT is capped.
+    """
+    parts: list[str | float] = []
+    for segment in text.split(COMMAND_SEPARATOR):
+        segment = segment.strip()
+        if not segment:
+            continue
+        match = re.match(WAIT_REGEX, segment, re.IGNORECASE)
+        if match:
+            parts.append(min(float(match.group(1)), float(MAX_WAIT)))
         else:
-            body = ""
-            index = 0
-            while index < len(run):
-                end = index
-                while end < len(run) and run[end] == run[index]:
-                    end += 1
-                count = end - index
-                body += (str(count) if count > 1 else "") + run[index]
-                index = end
-            commands.append(f"run {body}")
-        run.clear()
+            parts.append(segment)
+    return parts
 
+
+def parse_command(text: str) -> list[str | float] | None:
+    """Split a command for storing; None for an empty command or a bad wait.
+
+    A bad wait is any `wait(...)` segment that is not a number over 0 and at most MAX_WAIT.
+    """
+    parts = split_command(text)
+    if not parts:
+        return None
+    for segment in text.split(COMMAND_SEPARATOR):
+        segment = segment.strip()
+        if not re.match(WAIT_PREFIX_REGEX, segment, re.IGNORECASE):
+            continue
+        match = re.match(WAIT_REGEX, segment, re.IGNORECASE)
+        if match is None or not 0 < float(match.group(1)) <= MAX_WAIT:
+            return None
+    return parts
+
+
+def total_wait(parts: Iterable[str | float]) -> float:
+    """Return the seconds a split command waits in total."""
+    return sum(part for part in parts if isinstance(part, float))
+
+
+def command_chunks(parts: Iterable[str | float]) -> list[tuple[float, list[str]]]:
+    """Group commands into (delay seconds, commands) chunks; each wait starts a new chunk."""
+    chunks: list[tuple[float, list[str]]] = []
+    delay = 0.0
+    commands: list[str] = []
+    seen = False
+    for part in parts:
+        seen = True
+        if isinstance(part, float):
+            chunks.append((delay, commands))
+            delay, commands = part, []
+        else:
+            commands.append(part)
+    if seen:
+        chunks.append((delay, commands))
+    return chunks
+
+
+def movement_chunks(steps: list[dict[str, Any]]) -> list[tuple[float, list[str]]]:
+    """Turn walk steps into (delay seconds, commands) chunks.
+
+    Plain directions are joined into `run` speedwalks. Any other direction is split on `;`,
+    and each `wait(N)` starts a chunk that is sent N seconds after the one before it.
+    """
+    parts: list[str | float] = []
+    run: list[str] = []
     for step in steps:
         direction = str(step.get("dir", ""))
         if direction in PLAIN_DIRECTIONS and step.get("fromuid") not in ANYWHERE:
             run.append(direction)
-        else:
-            flush()
-            commands.append(direction)
-    flush()
-    return commands
+            continue
+        if run:
+            parts.append(_run_command(run))
+            run.clear()
+        parts.extend(split_command(direction))
+    if run:
+        parts.append(_run_command(run))
+    return command_chunks(parts)
+
+
+def steps_to_commands(steps: list[dict[str, Any]]) -> list[str]:
+    """Turn walk steps into commands, joining plain directions into `run` speedwalks.
+
+    The waits of a custom exit are left out; `movement_chunks` keeps them.
+    """
+    return [command for _, commands in movement_chunks(steps) for command in commands]
+
+
+def is_cexit(exit_dict: Mapping[str, Any]) -> bool:
+    """Return True for a custom exit: not a plain direction and not a portal or recall."""
+    return exit_dict.get("fromuid") not in ANYWHERE and exit_dict.get("dir") not in PLAIN_DIRECTIONS
+
+
+def requirement_level(requirement: object) -> int:
+    """Return the level of an exit requirement for display; 0 when it has none."""
+    if not isinstance(requirement, dict):
+        return 0
+    return to_int(requirement.get("level"))
+
+
+def is_recall_command(command: str) -> bool:
+    """Return True when a portal command is the recall command."""
+    return command.strip().lower() in RECALL_COMMANDS
+
+
+def portal_sort_key(portal: Mapping[str, Any], room: Mapping[str, Any] | None) -> tuple[Any, ...]:
+    """Return the sort key of a portal: the area of its room, the room number, the command."""
+    area = str(room.get("area") or "") if room else ""
+    touid = str(portal.get("touid"))
+    return (area, to_int(touid), touid, str(portal.get("dir")))
+
+
+def resolve_portal(portals: Sequence[Mapping[str, Any]], ref: str) -> Mapping[str, Any] | None:
+    """Return the portal a `#N` number or an exact command names, or None."""
+    ref = ref.strip()
+    if ref.startswith("#"):
+        number = _maybe_int(ref[1:])
+        if number is None or not 1 <= number <= len(portals):
+            return None
+        return portals[number - 1]
+    for portal in portals:
+        if portal.get("dir") == ref:
+            return portal
+    return None
 
 
 def mismatch_lines(uid: str, differences: Mapping[str, Any]) -> list[str]:
@@ -204,9 +324,14 @@ def detail_matches(details: object, wanted: Iterable[str]) -> list[str]:
     return [item.capitalize() for item in items if item in wanted_set]
 
 
+def table_lines(title: str, header: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
+    """Return a table: the title, a header line, and one ` | ` joined line per row."""
+    return [title, " | ".join(header), *(" | ".join(row) for row in rows)]
+
+
 def search_lines(title: str, rows: Iterable[tuple[str, str, str, str]]) -> list[str]:
     """Return a search table: the title, a header, and one line per (uid, name, area, found)."""
-    return [title, "uid | name | area | found", *(" | ".join(row) for row in rows)]
+    return table_lines(title, ("uid", "name", "area", "found"), rows)
 
 
 def stored_room_with_flags(

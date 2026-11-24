@@ -1,6 +1,7 @@
 """Tests for the Aardwolf mapper plugin, with a stubbed API."""
 
-from collections.abc import Callable, Iterator
+import asyncio
+from collections.abc import Callable, Coroutine, Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -12,6 +13,8 @@ import aardwolf
 from aardwolf.mapper.libs import NOPORTAL_REGEX, NORECALL_REGEX
 
 if TYPE_CHECKING:
+    from bastproxy.plugins.core.commands import CommandResult
+
     from aardwolf.mapper.plugin._mapper import MapperPlugin
 
 PLUGIN_ID = "plugins.aardwolf.mapper"
@@ -41,6 +44,10 @@ class FakeApi:
         self.trigger_adds: list[tuple[str, str]] = []
         self.trigger_regs: dict[str, Callable[..., Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
+        self.current: str | None = None
+        self.args: dict[str, Any] = {}
+        self.tasks: list[Coroutine[Any, Any, None]] = []
+        self.mud: list[list[str]] = []
 
     def called(self, name: str) -> list[tuple[Any, ...]]:
         """Return the arguments of each call of an API."""
@@ -56,7 +63,11 @@ class FakeApi:
         table: dict[str, Callable[..., Any]] = {
             f"{MAPPER}:room.add": lambda room: True,
             f"{MAPPER}:room.get": lambda uid: self.rooms.get(uid),
-            f"{MAPPER}:room.current.set": lambda uid: None,
+            f"{MAPPER}:room.current.set": self._set_current,
+            f"{MAPPER}:room.current.get": lambda: self.current,
+            f"{MAPPER}:exit.add": lambda *args: True,
+            "libs.asynch:task.add": lambda coro, name: self.tasks.append(coro),
+            "plugins.core.commands:command.current.args.get": lambda: self.args,
             f"{MAPPER}:area.add": lambda **kwargs: True,
             f"{MAPPER}:area.get": lambda uid: self.areas.get(uid),
             f"{MAPPER}:requirement.register": self._register("requirement"),
@@ -73,6 +84,9 @@ class FakeApi:
             ),
         }
         return record if name in table else table[name]
+
+    def _set_current(self, uid: str) -> None:
+        self.current = uid
 
     def _register(self, kind: str) -> Callable[[str, Callable[..., Any]], None]:
         def register(owner: str, callback: Callable[..., Any]) -> None:
@@ -108,6 +122,11 @@ class Env:
         self.fake.record = {"data": room}
         self.plugin._eventcb_room_info()
 
+    def run_tasks(self) -> None:
+        """Run the queued tasks in order."""
+        while self.fake.tasks:
+            asyncio.run(self.fake.tasks.pop(0))
+
     def area_info(self, data: object) -> None:
         """The MUD sends a Room.Area message."""
         self.fake.record = {"data": data}
@@ -122,6 +141,7 @@ def build(fake: FakeApi, sent: list[list[str]]) -> "MapperPlugin":
     plugin.plugin_id = PLUGIN_ID
     plugin.api = MagicMock(side_effect=fake)
     plugin._client = sent.append  # type: ignore[method-assign,assignment]
+    plugin._mud = fake.mud.append  # type: ignore[method-assign,assignment]
     plugin._phook_init_plugin()
     plugin._phook_initialize()
     return plugin
@@ -139,7 +159,10 @@ def make(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gmcp: dict[str, Any]) 
 @pytest.fixture
 def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     """A loaded plugin with an empty GMCP cache."""
-    yield make(monkeypatch, tmp_path, {})
+    made = make(monkeypatch, tmp_path, {})
+    yield made
+    for task in made.fake.tasks:
+        task.close()
 
 
 def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -310,3 +333,141 @@ def test_uninitialize(env: Env) -> None:
     env.plugin._phook_uninitialize()
     assert env.fake.called(f"{MAPPER}:requirement.unregister") == [(PLUGIN_ID,)]
     assert env.fake.called(f"{MAPPER}:movement.unregister") == [(PLUGIN_ID,)]
+
+
+CEXIT = "open north;wait(2);north"
+
+
+@pytest.fixture
+def delays(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Make asyncio.sleep return at once and record the delays."""
+    seen: list[float] = []
+
+    async def fake_sleep(delay: float, result: object = None) -> None:
+        seen.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    return seen
+
+
+def start_cexit(env: Env, **args: object) -> "CommandResult":
+    """Stand in room A, and run the cexit command."""
+    env.move(ROOM_A)
+    env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
+    env.fake.args = {
+        "command": [CEXIT],
+        "level": 50,
+        "timeout": 0,
+        "touid": None,
+        "fromuid": None,
+        **args,
+    }
+    result: CommandResult = env.plugin._command_cexit()
+    return result
+
+
+def test_cexit_records_on_arrival(env: Env, delays: list[float]) -> None:
+    """The first part is sent at once, the rest after the wait; the new room stores the exit."""
+    result = start_cexit(env)
+    assert result.success
+    assert env.fake.mud == [["open north"]]
+    assert len(env.fake.tasks) == 2
+    env.move(ROOM_B)
+    assert env.fake.called(f"{MAPPER}:exit.add") == [("1234", CEXIT, "1235", 1, {"level": 50})]
+    assert env.sent[-1] == ["Mapper: custom exit 1234 (open north;wait(2);north) -> 1235"]
+    env.run_tasks()
+    assert env.fake.mud == [["open north"], ["north"]]
+    assert delays == [2.0, 7.0]
+    assert env.plugin._pending_cexit is None
+    assert not any("no new room" in line for chunk in env.sent for line in chunk)
+
+
+def test_cexit_timeout(env: Env, delays: list[float]) -> None:
+    """With no new room the timeout (default 5 plus the waits) clears the record and reports."""
+    start_cexit(env)
+    env.run_tasks()
+    assert delays == [2.0, 7.0]
+    assert env.plugin._pending_cexit is None
+    assert "no new room" in env.sent[-1][0]
+    assert not env.fake.called(f"{MAPPER}:exit.add")
+
+
+def test_cexit_same_room_is_ignored(env: Env) -> None:
+    """Arriving in the room it left does not record the exit."""
+    start_cexit(env)
+    env.plugin._finish_cexit("1234")
+    assert env.plugin._pending_cexit is not None
+
+
+def test_cexit_refusals(env: Env) -> None:
+    """Unknown room, a second recording, a bad wait and a bad timeout send nothing."""
+    env.fake.args = {"command": ["go"], "level": 0, "timeout": 0, "touid": None, "fromuid": None}
+    assert not env.plugin._command_cexit().success
+    assert start_cexit(env).success
+    assert not env.plugin._command_cexit().success
+    env.plugin._pending_cexit = None
+    env.fake.mud.clear()
+    for bad in ({"command": ["go;wait(41)"]}, {"command": [" "]}, {"timeout": 1}, {"timeout": 41}):
+        env.fake.args = {**env.fake.args, **bad}
+        assert not env.plugin._command_cexit().success
+    assert env.fake.mud == []
+    assert env.plugin._pending_cexit is None
+
+
+def test_cexit_direct(env: Env) -> None:
+    """With -t the exit is stored at once and nothing is sent."""
+    env.fake.rooms["1"] = {"uid": "1"}
+    env.fake.rooms["2"] = {"uid": "2"}
+    env.fake.args = {"command": ["go"], "level": 0, "timeout": 0, "touid": "2", "fromuid": "1"}
+    assert env.plugin._command_cexit().success
+    assert env.fake.called(f"{MAPPER}:exit.add") == [("1", "go", "2", 1, None)]
+    assert env.fake.mud == []
+    for args in ({"fromuid": "9"}, {"touid": "9"}, {"touid": "1"}):
+        env.fake.args = {**env.fake.args, **args}
+        assert not env.plugin._command_cexit().success
+    assert len(env.fake.called(f"{MAPPER}:exit.add")) == 1
+
+
+def walk(env: Env) -> list[str]:
+    """Run the movement callback on a walk with a waited cexit in the middle."""
+    steps = [
+        {"fromuid": "1", "dir": "n"},
+        {"fromuid": "1", "dir": "open door;wait(2);e"},
+        {"fromuid": "1", "dir": "s"},
+    ]
+    first: list[str] = env.fake.callbacks["movement"](steps)
+    return first
+
+
+def test_movement_waits(env: Env, delays: list[float]) -> None:
+    """The callback returns the first chunk; the rest is sent after the delay."""
+    assert walk(env) == ["n", "open door"]
+    env.run_tasks()
+    assert env.fake.mud == [["e", "s"]]
+    assert delays == [2.0]
+    assert env.sent == [["Mapper: waiting 2 seconds"]]
+
+
+@pytest.mark.parametrize("cancel", ["move", "failed", "disconnect", "uninitialize"])
+def test_movement_waits_cancelled(env: Env, delays: list[float], cancel: str) -> None:
+    """A new move, a failed walk, a disconnect or an unload stop the waiting commands."""
+    walk(env)
+    if cancel == "move":
+        assert env.fake.callbacks["movement"]([{"fromuid": "1", "dir": "n"}]) == ["n"]
+    elif cancel == "failed":
+        env.plugin._eventcb_walk_failed()
+    elif cancel == "disconnect":
+        env.plugin._eventcb_disconnect()
+    else:
+        env.plugin._phook_uninitialize()
+    env.run_tasks()
+    assert env.fake.mud == []
+
+
+def test_disconnect_drops_pending_cexit(env: Env, delays: list[float]) -> None:
+    """A disconnect forgets the custom exit being recorded."""
+    start_cexit(env)
+    env.plugin._eventcb_disconnect()
+    assert env.plugin._pending_cexit is None
+    env.run_tasks()
+    assert not any("no new room" in line for chunk in env.sent for line in chunk)

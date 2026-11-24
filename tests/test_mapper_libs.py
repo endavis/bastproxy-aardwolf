@@ -8,14 +8,24 @@ from aardwolf.mapper.libs import (
     SEARCHES,
     area_from_gmcp,
     detail_matches,
+    is_cexit,
+    is_recall_command,
     mismatch_lines,
+    movement_chunks,
+    parse_command,
+    portal_sort_key,
     requirement_allowed,
+    requirement_level,
+    resolve_portal,
     room_from_gmcp,
     room_uid,
     search_lines,
+    split_command,
     steps_to_commands,
     stored_room_with_flags,
+    table_lines,
     to_int,
+    total_wait,
 )
 
 ROOM: dict[str, Any] = {
@@ -240,3 +250,116 @@ def test_stored_room_with_flags() -> None:
         "flags": ["noportal", "norecall"],
     }
     assert stored_room_with_flags({"uid": "2"}, ["norecall"])["flags"] == ["norecall"]  # type: ignore[index]
+
+
+def test_split_command() -> None:
+    """A command splits on ; into text and waits; empty parts go and long waits are capped."""
+    assert split_command("open north;wait(2);north") == ["open north", 2.0, "north"]
+    assert split_command(" a ; ;b; ") == ["a", "b"]
+    assert split_command("wait(0.5)") == [0.5]
+    assert split_command("wait(100)") == [40.0]
+    assert split_command("wait(x);go") == ["wait(x)", "go"]
+    assert split_command("") == []
+
+
+@pytest.mark.parametrize(
+    "text", ["", " ; ", "wait(0)", "wait(41)", "wait(x)", "go;wait(-1)", "go;wait()"]
+)
+def test_parse_command_refuses(text: str) -> None:
+    """An empty command or a bad wait cannot be stored."""
+    assert parse_command(text) is None
+
+
+def test_parse_command_accepts() -> None:
+    """A good command parses like split_command; the limits are allowed."""
+    assert parse_command("open north;wait(2);north") == ["open north", 2.0, "north"]
+    assert parse_command("wait(40)") == [40.0]
+    assert parse_command("wait(0.5)") == [0.5]
+    assert total_wait(["a", 2.0, "b", 0.5]) == 2.5
+
+
+def test_movement_chunks_plain() -> None:
+    """Plain steps still make one speedwalk in one chunk with no delay."""
+    steps = [step(d) for d in ("n", "n", "n", "e", "e")]
+    assert movement_chunks(steps) == [(0.0, ["run 3n2e"])]
+    assert steps_to_commands(steps) == ["run 3n2e"]
+    assert movement_chunks([]) == []
+
+
+def test_movement_chunks_cexit_waits() -> None:
+    """A cexit splits the walk; each wait starts a chunk with its delay."""
+    steps = [
+        step("n"),
+        step("n"),
+        step("open door;wait(2);e"),
+        step("s"),
+        step("s"),
+    ]
+    assert movement_chunks(steps) == [(0.0, ["run 2n", "open door"]), (2.0, ["e", "run 2s"])]
+    assert steps_to_commands(steps) == ["run 2n", "open door", "e", "run 2s"]
+
+
+def test_movement_chunks_portal_and_leading_wait() -> None:
+    """A portal command is split on ;, and a wait first leaves an empty first chunk."""
+    portal = step("hold amulet;enter;hold sword", fromuid="*")
+    assert movement_chunks([portal]) == [(0.0, ["hold amulet", "enter", "hold sword"])]
+    assert movement_chunks([step("wait(3);go")]) == [(0.0, []), (3.0, ["go"])]
+    assert movement_chunks([step("n", fromuid="*")]) == [(0.0, ["n"])]
+
+
+def test_is_cexit() -> None:
+    """Only a non-plain direction from a real room is a custom exit."""
+    assert is_cexit({"fromuid": "1", "dir": "open door;n"})
+    assert not is_cexit({"fromuid": "1", "dir": "n"})
+    assert not is_cexit({"fromuid": "*", "dir": "enter"})
+    assert not is_cexit({"fromuid": "**", "dir": "recall"})
+
+
+def test_is_recall_command() -> None:
+    """recall, home and hom are recalls, in any case."""
+    assert all(is_recall_command(c) for c in ("recall", " Home ", "HOM"))
+    assert not is_recall_command("enter portal")
+
+
+def test_requirement_level_for_display() -> None:
+    """The level of a requirement, or 0."""
+    assert requirement_level({"level": 50}) == 50
+    assert requirement_level({"tier": 1}) == 0
+    assert requirement_level(None) == 0
+
+
+def test_portal_sort_key() -> None:
+    """Portals sort by area, then room number, then command."""
+    rooms = {"9": {"area": "a"}, "10": {"area": "a"}, "5": {"area": "b"}}
+    portals = [
+        {"touid": "5", "dir": "x"},
+        {"touid": "10", "dir": "y"},
+        {"touid": "9", "dir": "z"},
+        {"touid": "9", "dir": "a"},
+        {"touid": "77", "dir": "q"},
+    ]
+    ordered = sorted(portals, key=lambda p: portal_sort_key(p, rooms.get(p["touid"])))
+    assert [(p["touid"], p["dir"]) for p in ordered] == [
+        ("77", "q"),
+        ("9", "a"),
+        ("9", "z"),
+        ("10", "y"),
+        ("5", "x"),
+    ]
+
+
+def test_resolve_portal() -> None:
+    """A portal is found by #N or by its exact command."""
+    portals = [{"dir": "one"}, {"dir": "two"}]
+    assert resolve_portal(portals, "#2") == {"dir": "two"}
+    assert resolve_portal(portals, "#9") is None
+    assert resolve_portal(portals, "#0") is None
+    assert resolve_portal(portals, "#x") is None
+    assert resolve_portal(portals, "one") == {"dir": "one"}
+    assert resolve_portal(portals, "three") is None
+
+
+def test_table_lines() -> None:
+    """A table is a title, a header and a line per row."""
+    assert table_lines("T", ("a", "b"), [("1", "2")]) == ["T", "a | b", "1 | 2"]
+    assert search_lines("S", [("1", "n", "z", "f")])[1] == "uid | name | area | found"

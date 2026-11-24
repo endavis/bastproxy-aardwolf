@@ -55,8 +55,24 @@ core `plugins.client.mapper`, so loading it loads them too.
   anywhere command), the level counts as `level + 10 * tier`. An unknown level counts as 201 and an
   unknown tier as 0. A requirement that is not a dict of ints blocks the exit.
 - **Movement.** Plain directions (`n s e w u d`) are joined into `run` speedwalks, as in `run 3n2e`.
-  A run of one step is sent as the bare direction, and any other step, such as `enter aylor`, is
-  sent as it is.
+  A run of one step is sent as the bare direction. Any other step, such as `enter aylor` or a custom
+  exit, is split on `;` and each part is sent as a command. A `wait(N)` part (N seconds, up to 40,
+  fractions allowed) ends the commands sent now: the ones after it are sent N seconds later, with
+  the client told `Mapper: waiting N seconds`. A new movement, a walk that is stopped, cleared or
+  fails (`ev_plugins.client.mapper_walk_failed`), a disconnect and an unload drop the commands still
+  waiting.
+- **Custom exits.** An exit whose command is not a plain direction and does not leave from `*` or
+  `**`. `cexit` stores one. A wait is part of the command, as in MUSHclient:
+  `open north;wait(2);north`. The commands of an imported MUSHclient custom exit already have this
+  form.
+- **Exit locks.** `lockexit` sets the level an exit needs, on any exit, plain or custom. A lock is
+  the same `{"level": n}` requirement the import writes, so the path search honours it.
+- **Portals and recall.** `portal` stores the portal under `*`, and recall under `**`. The commands
+  `recall`, `home` and `hom` are stored as recalls without a flag. The path search uses a portal
+  from the first room that is not `noportal`, and a recall from the first that is not `norecall`.
+- **Bounce.** From a `noportal` room the cheapest recall is chained into a portal, and from a
+  `norecall` room the cheapest portal into a recall, with no setting. A room that is both walks out
+  first.
 - **Mismatch.** On `ev_plugins.client.mapper_room_mismatch` the client gets the area and exit
   differences with the `#bp.client.mapper.purge` commands that clear them.
 - **Disconnect.** Clears the current room and the pending area requests.
@@ -67,6 +83,9 @@ core `plugins.client.mapper`, so loading it loads them too.
   exit on its own. The proxy stays responsive: the file is read in a thread and the writes run in
   short slices.
 - No search covers all areas; `here` or one area id only.
+- `|` is the proxy command separator and cannot be part of a custom exit or portal command; use
+  `;`. Quote words with an apostrophe.
+- `goto` and the `walk_step` event report only the commands before the first wait of a step.
 - A blind character may see the noportal and norecall lines differently; the old MUSHclient plugin
   checked for blindness first, this one does not.
 - If the core mapper is reloaded without this plugin, the callbacks are lost until the plugin is
@@ -83,6 +102,18 @@ The commands are `#bp.aardwolf.mapper.<command>`.
 | `train [here\|<area>]` | The rooms of an area with a `trainer` detail. |
 | `quest [here\|<area>]` | The rooms of an area with a `questor` detail. |
 | `notes [here\|<area>]` | The rooms of an area that have a note, with the note text. |
+| `cexit <command> [-l LEVEL] [-T SECONDS] [-t TOUID] [-f FROMUID]` | Record a custom exit, or add it with `-t`. |
+| `cexits [here\|thisroom\|<area>]` | The custom exits of the current area, the current room or an area. |
+| `cexitdel [command]` | Delete a custom exit of the current room, or all of them. |
+| `cexitpurge [here\|all\|<area>] [-c]` | Count, or with `-c` delete, the custom exits of an area or of every area. |
+| `lockexit [exit] [-r ROOM] [-l LEVEL]` | List the exits of a room, show the lock of one, or set it. |
+| `portal <command> [-l LEVEL] [-t TOUID] [-r]` | Add a portal that leads to a room. |
+| `portals [filter]` | The numbered portals and recalls, sorted by area. |
+| `portalchange <#N\|command> <new command>` | Change the command of a portal. |
+| `portallevel <#N\|command> <level>` | Set the level a portal needs; 0 for none. |
+| `portalrecall <#N\|command>` | Switch a portal between portal and recall. |
+| `portaldel <#N\|command>` | Delete a portal. |
+| `portalpurge [-c]` | Count, or with `-c` delete, every portal and recall. |
 
 A search defaults to `here`, the area of the current room, and fails with "the current room is not
 known" when there is none. An area id is lowercased and matched exactly. The table follows the core
@@ -97,6 +128,28 @@ uid | name | area | found
 The detail searches match the comma separated details of a room, whether it was captured from GMCP or
 imported. An area with no stored rooms reports "area <x> has no mapped rooms"; an area with no match
 reports "No shops found in aylor".
+
+### Custom exits, locks and portals
+
+- **Recording.** `cexit open north;wait(2);north -l 50` needs a known current room and no other
+  recording. Every `wait(N)` must be over 0 and at most 40, and a bad command is refused before
+  anything is sent. The command is sent the way a walk sends it. The next room that differs from the
+  one it left stores the exit, at cost 1, with the requirement of `-l`, and the client gets
+  `Mapper: custom exit <from> (<command>) -> <to>`. With no new room after the timeout
+  (`-T`, 2 to 40 seconds, default 5, plus the waits) the client is told and nothing is stored. An
+  exit that leads back to the same room therefore times out.
+- **Direct.** With `-t` the exit is stored from `-f` (default the current room) to that room and
+  nothing is sent. Both rooms must be known and differ.
+- **`cexitpurge`.** Without `-c` it only counts. With `-c` the removal runs in short slices, so
+  `all` does not stall the proxy.
+- **`lockexit`.** With no exit it lists the room's exits and their levels. With an exit and no `-l` it
+  shows the level. `-l N` keeps the target and cost and sets the level; `-l 0` removes the lock.
+- **`portal`.** The target defaults to the current room. `--recall` stores the portal as a recall.
+  Adding a command under the other kind removes the old one. `portals` numbers the full list, and a
+  filter (part of an area id) keeps those numbers. `#N` or the exact command, in quotes when it has
+  spaces, names a portal in the other portal commands. `portalpurge` and `cexitpurge` need `-c`.
+- **Bounce.** There are no bounce portal or bounce recall commands: the core path search already
+  picks the cheapest portal or recall to leave a `noportal` or `norecall` room.
 
 ### Importing a MUSHclient map
 
@@ -127,8 +180,8 @@ reports "No shops found in aylor".
 A room whose uid is not a positive integer (such as `nomap_...`), and its exits and notes, is skipped
 and counted, as are exits to or from a room that is not imported.
 
-**Not imported:** `storage` (the bounce portal and bounce recall, which are serialised Lua with no
-core equivalent), `environments`, `rooms.building` and `ignore_exits_mismatch`.
+**Not imported:** `storage` (the bounce portal and bounce recall, which are serialised Lua; the core
+path search chains recall and portals itself, so no setting is needed), `environments`, `rooms.building` and `ignore_exits_mismatch`.
 
 ## Events used
 
@@ -138,4 +191,5 @@ core equivalent), `environments`, `rooms.building` and `ignore_exits_mismatch`.
 | `ev_libs.net.mud_gmcp_room.info` | take the first room when there is no current room |
 | `ev_libs.net.mud_gmcp_room.area` | store the area the MUD sent |
 | `ev_plugins.client.mapper_room_mismatch` | tell the client about a contradicting room |
-| `ev_libs.net.mud_muddisconnect` | forget the room and the pending areas |
+| `ev_libs.net.mud_muddisconnect` | forget the room, the pending areas and waiting commands |
+| `ev_plugins.client.mapper_walk_failed` | drop the commands still waiting after a wait |
