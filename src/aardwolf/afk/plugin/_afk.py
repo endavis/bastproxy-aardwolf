@@ -1,6 +1,7 @@
 """Aardwolf afk plugin: set a title and keep the tells while no client is playing."""
 
 import time
+from collections.abc import Callable
 from typing import Any
 
 from bastproxy.libs.logger import get_logger
@@ -22,17 +23,22 @@ from ..libs import (
     QUEUE_KEY,
     TIMEOUT_EVENT,
     TITLE_CMD,
+    TITLE_IS_REGEX,
+    TITLE_READ_REGEX,
     TITLE_REGEX,
-    TITLE_SET_REGEX,
+    TITLE_REPLY_REGEX,
     TRIGGERS,
     TYPE_TITLE,
+    TYPE_TITLE_READ,
     WATCH_NAME,
     WATCH_TITLE_REGEX,
     TriggerSpec,
     count_active,
     format_tells,
     queue_notice,
+    read_title,
     remember_title,
+    restore_args,
     tell_entry,
     title_to_send,
 )
@@ -49,9 +55,18 @@ class AfkPlugin(BasePlugin):
         )
         # True while a queued title is in flight, so its reply finishes the command
         self._queued_title = False
+        # True from the moment the title read is queued (AFK turned on) until it is answered
+        self._awaiting_read = False
+        # True while the read is in flight, so only then does a "Your title is:" line count
+        self._reading = False
         # the title a client typed and the MUD has not answered yet
         self._pending_title: str | None = None
         self._groups_ready = False
+        self._trigger_callbacks: dict[str, Callable[[], None]] = {
+            "afk_title_set": self._trigger_reply,
+            "afk_title_is": self._trigger_title_is,
+            "afk_title_cleared": self._trigger_cleared,
+        }
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -68,6 +83,7 @@ class AfkPlugin(BasePlugin):
         register = self.api("plugins.core.events:event.register")
         register(f"watch_{WATCH_NAME}", self._watch_title)
         register(TIMEOUT_EVENT.format(TYPE_TITLE), self._eventcb_title_timeout)
+        register(TIMEOUT_EVENT.format(TYPE_TITLE_READ), self._eventcb_read_timeout)
         # the plugin may load after the clients; no title is sent for what is already so
         self._store_afk(self._active_count() == 0)
 
@@ -92,7 +108,17 @@ class AfkPlugin(BasePlugin):
             # beforef runs only for a queued command, so a typed title is shown
             beforef=self._command_started,
             hide_output=True,
-            hide_start=TITLE_SET_REGEX,
+            hide_start=TITLE_REPLY_REGEX,
+            hide_max=HIDE_MAX,
+        )
+        # the read reply is a single line, so it needs no hide_end: the window closes at the prompt
+        self.api("plugins.core.mudcmds:type.add")(
+            TYPE_TITLE_READ,
+            TITLE_CMD,
+            TITLE_READ_REGEX,
+            beforef=self._read_started,
+            hide_output=True,
+            hide_start=TITLE_IS_REGEX,
             hide_max=HIDE_MAX,
         )
 
@@ -105,7 +131,7 @@ class AfkPlugin(BasePlugin):
             get_logger(self.plugin_id).error("could not add the %s trigger", spec.name)
             return
         self.api("plugins.core.triggers:trigger.register")(
-            result.trigger.trigger_id, self._trigger_reply
+            result.trigger.trigger_id, self._trigger_callbacks[spec.name]
         )
         self._groups_ready = True
 
@@ -154,10 +180,35 @@ class AfkPlugin(BasePlugin):
             return False
         self.api("plugins.core.settings:setting.set")(self.plugin_id, "isafk", flag)
         get_logger(self.plugin_id).debug("afk is now %s", flag)
-        self._send_title()
+        if flag:
+            self._start_afk()
+        else:
+            self._end_afk()
         if not flag and (notice := queue_notice(len(self._entries()))):
             self._client(notice)
         return True
+
+    def _start_afk(self) -> None:
+        """Read the current title first, so ending AFK can restore it; the AFK title follows."""
+        if not self.api("plugins.core.proxy:mud.is.connected")() or self._awaiting_read:
+            return
+        self._awaiting_read = True
+        self.api("plugins.core.mudcmds:command.queue")(TYPE_TITLE_READ)
+
+    def _end_afk(self) -> None:
+        """Restore the title: the remembered one, or clear it. Never a bare ``title``."""
+        # an unanswered read means the AFK title was not sent yet, so there is nothing to restore
+        if not self.api("plugins.core.proxy:mud.is.connected")() or self._awaiting_read:
+            return
+        self.api("plugins.core.mudcmds:command.queue")(
+            TYPE_TITLE, restore_args(str(self._setting("lasttitle")))
+        )
+
+    def _queue_afk_title(self) -> None:
+        """Queue the AFK title, when AFK is still on and the MUD is connected."""
+        if not self._setting("isafk"):
+            return
+        self._send_title()
 
     def _send_title(self) -> None:
         """Queue the title that fits the AFK state, when the MUD is connected and there is one."""
@@ -192,11 +243,57 @@ class AfkPlugin(BasePlugin):
         self._pending_title = None
         self._toggle(True)
 
+    def _read_started(self) -> None:
+        """The queue is sending the title read: start its timing and read its reply."""
+        self.api("plugins.core.mudcmds:command.start")(TYPE_TITLE_READ)
+        self._awaiting_read = True
+        self._reading = True
+        self._toggle(True)
+
+    def _read_done(self, title: str) -> None:
+        """The read ended, answered or not: remember the title, then set the AFK title."""
+        self._reading = False
+        self._awaiting_read = False
+        self._toggle(False)
+        self.api("plugins.core.settings:setting.set")(self.plugin_id, "lasttitle", title)
+        self._queue_afk_title()
+
+    def _trigger_title_is(self) -> None:
+        """The MUD told the current title: remember it when it answers the read."""
+        if not self._reading:
+            return
+        captured = self._record().get("matches", {}).get("title")
+        title = read_title(None if captured is None else str(captured), self._afk_title())
+        self.api("plugins.core.mudcmds:command.finish")(TYPE_TITLE_READ)
+        self._read_done(title)
+
+    def _afk_title(self) -> str:
+        """Return the afktitle setting."""
+        return str(self._setting("afktitle"))
+
+    def _eventcb_read_timeout(self) -> None:
+        """The read got no answer: the title is unknown, so ending AFK will clear it."""
+        if not self._reading:
+            return
+        get_logger(self.plugin_id).debug("no answer to the title read, the title is unknown")
+        self._read_done("")
+
     def _watch_title(self) -> None:
         """A client typed a title: remember it and read the reply."""
         title = self._record().get("matched", {}).get("title")
         self._pending_title = str(title) if title is not None else None
         self._toggle(True)
+
+    def _trigger_cleared(self) -> None:
+        """The MUD cleared the title: finish the queued one, else a typed clear empties it."""
+        self._toggle(False)
+        if self._queued_title:
+            self._queued_title = False
+            self.api("plugins.core.mudcmds:command.finish")(TYPE_TITLE)
+            return
+        if self._pending_title is not None:
+            self._pending_title = None
+            self.api("plugins.core.settings:setting.set")(self.plugin_id, "lasttitle", "")
 
     def _trigger_reply(self) -> None:
         """The MUD confirmed a title: finish the queued one, else remember the typed one."""
@@ -220,6 +317,8 @@ class AfkPlugin(BasePlugin):
     def _eventcb_disconnect(self) -> None:
         """The MUD link closed: forget the title in flight and stop reading a reply."""
         self._queued_title = False
+        self._awaiting_read = False
+        self._reading = False
         self._pending_title = None
         self._toggle(False)
 

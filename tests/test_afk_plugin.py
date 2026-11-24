@@ -13,7 +13,13 @@ import pytest
 from mudcmds_support import CoreHide
 
 import aardwolf
-from aardwolf.afk.libs import TIMEOUT_EVENT, TITLE_SET_REGEX, TYPE_TITLE, WATCH_NAME
+from aardwolf.afk.libs import (
+    TIMEOUT_EVENT,
+    TITLE_SET_REGEX,
+    TYPE_TITLE,
+    TYPE_TITLE_READ,
+    WATCH_NAME,
+)
 
 if TYPE_CHECKING:
     from aardwolf.afk.plugin import _afk
@@ -22,6 +28,10 @@ PLUGIN_ID = "plugins.aardwolf.afk"
 GROUP = f"{PLUGIN_ID}.reply"
 PROMPT = "<100/100hp 50/50mn 90/90mv> "
 REPLY = "Title now set to: is AFK."
+CLEARED = "Your title is cleared."
+ALL_REPLIES = {"afk_title_set", "afk_title_is", "afk_title_cleared"}
+READ = (TYPE_TITLE_READ, "")
+SET_AFK = (TYPE_TITLE, "is AFK.")
 
 
 class FakeApi:
@@ -173,6 +183,26 @@ class Env:
         spec["beforef"]()
         self.fake.core.sent(TYPE_TITLE, f"title {title}")
 
+    def queued_read(self) -> None:
+        """mudcmds sends the queued title read: run its beforef, then arm its hide window."""
+        self.fake.types[TYPE_TITLE_READ]["beforef"]()
+        self.fake.core.sent(TYPE_TITLE_READ, "title")
+
+    def answer_read(self, line: str | None) -> None:
+        """Send the read, feed the MUD's answer and the prompt; None lets the read time out."""
+        self.queued_read()
+        if line is None:
+            self.fake.registered[TIMEOUT_EVENT.format(TYPE_TITLE_READ)]()
+            self.fake.core.timed_out(TYPE_TITLE_READ)
+            return
+        self.fake.feed([line])
+        self.fake.feed([PROMPT], prompt=True)
+
+    def afk_on(self, line: str | None = "Your title is: ") -> None:
+        """The last client leaves and the MUD answers the title read."""
+        self.leave("c0")
+        self.answer_read(line)
+
     def typed(self, title: str) -> None:
         """A client types a title."""
         self.fake.record = {"matched": {"title": title}, "data": f"title {title}"}
@@ -279,10 +309,12 @@ def test_initial_isafk_ignores_view_and_unlogged_clients(
 
 
 def test_last_active_client_leaving_turns_afk_on(env: Env) -> None:
-    env.fake.settings["lasttitle"] = "mine"
     env.leave("c0")
     assert env.fake.settings["isafk"] is True
-    assert env.fake.queued == [(TYPE_TITLE, "is AFK.")]
+    assert env.fake.queued == [READ]
+    env.answer_read("Your title is: mine")
+    assert env.fake.settings["lasttitle"] == "mine"
+    assert env.fake.queued == [READ, SET_AFK]
 
 
 def test_view_and_unlogged_leftovers_still_count_as_away(env: Env) -> None:
@@ -290,7 +322,7 @@ def test_view_and_unlogged_leftovers_still_count_as_away(env: Env) -> None:
     env.add_client("u", logged_in=False)
     env.leave("c0")
     assert env.fake.settings["isafk"] is True
-    assert env.fake.queued == [(TYPE_TITLE, "is AFK.")]
+    assert env.fake.queued == [READ]
 
 
 def test_another_active_client_keeps_afk_off(env: Env) -> None:
@@ -304,13 +336,12 @@ def test_a_second_disconnect_sends_nothing(env: Env) -> None:
     env.add_client("v", view_only=True)
     env.leave("c0")
     env.leave("v")
-    assert env.fake.queued == [(TYPE_TITLE, "is AFK.")]
+    assert env.fake.queued == [READ]
     assert [s for s in env.fake.sets if s[0] == "isafk"] == [("isafk", True)]
 
 
 def test_an_active_login_turns_afk_off_and_restores_the_title(env: Env) -> None:
-    env.fake.settings["lasttitle"] = "mine"
-    env.leave("c0")
+    env.afk_on("Your title is: mine")
     env.fake.queued.clear()
     env.login("c1")
     assert env.fake.settings["isafk"] is False
@@ -421,7 +452,7 @@ def test_a_queued_title_is_hidden_with_its_prompt(env: Env) -> None:
 
 def test_a_typed_title_is_shown_and_remembered(env: Env) -> None:
     env.typed("a fine title")
-    assert env.fake.enabled() == {"afk_title_set"}
+    assert env.fake.enabled() == ALL_REPLIES
     env.fake.feed(["Title now set to: a fine title"])
     env.fake.feed([PROMPT], prompt=True)
     assert env.fake.shown == ["Title now set to: a fine title", PROMPT]
@@ -491,7 +522,127 @@ def test_toggle_flips_afk_and_says_so(env: Env) -> None:
     on = env.plugin._command_toggle()
     assert on.message == ["AFK is now on"]
     assert env.fake.settings["isafk"] is True
-    assert env.fake.queued == [(TYPE_TITLE, "is AFK.")]
+    assert env.fake.queued == [READ]
+    env.answer_read("Your title is: mine")
+    assert env.fake.queued == [READ, SET_AFK]
+    env.fake.queued.clear()
     off = env.plugin._command_toggle()
     assert off.message == ["AFK is now off"]
-    assert env.fake.settings["isafk"] is False
+    assert env.fake.settings.get("isafk") is False
+    assert env.fake.queued == [(TYPE_TITLE, "mine")]
+
+
+def test_afk_on_reads_the_title_hidden_then_sets_the_afk_title(env: Env) -> None:
+    env.leave("c0")
+    env.queued_read()
+    assert env.fake.enabled() == ALL_REPLIES
+    env.fake.feed(["Your title is: the old one"])
+    env.fake.feed([PROMPT], prompt=True)
+    assert env.fake.hidden == ["Your title is: the old one", PROMPT]
+    assert env.fake.shown == []
+    assert env.fake.finished == [TYPE_TITLE_READ]
+    assert env.fake.settings["lasttitle"] == "the old one"
+    assert env.fake.queued == [READ, SET_AFK]
+    assert env.fake.enabled() == set()
+
+
+def test_an_empty_title_end_to_end(env: Env) -> None:
+    env.afk_on("Your title is: ")
+    assert env.fake.settings["lasttitle"] == ""
+    assert env.fake.queued == [READ, SET_AFK]
+    env.queued_title("is AFK.")
+    env.fake.feed([REPLY])
+    env.fake.queued.clear()
+    env.login("c1")
+    assert env.fake.queued == [(TYPE_TITLE, "clear")]
+
+
+def test_a_stale_lasttitle_is_replaced_by_the_empty_read(env: Env) -> None:
+    env.fake.settings["lasttitle"] = "stale"
+    env.afk_on("Your title is: ")
+    assert env.fake.settings["lasttitle"] == ""
+
+
+def test_a_read_title_equal_to_the_afk_title_is_not_remembered(env: Env) -> None:
+    env.fake.settings["lasttitle"] = "stale"
+    env.afk_on("Your title is: is AFK.")
+    assert env.fake.settings["lasttitle"] == ""
+
+
+def test_a_nonempty_read_is_restored(env: Env) -> None:
+    env.afk_on("Your title is: @Ca title")
+    env.fake.queued.clear()
+    env.login("c1")
+    assert env.fake.queued == [(TYPE_TITLE, "@Ca title")]
+
+
+def test_a_read_timeout_still_sets_the_afk_title_and_restores_with_clear(env: Env) -> None:
+    env.fake.settings["lasttitle"] = "stale"
+    env.afk_on(None)
+    assert env.fake.settings["lasttitle"] == ""
+    assert env.fake.queued == [READ, SET_AFK]
+    assert env.fake.enabled() == set()
+    env.fake.queued.clear()
+    env.login("c1")
+    assert env.fake.queued == [(TYPE_TITLE, "clear")]
+
+
+def test_a_late_read_reply_after_the_timeout_is_ignored(env: Env) -> None:
+    env.afk_on(None)
+    env.fake.feed(["Your title is: late"])
+    assert env.fake.settings["lasttitle"] == ""
+    assert env.fake.queued == [READ, SET_AFK]
+
+
+def test_a_stray_title_line_is_not_taken_for_the_read(env: Env) -> None:
+    env.typed("x")
+    env.fake.feed(["Your title is: typed"])
+    assert env.fake.settings["lasttitle"] == ""
+    assert env.fake.queued == []
+
+
+def test_the_cleared_reply_finishes_a_queued_title(env: Env) -> None:
+    env.afk_on()
+    env.fake.queued.clear()
+    env.login("c1")
+    env.fake.finished.clear()
+    env.fake.types[TYPE_TITLE]["beforef"]()
+    env.fake.core.sent(TYPE_TITLE, "title clear")
+    env.fake.feed([CLEARED])
+    env.fake.feed([PROMPT], prompt=True)
+    assert env.fake.finished == [TYPE_TITLE]
+    assert env.fake.hidden[-2:] == [CLEARED, PROMPT]
+    assert CLEARED not in env.fake.shown
+    assert env.fake.enabled() == set()
+
+
+def test_a_typed_clear_is_shown_and_empties_lasttitle(env: Env) -> None:
+    env.fake.settings["lasttitle"] = "mine"
+    env.typed("clear")
+    env.fake.feed([CLEARED])
+    assert env.fake.shown == [CLEARED]
+    assert env.fake.finished == []
+    assert env.fake.settings["lasttitle"] == ""
+
+
+def test_afk_off_before_the_read_is_answered_sends_nothing(env: Env) -> None:
+    env.leave("c0")
+    env.fake.queued.clear()
+    env.login("c1")
+    assert env.fake.queued == []
+    env.answer_read("Your title is: mine")
+    assert env.fake.queued == []
+    assert env.fake.settings["lasttitle"] == "mine"
+
+
+def test_no_bare_title_is_ever_sent(env: Env) -> None:
+    for line in ("Your title is: ", "Your title is: mine", None):
+        env.afk_on(line)
+        env.login("c1")
+        env.leave("c1")
+        env.login("c0")
+    env.fake.settings["lasttitle"] = ""
+    env.plugin._phook_character_active()
+    titles = [arg for kind, arg in env.fake.queued if kind == TYPE_TITLE]
+    assert titles
+    assert all(arg.strip() for arg in titles)

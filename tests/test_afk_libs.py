@@ -9,14 +9,19 @@ from aardwolf.afk.libs import (
     EVENT_CLIENT_DISCONNECTED,
     EVENT_CLIENT_LOGGED_IN,
     EVENT_GMCP_COMM,
+    TITLE_CLEARED_REGEX,
+    TITLE_IS_REGEX,
     TITLE_REGEX,
+    TITLE_REPLY_REGEX,
     TITLE_SET_REGEX,
     TRIGGERS,
     WATCH_TITLE_REGEX,
     count_active,
     format_tells,
     queue_notice,
+    read_title,
     remember_title,
+    restore_args,
     tell_entry,
     title_to_send,
 )
@@ -141,8 +146,51 @@ def test_command_regex_matches_a_queued_title() -> None:
     assert not re.match(TITLE_REGEX, "title")
 
 
-def test_trigger_matches_the_set_line() -> None:
-    assert [t.regex for t in TRIGGERS] == [TITLE_SET_REGEX]
+def test_triggers_match_the_reply_lines() -> None:
+    assert [t.regex for t in TRIGGERS] == [TITLE_SET_REGEX, TITLE_IS_REGEX, TITLE_CLEARED_REGEX]
+
+
+@pytest.mark.parametrize(
+    ("text", "title"),
+    [("Your title is: mine", "mine"), ("Your title is: ", ""), ("Your title is:", "")],
+)
+def test_is_regex_reads_the_title(text: str, title: str) -> None:
+    match = re.match(TITLE_IS_REGEX, text)
+    assert match is not None
+    assert match["title"] == title
+
+
+def test_cleared_and_is_lines_do_not_overlap() -> None:
+    assert re.match(TITLE_CLEARED_REGEX, "Your title is cleared.")
+    assert re.match(TITLE_IS_REGEX, "Your title is cleared.") is None
+    assert re.match(TITLE_CLEARED_REGEX, "Your title is: x") is None
+
+
+def test_reply_regex_opens_on_set_and_cleared() -> None:
+    assert re.match(TITLE_REPLY_REGEX, "Title now set to: x")
+    assert re.match(TITLE_REPLY_REGEX, "Your title is cleared.")
+    assert re.match(TITLE_REPLY_REGEX, "Your title is: x") is None
+
+
+@pytest.mark.parametrize(
+    ("last", "expected"), [("mine", "mine"), ("", "clear"), ("@Ca b", "@Ca b")]
+)
+def test_restore_args_never_empty(last: str, expected: str) -> None:
+    assert restore_args(last) == expected
+
+
+@pytest.mark.parametrize(
+    ("captured", "afk", "expected"),
+    [
+        ("mine", "is AFK.", "mine"),
+        (" mine ", "is AFK.", "mine"),
+        ("", "is AFK.", ""),
+        (None, "is AFK.", ""),
+        ("is AFK.", "is AFK.", ""),
+    ],
+)
+def test_read_title(captured: str | None, afk: str, expected: str) -> None:
+    assert read_title(captured, afk) == expected
 
 
 def test_event_names() -> None:
