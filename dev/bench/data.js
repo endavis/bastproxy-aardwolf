@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795477209255,
+  "lastUpdate": 1795481822882,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1671,6 +1671,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.878375362729854e-7",
             "extra": "mean: 3.6704756827757103 usec\nrounds: 144342"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b1a1d77d1d54c52e80a581e5877ad0cc2fe3ada",
+          "message": "feat: port the eq plugin's item tracking (merges PR #98, addresses #75)\n\n* feat: port the eq plugin's item tracking\n\nplugins.aardwolf.eq follows invmon, invitem and the eqdata, invdata,\nkeyring data and vault data blocks, and keeps worn items, inventory,\nkeyring, vault and bags in memory, one location per item. Items are\nplain dicts.\n\n- mudcmds types eq_worn, eq_inventory, eq_keyring, eq_vault and one\n  eq_container_<serial> per bag. A queued data command is hidden up to\n  and including the prompt after its end tag; a typed one is shown and\n  still parsed. Only a queued command starts command timing.\n- Events eq_worn, eq_removed, eq_inventory_added, eq_inventory_removed,\n  eq_put and eq_taken; fixed names with serial and container in the\n  payload replace the old per-serial event names.\n- APIs item.get, item.find.by.name, container.get, eq.worn.get (the\n  name mobk already calls), item.fetch, item.put, item.equip,\n  item.unequip and item.identify.add, which saves through eqdb's\n  item.save when eqdb is loaded.\n- Commands refresh, icache, get and put.\n\nThe eq and inv display commands follow in #97. The old bugs fixed are\nlisted in docs/plugins/eq.md.\n\nAddresses #75\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: end the eq vault read when the character has no vault\n\nAardwolf answers \"vault data\" with \"You do not have a vault. See 'help\nvault' for how to acquire one.\" instead of a vault block for a\ncharacter with no vault. The queued vault read then never finished:\nmudcmds timed it out after 5 seconds with a warning, and the answer\nwas shown. Seen on a live login in a bank room.\n\nA trigger on that line now records an empty vault and finishes the\neq_vault command, and the vault hide window also opens on it, so a\nqueued read hides the answer and its prompt. The old plugin had the\nsame gap, and the old queue had no timeout.\n\nAddresses #75\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: turn on Aardwolf's invmon tags from the eq plugin\n\nNothing is tracked without the {invmon} lines, and Aardwolf sends them\nonly when invmon is on for the character. The \"invmon\" command is a\ntoggle (\"You will now see inventory update tags.\"), so sending it could\nturn the tags off. eq instead asks the a102 plugin for option 102\nfeature 20, INVMONTAGS (TELOPT_INVMON_TAGS in Aardwolf's client\npackage), when it loads, and takes the request back when it unloads, as\nskills does for its tags.\n\n- a102: INVMONTAGS (20) is added to the option table and its docs.\n  test_a102_options pins the table size, so its two counts go from 24\n  to 25, and it now checks INVMONTAGS.\n- eq: depends on plugins.aardwolf.a102.\n\nAddresses #75\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: hide the invmon and invitem lines from the client\n\neq turns the invmon tags on, so at login Aardwolf sends an {invmon}\nline for each worn item, and the client saw them as raw text. The\neq_invmon and eq_invitem triggers now omit their lines: the plugin\nstill parses them, and other lines are shown. The old plugin showed\nthem.\n\nAddresses #75\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T00:56:28Z",
+          "tree_id": "69f0cbc677cc5919913f72d8e72161688e782e75",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/2b1a1d77d1d54c52e80a581e5877ad0cc2fe3ada"
+        },
+        "date": 1795481822038,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4465807.522723797,
+            "unit": "iter/sec",
+            "range": "stddev: 1.673097086202732e-8",
+            "extra": "mean: 223.9236677603332 nsec\nrounds: 46936"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 232930.81811781967,
+            "unit": "iter/sec",
+            "range": "stddev: 5.734151461262923e-7",
+            "extra": "mean: 4.293120198007402 usec\nrounds: 124844"
           }
         ]
       }
