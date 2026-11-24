@@ -93,10 +93,11 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         r"^\{invmon\}(?P<action>\d+),(?P<serial>\d+),(?P<container>-?\d+),(?P<location>-?\d+)$",
         None,
         True,
-        False,
+        True,
         {"action": int, "serial": int, "container": int, "location": int},
     ),
-    TriggerSpec("eq_invitem", r"^\{invitem\}(?P<data>.*)$", None, True, False, None),
+    # the invmon and invitem tags are for the plugin, so they are kept from the client
+    TriggerSpec("eq_invitem", r"^\{invitem\}(?P<data>.*)$", None, True, True, None),
     TriggerSpec(
         "eq_data_start",
         rf"^\{{(?P<tag>{_TAGS})(?: (?P<cid>\d+))?\}}$",

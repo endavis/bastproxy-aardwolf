@@ -117,6 +117,7 @@ class FakeApi:
             "regex": regex,
             "enabled": kwargs.get("enabled", True),
             "group": kwargs.get("group"),
+            "omit": kwargs.get("omit", False),
         }
         return SimpleNamespace(success=True, trigger=SimpleNamespace(trigger_id=name))
 
@@ -159,6 +160,8 @@ class FakeApi:
                     continue
                 match = re.match(trigger["regex"], text)
                 if match and name in self.callbacks:
+                    if trigger.get("omit"):
+                        line.send = False
                     self.record = {"matches": match.groupdict(), "line": line}
                     self.callbacks[name]()
             (self.shown if line.send else self.hidden).append(text)
@@ -844,3 +847,17 @@ def test_eq_depends_on_a102() -> None:
     from aardwolf import eq
 
     assert "plugins.aardwolf.a102" in eq.PLUGIN_DEPENDENCIES
+
+
+def test_invmon_and_invitem_lines_are_kept_from_the_client(env: Env) -> None:
+    """The tags are for the plugin: they are parsed and hidden, and other lines are shown."""
+    fake = env.fake
+    assert fake.triggers["eq_invmon"]["omit"] is True
+    assert fake.triggers["eq_invitem"]["omit"] is True
+    env.fill()
+    fake.shown.clear()
+    fake.hidden.clear()
+    fake.feed(["{invmon}2,2001,-1,24", "{invitem}6001,,a new thing,3,6,0,-1,-1", "a later line"])
+    assert fake.hidden == ["{invmon}2,2001,-1,24", "{invitem}6001,,a new thing,3,6,0,-1,-1"]
+    assert fake.shown == ["a later line"]
+    assert env.plugin.state.items[6001]["name"] == "a new thing"
