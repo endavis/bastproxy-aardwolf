@@ -4,7 +4,7 @@ import copy
 from collections.abc import Iterable
 from typing import Any, NamedTuple
 
-from aardwolf.libs.itemu import WEARLOCS, WEARLOCSREV
+from aardwolf._libs.itemu import WEARLOCS, WEARLOCSREV
 
 from ._eq import (
     CONTAINER_ITYPE,

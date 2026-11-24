@@ -4,6 +4,7 @@ import itertools
 import re
 from typing import Any
 
+from aardwolf._libs.itemu import WEARLOCS, WEARLOCSREV
 from aardwolf.eq.libs import (
     OPTIONAL_SLOTS,
     SCORE_DEFAULT,
@@ -14,7 +15,6 @@ from aardwolf.eq.libs import (
     worn_lines,
 )
 from aardwolf.eq.libs._display import RULE, keyring_count_line
-from aardwolf.libs.itemu import WEARLOCS, WEARLOCSREV
 
 SLOTS = len(WEARLOCS)
 

@@ -4,7 +4,7 @@ import re
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
-from aardwolf.libs.itemu import OBJECTTYPESREV
+from aardwolf._libs.itemu import OBJECTTYPESREV
 
 PREFIX = "ev_plugins.aardwolf.eq_"
 EVENT_WORN = f"{PREFIX}worn"

@@ -29,7 +29,7 @@ The plugin id is `plugins.aardwolf.itemid`:
 It depends on the events, triggers, mudcmds, commands and colors core plugins and on the
 [eq plugin](eq.md). It never imports another plugin: it keeps its own copies of the eq, eqdb and
 skills API and event names, the way the [mobk plugin](mobk.md) does, and imports only
-`aardwolf.libs.itemu`. The eqdb and skills plugins are optional and are called only when their API
+`aardwolf._libs.itemu`. The eqdb and skills plugins are optional and are called only when their API
 exists.
 
 ## Behaviour
@@ -45,7 +45,7 @@ exists.
   The identify finish or its timeout takes the serial off. An `invheader` whose serial is not the
   head is logged and dropped.
 - **invdetails.** The lines are `{header}data`, from `{invdetails}` to `{/invdetails}`. The header
-  picks the layout in `aardwolf.libs.itemu`. Stat, resist and skill mods become `{name: int}`,
+  picks the layout in `aardwolf._libs.itemu`. Stat, resist and skill mods become `{name: int}`,
   enchants and temporary mods are lists, and everything else is a dict under its header. A line that
   does not parse is logged and skipped.
 - **identify.** One catch-all trigger feeds a reader. Every line before the first divider is

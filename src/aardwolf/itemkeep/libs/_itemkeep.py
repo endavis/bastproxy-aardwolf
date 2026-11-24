@@ -3,7 +3,7 @@
 from collections.abc import Callable, Mapping
 from typing import NamedTuple
 
-from aardwolf.libs.itemu import OBJECTTYPES
+from aardwolf._libs.itemu import OBJECTTYPES
 
 # the names of the eq events itemkeep listens to; copied, because a plugin never imports another
 EVENT_EQ_INVENTORY_ADDED = "ev_plugins.aardwolf.eq_inventory_added"

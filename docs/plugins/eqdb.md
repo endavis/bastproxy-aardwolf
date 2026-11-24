@@ -52,7 +52,7 @@ is not available".
   | `enchant` | `[{etype, spell, stat, mod, char, removable}]` |
   | `notes` | `{"ntext": text}` |
   | `reward` | `{"rtext": text}` |
-  | `weapon`, `container`, `spells`, `food`, `drink`, `furniture`, `light`, `portal` | a dict of the columns of that table, the same fields as `aardwolf.libs.itemu.INVLAYOUT` has for it |
+  | `weapon`, `container`, `spells`, `food`, `drink`, `furniture`, `light`, `portal` | a dict of the columns of that table, the same fields as `aardwolf._libs.itemu.INVLAYOUT` has for it |
 
 - **Replacing details.** A detail key that is present replaces that table's rows for the serial:
   the old rows are deleted and the new ones inserted. A present but empty value clears the rows. A

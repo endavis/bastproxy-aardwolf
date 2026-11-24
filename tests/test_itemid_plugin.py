@@ -288,17 +288,17 @@ def test_dependencies_name_eq_and_leave_out_the_optional_plugins() -> None:
 
 
 def test_plugin_imports_no_other_plugin() -> None:
-    """A plugin reaches another through its API: only aardwolf.libs and its own package."""
+    """A plugin reaches another through its API: only aardwolf._libs and its own package."""
     root = Path(aardwolf.__file__).resolve().parent / "itemid"
     for path in root.rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 if node.module.startswith("aardwolf."):
-                    assert node.module.startswith(("aardwolf.libs", "aardwolf.itemid")), path
+                    assert node.module.startswith(("aardwolf._libs", "aardwolf.itemid")), path
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     assert not alias.name.startswith("aardwolf.") or alias.name.startswith(
-                        ("aardwolf.libs", "aardwolf.itemid")
+                        ("aardwolf._libs", "aardwolf.itemid")
                     ), path
 
 

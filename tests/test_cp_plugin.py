@@ -14,6 +14,7 @@ from mudcmds_support import CoreHide
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf._libs.aardu import actual_level
 from aardwolf.cp.libs import (
     ALL_LINES_ID,
     CHECK_HIDE_START,
@@ -30,7 +31,6 @@ from aardwolf.cp.libs import (
     INFO_HIDE_START,
     TRIGGERS,
 )
-from aardwolf.libs.aardu import actual_level
 
 if TYPE_CHECKING:
     from aardwolf.cp.plugin._cp import CpPlugin

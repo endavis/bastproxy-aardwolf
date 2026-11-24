@@ -102,7 +102,7 @@ refreshed by a new `campaign check`.
 - **Disconnect.** All the groups are turned off. A campaign that waits for its last line is raised
   first, so `cp_comp` is not lost.
 - **Level.** The `level` of the state is the total level from
-  `aardwolf.libs.aardu.actual_level_from_gmcp`, read when the campaign starts.
+  `aardwolf._libs.aardu.actual_level_from_gmcp`, read when the campaign starts.
 
 ## Events
 

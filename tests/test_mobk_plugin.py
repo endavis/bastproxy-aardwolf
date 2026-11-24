@@ -13,7 +13,7 @@ from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
-from aardwolf.libs.aardu import actual_level
+from aardwolf._libs.aardu import actual_level
 from aardwolf.mobk.libs import EQ_WORN_API, EVENT_KILL, EVENTS, TRIGGERS
 
 if TYPE_CHECKING:

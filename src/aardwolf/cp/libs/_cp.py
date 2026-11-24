@@ -4,7 +4,7 @@ import re
 from collections.abc import Callable, Iterable
 from typing import Any, NamedTuple
 
-from aardwolf.libs import aardu
+from aardwolf._libs import aardu
 
 PREFIX = "ev_plugins.aardwolf.cp_"
 EVENT_MOBSORIG = f"{PREFIX}mobsorig"

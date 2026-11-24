@@ -11,7 +11,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
-from aardwolf.libs import aardu
+from aardwolf._libs import aardu
 
 from ..libs import (
     EQ_WORN_API,

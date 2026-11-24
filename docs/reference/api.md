@@ -25,7 +25,7 @@ Complete API documentation for bastproxy-aardwolf, auto-generated from source co
 
 Pure helpers for levels, class abbreviations and combat damage lines.
 
-::: aardwolf.libs.aardu
+::: aardwolf._libs.aardu
     options:
       show_root_heading: true
       show_root_full_path: true
@@ -34,7 +34,7 @@ Pure helpers for levels, class abbreviations and combat damage lines.
 
 Item tables and the parser for item data lines.
 
-::: aardwolf.libs.itemu
+::: aardwolf._libs.itemu
     options:
       show_root_heading: true
       show_root_full_path: true
@@ -119,7 +119,7 @@ def example_function(param1: str, param2: int = 10) -> dict[str, Any]:
 All public APIs include type hints for better IDE support and type checking:
 
 ```python
-from aardwolf.libs.aardu import LevelInfo, convert_level
+from aardwolf._libs.aardu import LevelInfo, convert_level
 
 # Type checkers will infer the correct types
 info: LevelInfo = convert_level(500)

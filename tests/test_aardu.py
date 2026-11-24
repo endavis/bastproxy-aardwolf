@@ -6,7 +6,7 @@ import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
 
-from aardwolf.libs.aardu import (
+from aardwolf._libs.aardu import (
     CLASSABB,
     CLASSABBREV,
     DAMAGES,
