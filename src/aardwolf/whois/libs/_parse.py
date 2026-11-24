@@ -3,7 +3,7 @@
 from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
-from aardwolf.libs.aardu import CLASSABBREV, actual_level
+from aardwolf._libs.aardu import CLASSABBREV, actual_level
 
 WHOIS_COMMAND_REGEX = r"^(whoi|whois)$"
 HEADER_REGEX = r"^\[.*\]\s+.*\s*\((?P<sex>\w+)\s+\w+\)$"

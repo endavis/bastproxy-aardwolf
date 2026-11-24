@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from aardwolf.libs.itemu import (
+from aardwolf._libs.itemu import (
     COMMA_LAYOUTS,
     INVLAYOUT,
     ITEMFLAGS,

@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from aardwolf.libs.aardu import actual_level
+from aardwolf._libs.aardu import actual_level
 from aardwolf.whois.libs import (
     CLASSES_REGEX,
     END_REGEX,

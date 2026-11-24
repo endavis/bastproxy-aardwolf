@@ -10,7 +10,7 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-from aardwolf.libs.aardu import CLASSABBREV
+from aardwolf._libs.aardu import CLASSABBREV
 
 from ._db import StatsDb
 

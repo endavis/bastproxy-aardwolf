@@ -35,7 +35,7 @@ The plugin registers to `ev_libs.net.mud_gmcp_comm.quest` and reads the `action`
 - **start.** Clears the state and sets it from the message: `mobname`, `mobarea`, `mobroom` and
   `stimer` from `targ`, `area`, `room` and `timer`, `starttime` to now, `finishtime` and
   `killedtime` to -1, `failed` to 0 and `level` to the total level from GMCP
-  (`aardwolf.libs.aardu.actual_level_from_gmcp`). Raises `quest_start`.
+  (`aardwolf._libs.aardu.actual_level_from_gmcp`). Raises `quest_start`.
 - **killed.** Sets `killedtime` and raises `quest_killed`.
 - **comp.** Sets `finishtime`, merges every key of the message into the state and raises
   `quest_comp`.
@@ -67,7 +67,7 @@ Every payload is a plain dict copy; changing it does not change the saved state.
 | :--- | :--- |
 | events `aard_quest_*` | `ev_plugins.aardwolf.quest_*` |
 | `GMCP:comm.quest` | `ev_libs.net.mud_gmcp_comm.quest` |
-| `aardu.getactuallevel` and `GMCP.getv` | `aardwolf.libs.aardu.actual_level_from_gmcp` |
+| `aardu.getactuallevel` and `GMCP.getv` | `aardwolf._libs.aardu.actual_level_from_gmcp` |
 | `send.msg` echo of each message | a debug log line |
 | `plugin_quest_savestate` | the `save` plugin hook |
 | `events.eraise` | `plugins.core.events:event.raise` |

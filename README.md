@@ -22,7 +22,7 @@ pip install bastproxy-aardwolf
 ## Quick Start
 
 ```python
-from aardwolf.libs.aardu import convert_level
+from aardwolf._libs.aardu import convert_level
 
 convert_level(500)  # {'tier': 0, 'redos': 0, 'remort': 3, 'level': 98}
 ```

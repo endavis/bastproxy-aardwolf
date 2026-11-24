@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from aardwolf._libs.itemu import OBJECTTYPES
 from aardwolf.eq.libs import EVENT_INVENTORY_ADDED, EVENT_REMOVED, EVENT_TAKEN
 from aardwolf.itemkeep.libs import (
     EVENT_EQ_INVENTORY_ADDED,
@@ -21,7 +22,6 @@ from aardwolf.itemkeep.libs import (
     should_keep,
     type_name,
 )
-from aardwolf.libs.itemu import OBJECTTYPES
 
 SAMPLE_REPLIES = [
     "Keep status added to a test blade.",

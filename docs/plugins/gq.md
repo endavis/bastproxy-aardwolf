@@ -65,7 +65,7 @@ refreshed by a new `gq check`.
   after a restart.
 - **Disconnect.** All the groups are turned off and the kill flag is cleared.
 - **Level.** The `level` of the state is the total level from
-  `aardwolf.libs.aardu.actual_level_from_gmcp`, read when the gquest is joined.
+  `aardwolf._libs.aardu.actual_level_from_gmcp`, read when the gquest is joined.
 
 ## Events
 

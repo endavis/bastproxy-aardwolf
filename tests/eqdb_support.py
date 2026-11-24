@@ -25,7 +25,7 @@ def make_db(directory: Path) -> "Sqldb":
 
 def sample_item(serial: int = 1001) -> dict[str, Any]:
     """Return a made-up item the way itemid builds it, using the itemu parser."""
-    from aardwolf.libs.itemu import parse_item_data
+    from aardwolf._libs.itemu import parse_item_data
 
     header = parse_item_data(
         f"{serial}|25|5|1200|7|wield|glow,hum|tester|0|-1|0|0|0|40", "invheader"

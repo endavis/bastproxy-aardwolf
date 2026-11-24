@@ -13,7 +13,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
-from aardwolf.libs.aardu import actual_level_from_gmcp
+from aardwolf._libs.aardu import actual_level_from_gmcp
 
 from ..libs import (
     DB_NAME,

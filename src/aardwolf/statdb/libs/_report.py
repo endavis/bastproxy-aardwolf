@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
-from aardwolf.libs.aardu import convert_level
+from aardwolf._libs.aardu import convert_level
 
 from ._store import StatStore
 

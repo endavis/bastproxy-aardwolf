@@ -13,6 +13,7 @@ from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf._libs.aardu import actual_level
 from aardwolf.gq.libs import (
     CMDTYPE,
     EVENT_AVAILABLE,
@@ -28,7 +29,6 @@ from aardwolf.gq.libs import (
     EVENTS,
     TRIGGERS,
 )
-from aardwolf.libs.aardu import actual_level
 
 if TYPE_CHECKING:
     from aardwolf.gq.plugin._gq import GqPlugin

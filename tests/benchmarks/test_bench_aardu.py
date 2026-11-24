@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from aardwolf.libs.aardu import convert_level, parse_damage_line
+from aardwolf._libs.aardu import convert_level, parse_damage_line
 
 
 @pytest.mark.benchmark

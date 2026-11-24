@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
-from aardwolf.libs import aardu
+from aardwolf._libs import aardu
 
 PREFIX = "ev_plugins.aardwolf.gq_"
 EVENT_DECLARED = f"{PREFIX}declared"

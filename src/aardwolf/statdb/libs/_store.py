@@ -9,7 +9,7 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from aardwolf.libs.aardu import CLASSABB, convert_level
+from aardwolf._libs.aardu import CLASSABB, convert_level
 
 from ._db import StatsDb
 

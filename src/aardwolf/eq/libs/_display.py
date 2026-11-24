@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, NamedTuple
 
-from aardwolf.libs.itemu import ITEMFLAGS, ITEMFLAGSCOLORS, WEARLOCS, WEARLOCSREV
+from aardwolf._libs.itemu import ITEMFLAGS, ITEMFLAGSCOLORS, WEARLOCS, WEARLOCSREV
 
 OPTIONAL_SLOTS = frozenset({8, 9, 10, 11, 25, 28, 29, 30, 31, 32})
 SECOND_SLOT = WEARLOCSREV["second"]

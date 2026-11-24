@@ -49,7 +49,7 @@ loads `connect` too.
   `level_shloudconfirm`, because watch names are global. A bare `superhero` that fails is undone
   by the failure triggers.
 - **Starting a record.** A record has the type (`level` or `pup`), the level, the total level from
-  `aardwolf.libs.aardu.actual_level_from_gmcp`, the six stats at 0, every gain at 0, `starttime`
+  `aardwolf._libs.aardu.actual_level_from_gmcp`, the six stats at 0, every gain at 0, `starttime`
   and `finishtime` -1. A powerup takes its level from `char.status.level`. The plugin turns the
   `linfo` group on and registers `_finish` on the core empty-line trigger
   (`t_plugins.core.triggers_emptyline`).
@@ -101,7 +101,7 @@ record.
 | :--- | :--- |
 | events `aard_level_*` | `ev_plugins.aardwolf.level_*` |
 | `GMCP:char.status` and `GMCP:char.base` | `ev_libs.net.mud_gmcp_char.status` and `.base` |
-| `aardu.getactuallevel` and `GMCP.getv` | `aardwolf.libs.aardu.actual_level_from_gmcp` and `libs.net.protocols:gmcp.value.get` |
+| `aardu.getactuallevel` and `GMCP.getv` | `aardwolf._libs.aardu.actual_level_from_gmcp` and `libs.net.protocols:gmcp.value.get` |
 | `triggers.togglegroup` | `plugins.core.triggers:group.toggle.enable` |
 | `setting.change` and `setting.gets` | `plugins.core.settings:setting.set` and `setting.get` |
 | `trigger_emptyline` event | `plugins.core.triggers:trigger.register` on the empty-line trigger id |

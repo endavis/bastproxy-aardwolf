@@ -88,7 +88,7 @@ state, which keeps the stat lines at the top level.
 | event `aard_whois` | `ev_plugins.aardwolf.whois_received` |
 | `triggers.togglegroup` | `plugins.core.triggers:group.toggle.enable` |
 | `send.msg` echo of the state | a debug log line |
-| `aardu.classabb()` | `aardwolf.libs.aardu.CLASSABBREV` |
+| `aardu.classabb()` | `aardwolf._libs.aardu.CLASSABBREV` |
 | `plugin_whois_savestate` | the `save` plugin hook |
 | `GMCP.getv` | `libs.net.protocols:gmcp.value.get` |
 | a whois sent by a plugin | a queued command type, so the plugin parses it too |

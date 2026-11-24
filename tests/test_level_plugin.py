@@ -13,8 +13,8 @@ from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
+from aardwolf._libs.aardu import actual_level
 from aardwolf.level.libs import EVENTS
-from aardwolf.libs.aardu import actual_level
 
 if TYPE_CHECKING:
     from aardwolf.level.plugin._level import LevelPlugin

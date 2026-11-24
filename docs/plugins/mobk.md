@@ -48,7 +48,7 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
   `mobk_flee` and `mobk_retreat` clear the name and the damage. A damage line with no name set
   takes the enemy from the line. `mobk_gold` sets the name from the corpse when none is set.
 - **Damage.** `mobk_damage` and `mobk_damage2` parse the line with
-  `aardwolf.libs.aardu.parse_damage_line` and add it to `damage`, by damage type, as `hits`, `misses`
+  `aardwolf._libs.aardu.parse_damage_line` and add it to `damage`, by damage type, as `hits`, `misses`
   and `damage`. A critical hit has a leading `*`, which both triggers accept (before `Your`, and for
   the counted form before or after the `[n]`). A live fight gave `*Your stab ERADICATES a lazy pupil.
   [40]` next to `Your stab mars a lazy pupil. [26]`; both add to the `stab` damage. The first damage
@@ -69,7 +69,7 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
   constant `EQ_WORN_API` of the `mobk` libs, which the eq plugin matches.
   The result may be an object with a `serial` attribute or a mapping with a `serial` key.
 - **Room and level.** `room_id` is GMCP `room.info.num`, -1 when it is missing. `level` is the
-  total level from `aardwolf.libs.aardu.actual_level_from_gmcp`.
+  total level from `aardwolf._libs.aardu.actual_level_from_gmcp`.
 
 ## Commands
 
@@ -99,7 +99,7 @@ it.
 | :--- | :--- |
 | event `aard_mobkill` | `ev_plugins.aardwolf.mobk_kill` |
 | `GMCP:char.status` | `ev_libs.net.mud_gmcp_char.status` |
-| `aardu.parsedamageline`, `aardu.getactuallevel` and `GMCP.getv` | `aardwolf.libs.aardu.parse_damage_line`, `actual_level_from_gmcp` and `libs.net.protocols:gmcp.value.get` |
+| `aardu.parsedamageline`, `aardu.getactuallevel` and `GMCP.getv` | `aardwolf._libs.aardu.parse_damage_line`, `actual_level_from_gmcp` and `libs.net.protocols:gmcp.value.get` |
 | `colors.stripansi` on GMCP | `plugins.core.colors:colorcode.strip` |
 | `eq.getworn` | `plugins.aardwolf.eq:eq.worn.get`, when it exists |
 | `send.msg` echoes | debug log lines |

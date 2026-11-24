@@ -6,7 +6,7 @@ import textwrap
 from collections.abc import Callable, Mapping
 from typing import Any, NamedTuple
 
-from aardwolf.libs.itemu import OBJECTTYPES, OBJECTTYPESREV, WEARLOCS, parse_item_data
+from aardwolf._libs.itemu import OBJECTTYPES, OBJECTTYPESREV, WEARLOCS, parse_item_data
 
 # the APIs of the plugins itemid calls, by name: a plugin never imports another plugin
 API_EQ_ITEM_GET = "plugins.aardwolf.eq:item.get"

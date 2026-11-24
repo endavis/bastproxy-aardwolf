@@ -13,7 +13,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
-from aardwolf.libs.itemu import WEARLOCS
+from aardwolf._libs.itemu import WEARLOCS
 
 from ..libs import (
     API_A102_TOGGLE,

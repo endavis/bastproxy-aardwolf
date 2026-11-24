@@ -181,9 +181,9 @@ def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
 
 def test_plugin_imports_no_other_plugin() -> None:
-    """A plugin reaches another through its API: only aardwolf.libs and its own package."""
+    """A plugin reaches another through its API: only aardwolf._libs and its own package."""
     root = Path(aardwolf.__file__).resolve().parent / "itemkeep"
-    own = ("aardwolf.libs", "aardwolf.itemkeep")
+    own = ("aardwolf._libs", "aardwolf.itemkeep")
     for path in root.rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
