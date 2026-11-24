@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795528490733,
+  "lastUpdate": 1795545600776,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2241,6 +2241,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.312751778844442e-7",
             "extra": "mean: 3.7770344988147437 usec\nrounds: 141744"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e5554dcc401fe1b138625cabb63c556b2924a8c4",
+          "message": "chore: synchronize with pyproject-template f641847 (merges PR #116, addresses #115)\n\n* chore: synchronize with pyproject-template 62ef0c9\n\nSyncs from 1494b03 to 62ef0c9. Syncs the following template improvements:\n- endavis/pyproject-template#1270 (project name and repo URLs built from the PyPI and repo names when configuring)\n- endavis/pyproject-template#1271, #1276 (documented-path checks)\n- endavis/pyproject-template#1273, #1277 (mutmut config checks for files mutmut does not copy)\n- endavis/pyproject-template#1279 (test_docs_dev_sync scans committed markdown only)\n- endavis/pyproject-template#1281, #1310 (branch checks judged where git runs, following only an unconditional cd chain)\n- endavis/pyproject-template#1286 (portable-tests rule)\n- endavis/pyproject-template#1289 (doit stdout and stderr in UTF-8)\n- endavis/pyproject-template#1290 (.gitattributes with LF line endings)\n- endavis/pyproject-template#1294 (test git fixtures isolated from global config)\n- endavis/pyproject-template#1295, #1296, #1309 (doit guard without a POSIX shell, Windows CI doit steps)\n- endavis/pyproject-template#1298 (publish token via UV_PUBLISH_TOKEN)\n- endavis/pyproject-template#1300, #1303, #1304, #1307 (shipped tooling type-clean under variant mypy configs)\n\nThe aardwolf names are kept in the merged files. Dev-dependency floors\nraised to the template's (ruff, pymdown-extensions, types-pyyaml) and\nuv.lock relocked (specifiers only).\n\nAddresses #115\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* chore: synchronize with pyproject-template f641847\n\nMoves the sync point from 62ef0c9 to f641847 for\nendavis/pyproject-template#1312: the protected-branch merge check judges\nevery merge in a command. The hook and its test are taken as is.\n\nAddresses #115\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T18:39:22Z",
+          "tree_id": "ddfd9f654b85c27bc8a80b83ba82dd5e4c043bb5",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/e5554dcc401fe1b138625cabb63c556b2924a8c4"
+        },
+        "date": 1795545600435,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2525031.393563663,
+            "unit": "iter/sec",
+            "range": "stddev: 4.7025571175536507e-8",
+            "extra": "mean: 396.0346800237861 nsec\nrounds: 177905"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 164940.66835962987,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000001433985805374138",
+            "extra": "mean: 6.062786151803636 usec\nrounds: 174521"
           }
         ]
       }
