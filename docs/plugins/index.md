@@ -47,6 +47,7 @@ lists every discovered plugin, loaded or not.
 | [itemkeep](itemkeep.md) | `plugins.aardwolf.itemkeep` | Keeps items of chosen types with a hidden `keep` when they reach the inventory. |
 | [aarch](aarch.md) | `plugins.aardwolf.aarch` | Lists the Aarchaeology pieces still needed to complete the set, from the items eq has cached. |
 | [idle](idle.md) | `plugins.aardwolf.idle` | Sends `look` when Aardwolf warns that the character is idle, so it is not disconnected. |
+| [daily](daily.md) | `plugins.aardwolf.daily` | Raises an event when the daily blessing can be received, and shows when the next one is with `next`. |
 | [quest](quest.md) | `plugins.aardwolf.quest` | Turns the GMCP quest messages into quest events and keeps the current quest. |
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 | [level](level.md) | `plugins.aardwolf.level` | Detects levels, powerups, hero, superhero, remort and tier from the MUD output and raises them as events. |
