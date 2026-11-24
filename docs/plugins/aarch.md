@@ -90,8 +90,10 @@ read the cache.
 
 ## Kept as it was
 
-A pamphlet numbered N counts toward piece N, as in the old plugin. Please confirm that this is how
-the Collectable Pamphlets work on Aardwolf.
+A pamphlet numbered N counts toward piece N, as in the old plugin. Aardwolf's
+`help aarchaeology-rewards` pairs each piece with its pamphlet that way
+(`(Aarchaeology) An Ancient Skull - Collectable Pamphlet #2`), and the 50 names in the table match
+that help.
 
 ## Known gaps
 
