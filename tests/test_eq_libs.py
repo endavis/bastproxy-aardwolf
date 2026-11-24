@@ -583,3 +583,21 @@ def test_parse_colorcoded_line_keeps_ansi_codes_beside_escaped_ones() -> None:
     assert parsed is not None
     assert parsed["cname"] == "@Ra @Wbag@w"
     assert parsed["name"] == "a bag"
+
+
+def vault_read(state: EqState) -> bool:
+    """The flag, read through a call so mypy does not narrow it between the steps."""
+    return state.vault_read
+
+
+def test_vault_read_follows_the_vault_commit() -> None:
+    state = EqState()
+    assert vault_read(state) is False
+    state.commit(INVENTORY, [item(1)])
+    assert vault_read(state) is False
+    state.commit(VAULT, [item(2)])
+    assert vault_read(state) is True
+    state.reset()
+    assert vault_read(state) is False
+    state.commit(VAULT, [])
+    assert vault_read(state) is True

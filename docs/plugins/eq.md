@@ -18,8 +18,8 @@ inventory, in a bag, on the keyring or in the vault. It reads them from Aardwolf
 keeps them current from the `{invmon}` and `{invitem}` lines. It raises an event for each change
 and answers questions about the items through APIs. The state is kept in memory only.
 
-This is the first of two ports of the old `eq` plugin. The `eq` and `inv` display commands follow
-in a second one; see [Not ported yet](#not-ported-yet).
+It also shows the worn and carried items as tables, with the `eq` and `inv` commands; see
+[Commands](#commands).
 
 ## Loading
 
@@ -164,18 +164,8 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | `#bp.aardwolf.eq.icache <serial>` | shows `Item <serial>` and one sorted `key: value` line per field, or says it is not cached or not a serial |
 | `#bp.aardwolf.eq.get <item> [words]` | with a known serial, fetches the item; otherwise sends `get <item> [words]`, quoting words that hold spaces |
 | `#bp.aardwolf.eq.put <item> [bag]` | with a known item and no bag, puts it back where it came from; with a known bag serial, puts it there; otherwise sends `put <item> [words]` |
-
-## Not ported yet
-
-The two display commands are left for a second pull request, tracked in
-[#97](https://github.com/endavis/bastproxy-aardwolf/issues/97):
-
-- `#bp.aardwolf.eq.eq`: the worn table, with `-n/--noflags`, `-c/--score`, `-s/--serial`, the
-  location colours, hiding the optional locations and slots 23 and 26 when slot 25 is filled.
-- `#bp.aardwolf.eq.inv [container]`: the header, the flag columns, the level, serial and score
-  columns, identical items grouped as `(  n)` with serial `Many`, `-g/--nogroup`, the keyring and
-  vault counts, and the messages for an empty container and a vault that was not read.
-- The `Item.score` default of `Unkn`, which only the display used.
+| `#bp.aardwolf.eq.eq [-n] [-c] [-s]` | shows what is worn, one row per slot with its location, flags, level and name. `-n` leaves out the flags, `-c` adds the score and `-s` the serial. Empty optional locations (the medals, `second`, the floating, tattoo, `above`, `portal` and `sleeping` slots) are hidden, and so are the empty `shield` and `hold` while `second` is filled |
+| `#bp.aardwolf.eq.inv [container] [-n] [-c] [-s] [-g]` | shows `Inventory` (the default), `Worn`, `Keyring`, `Vault` or the bag with that serial; names are not case sensitive. Identical items (same name, flags and level) fold into one row counted as `(  n)`, with the serial `Many` under `-s`; `-g` turns grouping off. The inventory ends with the keyring count and, once the vault was read and it holds items, the vault counts. An empty container says `You have nothing in <container>`, an unread vault says to go to a bank and use `#bp.aardwolf.eq.refresh`, and an unknown container says `container <x> does not exist` |
 
 ## From the old plugin
 
@@ -196,7 +186,8 @@ The two display commands are left for a second pull request, tracked in
 | event `eq_remove_<cid>_<serial>` | `ev_plugins.aardwolf.eq_taken`, with `serial` and `container` |
 | `cmdq.addcmdtype`, `cmdq.addtoqueue` | `plugins.core.mudcmds:type.add`, `command.queue` |
 | `afterfirstactive` | the `character_active` plugin hook |
-| commands `eq`, `inv` | not ported yet |
+| commands `eq`, `inv` | the same names |
+| `Item.score` default `Unkn` | a display-only default, `Unkn` when an item has no `score` |
 | commands `refresh`, `get`, `put`, `icache` | the same names |
 
 ## Changes from the old plugin
@@ -234,6 +225,24 @@ The two display commands are left for a second pull request, tracked in
 - **Fixed: a put into the inventory** sent `put <serial> Inventory`; now it only fetches.
 - **Fixed: `dead`.** The handler emptied the containers without a read and nothing raised its
   event. The state is cleared on disconnect, and read again when the character is active.
+- **Fixed: vault counts compared as strings.** The old inventory showed the vault line even for an
+  empty vault (a string is always above an int in Python 2), and the keep-flagged line compared the
+  total with the item count as text, so `10` was not above `9`. Both compare ints now.
+- **Dropped: the Python 2 `print item`** in the worn row, which ran inside a broad `except`.
+- **Fixed: the unread-vault message** named `#bp.eq.refresh -c Vault`, an option `refresh` never
+  had. It now says `#bp.aardwolf.eq.refresh`.
+- **Fixed: the vault message** was one entry holding newlines and a trailing blank; it is separate
+  lines now.
+- **Fixed: `@x` with no digits** in the header flag cells and the location cell, which the colour
+  tokenizer drops as invalid. They use `@w`.
+- **Fixed: the rule line** left its blue colour on; it ends with `@w`.
+- **Dropped: the debug `send.msg` output** that `build`, `cmd_eq` and `cmd_inv` printed on every run.
+- **Fixed: bags by serial.** The old command turned the container into an int to find a bag; bag
+  ids are strings now, and the serial is normalised.
+- **Changed: container names are not case sensitive,** so `inv vault` and `inv keyring` work.
+- **Changed: a character with no vault** sees an empty vault, not "has not been refreshed". The
+  state has a new `vault_read` flag, set when a vault read ends (including the no-vault answer) and
+  cleared on reset, because `vault_counts` is `None` in both cases.
 - **Dropped: dead code.** The four `badinvdata` triggers, which had no callbacks, `checkvaliditem`,
   `queue`, `currentcmd` and the `*all` flags.
 - **Dropped: `find_item` identifiers.** The old plugin mapped the word `tokenbag` to the serial of

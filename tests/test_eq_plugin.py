@@ -884,3 +884,88 @@ def test_invmon_and_invitem_lines_are_kept_from_the_client(env: Env) -> None:
     assert fake.hidden == ["{invmon}2,2001,-1,24", "{invitem}6001,,a new thing,3,6,0,-1,-1"]
     assert fake.shown == ["a later line"]
     assert env.plugin.state.items[6001]["name"] == "a new thing"
+
+
+# the eq and inv commands
+
+
+def run_inv(env: Env, container: str = "Inventory", **flags: bool) -> list[str]:
+    """Run the inv command with the arguments it would get and return its lines."""
+    env.fake.args = {
+        "container": container,
+        "noflags": False,
+        "score": False,
+        "serial": False,
+        "nogroup": False,
+        **flags,
+    }
+    result = env.plugin._command_inv()
+    assert result.success is True
+    return [str(line) for line in result.message]
+
+
+def test_eq_lists_worn_items_with_each_flag(env: Env) -> None:
+    env.fill()
+    for flags in ({}, {"noflags": True}, {"score": True}, {"serial": True}):
+        env.fake.args = {"noflags": False, "score": False, "serial": False, **flags}
+        result = env.plugin._command_eq()
+        assert result.success is True
+        lines = [str(line) for line in result.message]
+        assert any("wielded" in line and "a test sword" in line for line in lines)
+        assert any("back" in line and "a test cloak" in line for line in lines)
+    assert any("1001" in line for line in lines)
+
+
+def test_inv_shows_inventory_with_keyring_and_vault_counts(env: Env) -> None:
+    env.fill()
+    text = "\n".join(run_inv(env))
+    assert "a test potion" in text
+    assert "a test bag" in text
+    assert "** Item(s) on Keyring **" in text
+    assert "@Y1@w of @Y50@w items stored in your vault" in text
+
+
+def test_inv_bag_keyring_and_worn(env: Env) -> None:
+    env.fill()
+    assert "a test gem" in "\n".join(run_inv(env, "2002"))
+    keyring = run_inv(env, "keyring")
+    assert keyring[0] == "Items in Keyring:"
+    assert "a test key" in "\n".join(keyring)
+    assert run_inv(env, "Worn")[0] == "You are using:"
+
+
+def test_inv_vault_before_and_after_a_read(env: Env) -> None:
+    assert "#bp.aardwolf.eq.refresh" in "\n".join(run_inv(env, "Vault"))
+    env.fake.feed([NO_VAULT])
+    lines = run_inv(env, "vault")
+    assert "You have nothing in Vault" in lines
+    assert not any("stored in your vault" in line for line in lines)
+
+
+def test_inv_vault_with_items_shows_counts(env: Env) -> None:
+    env.fill()
+    text = "\n".join(run_inv(env, "Vault"))
+    assert "a test ring" in text
+    assert "stored in your vault" in text
+
+
+def test_inv_unknown_container(env: Env) -> None:
+    env.fill()
+    assert run_inv(env, "9999") == ["container 9999 does not exist"]
+    assert run_inv(env, "nothing") == ["container nothing does not exist"]
+
+
+def test_inv_empty_bag(env: Env) -> None:
+    env.fake.feed(["{invdata}", BAG, "{/invdata}"])
+    env.fake.feed(["{invdata 2002}", "{/invdata}"])
+    assert "You have nothing in 2002" in run_inv(env, "2002")
+
+
+def test_inv_grouping_and_nogroup(env: Env) -> None:
+    twin = "2003,,a test potion,5,8,0,-1,-1"
+    env.fake.feed(["{invdata}", POTION, twin, "{/invdata}"])
+    grouped = run_inv(env)
+    assert len([line for line in grouped if "a test potion" in line]) == 1
+    assert any(line.startswith("(  2) ") for line in grouped)
+    ungrouped = run_inv(env, nogroup=True)
+    assert len([line for line in ungrouped if "a test potion" in line]) == 2

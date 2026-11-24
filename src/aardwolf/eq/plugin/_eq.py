@@ -29,19 +29,25 @@ from ..libs import (
     PLACE_KEYS,
     TRIGGERS,
     VAULT,
+    VAULT_NOT_READ,
     WORN,
+    DisplayOptions,
     EqState,
     InvmonOutcome,
     TriggerSpec,
     TypeSpec,
+    container_lines,
     container_type,
     get_command,
+    inventory_extra_lines,
     parse_item_line,
     put_command,
     quote_arg,
     tag_container,
     to_serial,
     type_for,
+    vault_count_lines,
+    worn_lines,
 )
 
 _CALLBACKS = {
@@ -519,3 +525,66 @@ class EqPlugin(BasePlugin):
         words = " ".join(quote_arg(str(word)) for word in [args.get("item"), *others])
         self._send(f"put {words}")
         return CommandResult(True, [f"sending 'put {words}'"])
+
+    def _resolve_container(self, text: str) -> str | None:
+        """Return the id of the container a name or serial points at, or None."""
+        for name in (WORN, INVENTORY, KEYRING, VAULT):
+            if text.lower() == name.lower():
+                return name
+        serial = to_serial(text)
+        if serial is not None and self.state.has_container(str(serial)):
+            return str(serial)
+        return None
+
+    @AddCommand(format=False, preamble=False)
+    @AddParser(description="show the equipment worn")
+    @AddArgument("-n", "--noflags", help="do not show the item flags", action="store_true")
+    @AddArgument("-c", "--score", help="show the item score", action="store_true")
+    @AddArgument("-s", "--serial", help="show the item serial", action="store_true")
+    def _command_eq(self) -> CommandResult:
+        """Show what the character wears."""
+        args = self._args()
+        opts = DisplayOptions(
+            noflags=bool(args.get("noflags")),
+            score=bool(args.get("score")),
+            serial=bool(args.get("serial")),
+        )
+        return CommandResult(True, worn_lines(list(self.state.worn), self.state.items, opts))
+
+    @AddCommand(format=False, preamble=False)
+    @AddParser(description="show the inventory, or another container")
+    @AddArgument(
+        "container",
+        help="the container: Inventory, Worn, Keyring, Vault or the serial of a bag",
+        nargs="?",
+        default=INVENTORY,
+    )
+    @AddArgument("-n", "--noflags", help="do not show the item flags", action="store_true")
+    @AddArgument("-c", "--score", help="show the item score", action="store_true")
+    @AddArgument("-s", "--serial", help="show the item serial", action="store_true")
+    @AddArgument("-g", "--nogroup", help="do not group like items", action="store_true")
+    def _command_inv(self) -> CommandResult:
+        """Show the items in a container."""
+        args = self._args()
+        text = str(args.get("container", INVENTORY))
+        opts = DisplayOptions(
+            noflags=bool(args.get("noflags")),
+            score=bool(args.get("score")),
+            serial=bool(args.get("serial")),
+            nogroup=bool(args.get("nogroup")),
+        )
+        cid = self._resolve_container(text)
+        if cid is None:
+            return CommandResult(True, [f"container {text} does not exist"])
+        state = self.state
+        if cid == WORN:
+            return CommandResult(True, worn_lines(list(state.worn), state.items, opts))
+        if cid == VAULT and not state.vault_read:
+            return CommandResult(True, list(VAULT_NOT_READ))
+        lines = container_lines(cid, state.serials(cid), state.items, opts)
+        if cid == VAULT and state.vault_counts is not None:
+            lines.extend(vault_count_lines(state.vault_counts))
+        elif cid == INVENTORY:
+            counts = state.vault_counts if state.vault_read else None
+            lines.extend(inventory_extra_lines(len(state.serials(KEYRING)), counts))
+        return CommandResult(True, lines)

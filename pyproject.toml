@@ -305,6 +305,7 @@ pytest_add_cli_args_test_selection = [
     "tests/test_connect_plugin.py",
     "tests/test_cp_libs.py",
     "tests/test_cp_plugin.py",
+    "tests/test_eq_display.py",
     "tests/test_eq_libs.py",
     "tests/test_eq_plugin.py",
     "tests/test_eqdb_libs.py",
