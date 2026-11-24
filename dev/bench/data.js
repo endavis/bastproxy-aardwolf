@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795520531272,
+  "lastUpdate": 1795525886624,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2051,6 +2051,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.947378266222987e-7",
             "extra": "mean: 4.496533594679529 usec\nrounds: 115301"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ebcfc5543f13b4cf568c227b7bb04052b80f4e2",
+          "message": "feat: port the ct plugin (merges PR #108, addresses #81)\n\n* feat: port the ct plugin\n\nAdd plugins.aardwolf.ct, the combat tracker of the old bastproxy. After each\nmob kill it queues a table of the damage done by damage type, with hits,\nmisses, time and xp, and shows it on the next empty line. It listens to the\nmobk kill event and imports no other plugin.\n\nThe port fixes the Python 2 only key sort and integer division, the error on\na kill with no damage, a dead key skip, and unescaped mob names.\n\nAddresses #81\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: count critical hits in mobk's damage\n\nAardwolf marks a critical hit with a leading \"*\":\n\"*Your stab ERADICATES a lazy pupil. [40]\". mobk's damage triggers were\nanchored on \"^Your \" and \"^[n] Your \", so a crit never reached the\nkill's damage, and on a live character ct printed an empty table for a\nkill whose only hit was a crit. aardu.parse_damage_line also kept the\n\"*\" in the damage type (\"*Your stab\").\n\nBoth triggers now accept an optional \"*\" before the hits bracket or\nbefore \"Your\", and parse_damage_line strips it. Tested with the two\nlines captured live.\n\nBatched in the PR for #81, whose ct port showed the gap.\n\nAddresses #81\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T13:10:51Z",
+          "tree_id": "55f274164d54ac5c21f69a9c8b2bd5afe4dd68ed",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/9ebcfc5543f13b4cf568c227b7bb04052b80f4e2"
+        },
+        "date": 1795525886220,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3144820.323990414,
+            "unit": "iter/sec",
+            "range": "stddev: 5.172583751537467e-8",
+            "extra": "mean: 317.9831904453974 nsec\nrounds: 192716"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 168735.4783501897,
+            "unit": "iter/sec",
+            "range": "stddev: 8.71174062015769e-7",
+            "extra": "mean: 5.926435920752975 usec\nrounds: 176679"
           }
         ]
       }
