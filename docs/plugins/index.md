@@ -63,6 +63,7 @@ lists every discovered plugin, loaded or not.
 | [skills](skills.md) | `plugins.aardwolf.skills` | Keeps the character's skills, spells and recoveries up to date from `slist` and raises events when an affect or recovery turns on or off. |
 | [repop](repop.md) | `plugins.aardwolf.repop` | Sends a message to a channel when an area repops, from GMCP `comm.repop`. |
 | [iceage](iceage.md) | `plugins.aardwolf.iceage` | Raises an event, with the minutes left, for each Ice Age and reboot countdown line. |
+| [statmn](statmn.md) | `plugins.aardwolf.statmn` | Shows a report of the recent quests, campaigns, global quests and mob kills, and a message when a quest, campaign, global quest or level ends. |
 
 Libraries that plugins share, such as `aardwolf.libs.aardu` and `aardwolf.libs.itemu`, are documented in the
 [API Reference](../reference/api.md).

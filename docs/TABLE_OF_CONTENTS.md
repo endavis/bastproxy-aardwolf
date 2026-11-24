@@ -49,6 +49,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The skills Plugin](plugins/skills.md) - Keep the skills, spells and recoveries of an Aardwolf character up to date from slist and raise their changes as events
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The statmn Plugin](plugins/statmn.md) - Show a report of recent Aardwolf stats and a message when a quest, campaign, global quest or level ends
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
@@ -144,6 +145,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The skills Plugin](plugins/skills.md) - Keep the skills, spells and recoveries of an Aardwolf character up to date from slist and raise their changes as events
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The statmn Plugin](plugins/statmn.md) - Show a report of recent Aardwolf stats and a message when a quest, campaign, global quest or level ends
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 <!-- END:audience=contributors -->
@@ -265,6 +267,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The scanh Plugin](plugins/scanh.md) - Highlight the campaign, global quest and quest mobs in the Aardwolf scan output
 - [The skills Plugin](plugins/skills.md) - Keep the skills, spells and recoveries of an Aardwolf character up to date from slist and raise their changes as events
 - [The statdb Plugin](plugins/statdb.md) - Record Aardwolf character stats, quests, campaigns, global quests, levels and mob kills in a database, and report on them
+- [The statmn Plugin](plugins/statmn.md) - Show a report of recent Aardwolf stats and a message when a quest, campaign, global quest or level ends
 - [The whois Plugin](plugins/whois.md) - Parse the output of the Aardwolf whois command into a saved state and raise it as an event
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Usage Guide](usage/basics.md) - Run bastproxy with the Aardwolf plugins and load them from a client
