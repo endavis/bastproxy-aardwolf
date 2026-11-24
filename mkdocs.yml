@@ -114,6 +114,7 @@ nav:
       - eq: plugins/eq.md
       - itemid: plugins/itemid.md
       - itemkeep: plugins/itemkeep.md
+      - idle: plugins/idle.md
       - quest: plugins/quest.md
       - whois: plugins/whois.md
       - level: plugins/level.md
