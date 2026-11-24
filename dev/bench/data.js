@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795526828051,
+  "lastUpdate": 1795527924136,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2165,6 +2165,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.130550839181077e-7",
             "extra": "mean: 3.7572811188221213 usec\nrounds: 141024"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9a7d1950b0e41ba3ba38710b74b13e674a659af9",
+          "message": "chore: update the bastproxy core pin in uv.lock (merges PR #113, addresses #111)\n\nMove the bastproxy pin from a55e622a to 9acaff5e, which sends plugin\noutput after the MUD packet that triggered it (endavis/bastproxy#747).\nOnly the bastproxy entry in uv.lock changes.\n\nAddresses #111\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T13:44:47Z",
+          "tree_id": "cf52608ee5c6d295cfa2da2a8a0a82510e4a5933",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/9a7d1950b0e41ba3ba38710b74b13e674a659af9"
+        },
+        "date": 1795527923580,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6011541.602817084,
+            "unit": "iter/sec",
+            "range": "stddev: 1.9140042647945676e-8",
+            "extra": "mean: 166.34668211085614 nsec\nrounds: 61943"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 298863.7890815225,
+            "unit": "iter/sec",
+            "range": "stddev: 6.748406523082505e-7",
+            "extra": "mean: 3.346005894769758 usec\nrounds: 157258"
           }
         ]
       }
