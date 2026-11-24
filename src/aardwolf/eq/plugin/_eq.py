@@ -26,6 +26,7 @@ from ..libs import (
     INVENTORY,
     INVMON_OPTION,
     KEYRING,
+    PLACE_KEYS,
     TRIGGERS,
     VAULT,
     WORN,
@@ -448,10 +449,14 @@ class EqPlugin(BasePlugin):
         item = self.state.items.get(number) if number is not None else None
         if item is None:
             return False
-        item.update({key: value for key, value in attributes.items() if key != "serial"})
+        skipped = PLACE_KEYS | {"serial"}
+        item.update({key: value for key, value in attributes.items() if key not in skipped})
         item["hasbeenided"] = True
         if self.api("libs.api:api.exists")(API_EQDB_SAVE):
-            self.api(API_EQDB_SAVE)(copy.deepcopy(item))
+            # eqdb reads "container" as the container detail, not as the place
+            saved = {key: value for key, value in item.items() if key not in PLACE_KEYS}
+            saved |= {key: value for key, value in attributes.items() if key != "serial"}
+            self.api(API_EQDB_SAVE)(copy.deepcopy(saved))
         return True
 
     # commands

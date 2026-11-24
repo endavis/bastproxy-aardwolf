@@ -23,6 +23,7 @@ from aardwolf.eq.libs import (
     EVENTS,
     HIDE_MAX_LINES,
 )
+from aardwolf.eqdb.libs import ItemStore
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -746,6 +747,28 @@ def test_identify_add_merges_and_saves_only_when_eqdb_exists(env: Env) -> None:
     assert plugin.state.items[1001]["name"] == "a test sword"
     assert not plugin._api_item_identify_add(404, {"score": 1})
     assert len(env.fake.saved) == 1
+
+
+def test_identify_add_keeps_the_place_and_saves_the_container_detail(env: Env) -> None:
+    env.fill()
+    plugin = env.plugin
+    env.fake.existing.add("plugins.aardwolf.eqdb:item.save")
+    detail = {"capacity": 100, "heaviest": 20, "holding": 3, "itemsinside": 2, "totalweight": 30}
+    assert plugin._api_item_identify_add(2001, {"container": detail})
+    cached = plugin.state.items[2001]
+    assert cached["container"] == "Inventory"
+    assert cached["origcontainer"] is None
+    assert cached["hasbeenided"] is True
+    saved = env.fake.saved[0]
+    assert saved["container"] == detail
+    assert saved["serial"] == 2001
+    assert "origcontainer" not in saved
+    assert "hasbeenided" not in saved
+    assert ItemStore._detail_rows("container", saved["container"]) == [detail]
+    plain = plugin.state.items[1001]["container"]
+    assert plugin._api_item_identify_add(1001, {"score": 1})
+    assert "container" not in env.fake.saved[1]
+    assert plugin.state.items[1001]["container"] == plain
 
 
 # commands
