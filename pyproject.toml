@@ -34,18 +34,18 @@ dev = [
     "pytest>=9.2.0",
     "pytest-cov>=5.0",
     "pytest-xdist>=3.5",
-    "ruff>=0.17.4",
+    "ruff>=0.17.5",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "mkdocs-material>=9.8.1",
     "mkdocstrings[python]>=1.0.8",
-    "pymdown-extensions>=13.0",
+    "pymdown-extensions>=13.1",
     "codespell>=2.4.3",
     "pyproject-fmt>=2.30.6",
     "commitizen>=4.19.3",
     "pyright>=1.1.414",
     "pyyaml>=6.0",
-    "types-pyyaml>=6.0.12.20261103",
+    "types-pyyaml>=6.0.12.20261113",
     "vulture>=2.11",
     "radon>=6.0",
     "pytest-benchmark>=5.3.1",
@@ -294,7 +294,10 @@ source_paths = ["src/"]
 # the rest of the repository. One test there that imports tools or reads a repo
 # file stops the stats run, and no mutant gets checked (#873).
 # tests/test_mutmut_config.py fails when a test that imports the package is
-# missing from this list.
+# missing from this list, or when a listed one imports or reads (a static scan)
+# something mutmut does not copy; a data file it needs goes in also_copy as the narrowest
+# directory that holds it. A file entry under a subdirectory crashes mutmut 3.8, which
+# does not create its parent directory (a top-level file works) (#1275).
 pytest_add_cli_args_test_selection = [
     "tests/test_a102_options.py",
     "tests/test_a102_plugin.py",
