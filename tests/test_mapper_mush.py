@@ -3,6 +3,7 @@
 import hashlib
 import os
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
@@ -109,8 +110,11 @@ def test_read_is_read_only(tmp_path: Path) -> None:
 
 
 def test_path_with_special_characters(tmp_path: Path) -> None:
-    """A path with spaces, ? and # is opened as a file path, not as a URI query."""
-    folder = tmp_path / "my dir #1?"
+    """A path with spaces, #, % and ? is opened as a file path, not as a URI query.
+
+    Windows does not allow ``?`` in a file name, so it is left out there.
+    """
+    folder = tmp_path / ("my dir #1%" + ("" if sys.platform == "win32" else "?"))
     folder.mkdir()
     path = build_mush_db(folder / "Aardwolf.db")
     assert len(read_mush_db(path).rooms) == 5
