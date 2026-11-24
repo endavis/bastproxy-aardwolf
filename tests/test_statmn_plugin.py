@@ -24,8 +24,10 @@ TIMER = f"{PLUGIN_ID}_report"
 
 
 def _verify(value: str, vtype: str) -> int:
-    """A stand-in for value.verify with the timelength type: ``<n>m`` or ``<n>s``."""
+    """A stand-in for value.verify with the timelength type: ``<n>``, ``<n>m`` or ``<n>s``."""
     assert vtype == "timelength"
+    if value.isdigit():
+        return int(value)
     if value[:-1].isdigit() and value[-1] in "ms":
         return int(value[:-1]) * (60 if value[-1] == "m" else 1)
     raise ValueError(f"{value} is not a time length")
@@ -195,54 +197,86 @@ def test_plugin_imports_no_other_plugin() -> None:
                     )
 
 
-def test_after_load_adds_the_settings_and_starts_the_timer(env: Env) -> None:
+@pytest.fixture
+def timed(env: Env) -> Env:
+    """The plugin with the report turned on at 5 minutes, which is off by default."""
+    env.fake.settings["show"] = 300
+    env.plugin._eventcb_show_modified()
+    env.fake.removed.clear()
+    return env
+
+
+def test_after_load_adds_the_settings_and_no_timer(env: Env) -> None:
     fake = env.fake
     assert fake.setting_defs["statcolor"] == ("@W", "color")
     assert fake.setting_defs["infocolor"] == ("@x33", "color")
-    assert fake.setting_defs["show"] == ("5m", "timelength")
+    assert fake.setting_defs["show"] == ("0", "timelength")
     assert fake.setting_defs["reportminutes"] == ("60m", "timelength")
     assert fake.setting_defs["exppermin"] == (20, int)
-    assert fake.timers[TIMER][1] == 300
+    assert TIMER not in fake.timers
 
 
-def test_changing_show_replaces_the_timer(env: Env) -> None:
+def test_a_saved_show_starts_the_timer_at_load(monkeypatch: pytest.MonkeyPatch) -> None:
+    from aardwolf.statmn.plugin import _statmn
+
+    fake = FakeApi(None)  # type: ignore[arg-type]
+    # a value the user saved; setting.add keeps it instead of the default
+    fake._setting_add = lambda pid, name, default, stype, *rest: fake.settings.update(  # type: ignore[method-assign]
+        {name: 600 if name == "show" else default}
+    )
+    plugin = _statmn.StatmnPlugin.__new__(_statmn.StatmnPlugin)
+    plugin.plugin_id = PLUGIN_ID
+    plugin.api = MagicMock(side_effect=fake)
+    plugin._phook_initialize()
+    assert fake.timers[TIMER][1] == 600
+
+
+def test_turning_show_on_starts_the_timer(env: Env) -> None:
     env.fake.settings["show"] = 600
     env.plugin._eventcb_show_modified()
     assert env.fake.timers[TIMER][1] == 600
-    assert env.fake.removed == [TIMER]
+    assert env.fake.removed == []
     assert env.sent == []
 
 
-def test_show_of_zero_turns_the_report_off(env: Env) -> None:
-    env.fake.settings["show"] = 0
-    env.plugin._eventcb_show_modified()
-    assert TIMER not in env.fake.timers
-    assert env.sent == [["Turning off the statmon report"]]
+def test_changing_show_replaces_the_timer(timed: Env) -> None:
+    timed.fake.settings["show"] = 600
+    timed.plugin._eventcb_show_modified()
+    assert timed.fake.timers[TIMER][1] == 600
+    assert timed.fake.removed == [TIMER]
+    assert timed.sent == []
 
 
-def test_the_timer_sends_the_report_while_connected(env: Env) -> None:
+def test_show_of_zero_turns_the_report_off(timed: Env) -> None:
+    timed.fake.settings["show"] = 0
+    timed.plugin._eventcb_show_modified()
+    assert TIMER not in timed.fake.timers
+    assert timed.sent == [["Turning off the statmon report"]]
+
+
+def test_the_timer_sends_the_report_while_connected(timed: Env) -> None:
     now = int(time.time())
-    env.fake.db.modify(
+    timed.fake.db.modify(
         "INSERT INTO quests(finishtime, totqp, gold, tp) VALUES (?, 12, 2899, 0)", (now - 60,)
     )
-    env.fake.timers[TIMER][0]()
-    text = "\n".join(env.shown())
+    timed.fake.timers[TIMER][0]()
+    text = "\n".join(timed.shown())
     assert "Stats for @x33@W60@x33m" in text
     assert "2899" in text
-    assert len(env.sent) == 1
+    assert len(timed.sent) == 1
 
 
-def test_the_timer_does_nothing_while_disconnected(env: Env) -> None:
-    env.fake.connected = False
-    env.fake.timers[TIMER][0]()
-    assert env.sent == []
-    assert env.fake.selects == []
+def test_the_timer_does_nothing_while_disconnected(timed: Env) -> None:
+    timed.fake.connected = False
+    timed.fake.timers[TIMER][0]()
+    assert timed.sent == []
+    assert timed.fake.selects == []
 
 
-def test_the_timer_does_nothing_without_the_database(env: Env) -> None:
-    env.fake.select_exists = False
-    env.fake.timers[TIMER][0]()
-    assert env.sent == []
+def test_the_timer_does_nothing_without_the_database(timed: Env) -> None:
+    timed.fake.select_exists = False
+    timed.fake.timers[TIMER][0]()
+    assert timed.sent == []
 
 
 def test_rep_uses_the_reportminutes_setting(env: Env) -> None:

@@ -38,7 +38,7 @@ database. It is not required, so it does not load until asked.
   failed), global quests and mob kills. A kind with nothing in the window shows zeros. A last row
   adds up the experience, quest points, trains and gold. It is shown by the `rep` command and by a
   timer.
-- **The timer.** A repeating timer shows the report every `show`. It starts at load when `show` is
+- **The timer.** A repeating timer shows the report every `show`; the default is 0, which is off. It starts at load when `show` is
   above 0, and starts again when `show` changes. A `show` of 0 turns it off and tells the client.
   While the MUD is not connected the timer shows nothing.
 - **Completion messages.** A quest, campaign, global quest, level or powerup that ends queues a
@@ -77,7 +77,7 @@ Total      |            72    12     0       4003
 | :--- | :--- | :--- |
 | `statcolor` | `@W` | The colour of the numbers. |
 | `infocolor` | `@x33` | The colour of the labels. |
-| `show` | `5m` | Show the report every this long; `0` turns it off. |
+| `show` | `0` | Show the report every this long; `0`, the default, turns it off. |
 | `reportminutes` | `60m` | The length of time the report covers. |
 | `exppermin` | `20` | The experience per minute that must be exceeded to show it on a level message. |
 
@@ -129,7 +129,9 @@ Each of these changes what the old plugin did. They are listed for review.
 Bugs fixed:
 
 1. The `show` timer was only added from the setting callback, so it never started at load. It
-   starts at load when `show` is above 0. **Visible change:** a report every 5 minutes by default.
+   starts at load only when `show` is above 0. A saved non-zero `show` therefore keeps its report after a restart. By default `show` is `0`, so
+   no timed report runs, as the old plugin behaved in practice (its timer only started after `show`
+   was changed).
 2. `rep` ignored `reportminutes`: its argument defaulted to `60m`. The argument defaults to empty,
    which means the setting.
 3. The level message counted mobs and experience between the `starttime` and `finishtime` of the
