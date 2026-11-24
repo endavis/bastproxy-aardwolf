@@ -1,6 +1,6 @@
 """Constants and helpers of the mapper plugin. No bastproxy imports."""
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 PLUGIN_ID = "plugins.aardwolf.mapper"
@@ -23,6 +23,13 @@ UNKNOWN_UID = "-1"
 DEFAULT_LEVEL = 201
 DEFAULT_TIER = 0
 TIER_LEVELS = 10
+SEARCHES: dict[str, tuple[str, ...]] = {
+    "shops": ("shop", "bank"),
+    "train": ("trainer",),
+    "quest": ("questor",),
+}
+IMPORT_SLICE = 0.05
+IMPORT_PROGRESS = 2000
 
 
 def to_int(value: object) -> int:
@@ -179,3 +186,49 @@ def mismatch_lines(uid: str, differences: Mapping[str, Any]) -> list[str]:
             lines.append(f"  {direction}: {before} -> {after}")
         lines.append(f"  to drop this room: {purge_room}")
     return lines
+
+
+def detail_matches(details: object, wanted: Iterable[str]) -> list[str]:
+    """Return the capitalised items of a room's detail list that are in wanted.
+
+    The detail list is the comma separated ``details["details"]`` text; items are compared
+    stripped and lowercased. Anything that is not a dict with a text value matches nothing.
+    """
+    if not isinstance(details, dict):
+        return []
+    text = details.get("details")
+    if not isinstance(text, str):
+        return []
+    wanted_set = {w.lower() for w in wanted}
+    items = (item.strip().lower() for item in text.split(","))
+    return [item.capitalize() for item in items if item in wanted_set]
+
+
+def search_lines(title: str, rows: Iterable[tuple[str, str, str, str]]) -> list[str]:
+    """Return a search table: the title, a header, and one line per (uid, name, area, found)."""
+    return [title, "uid | name | area | found", *(" | ".join(row) for row in rows)]
+
+
+def stored_room_with_flags(
+    stored: Mapping[str, Any], extra_flags: Iterable[str]
+) -> dict[str, Any] | None:
+    """Return the stored room as a room.add dict with extra_flags added, or None if it has them all.
+
+    The dict has no ``exits`` and no ``note``, so adding it leaves the exits and the mismatch
+    check alone.
+    """
+    flags = list(stored.get("flags") or [])
+    missing = [flag for flag in extra_flags if flag not in flags]
+    if not missing:
+        return None
+    return {
+        "uid": stored.get("uid"),
+        "name": stored.get("name"),
+        "area": stored.get("area"),
+        "terrain": stored.get("terrain"),
+        "x": stored.get("x"),
+        "y": stored.get("y"),
+        "z": stored.get("z"),
+        "details": stored.get("details"),
+        "flags": [*flags, *missing],
+    }

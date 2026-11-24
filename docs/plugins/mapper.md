@@ -63,10 +63,72 @@ core `plugins.client.mapper`, so loading it loads them too.
 
 ### Limitations
 
+- A large import takes minutes, because the core mapper has no bulk add and commits every room and
+  exit on its own. The proxy stays responsive: the file is read in a thread and the writes run in
+  short slices.
+- No search covers all areas; `here` or one area id only.
 - A blind character may see the noportal and norecall lines differently; the old MUSHclient plugin
   checked for blindness first, this one does not.
 - If the core mapper is reloaded without this plugin, the callbacks are lost until the plugin is
   reloaded.
+
+## Commands
+
+The commands are `#bp.aardwolf.mapper.<command>`.
+
+| Command | Output |
+| :--- | :--- |
+| `importmush <path>` | Copy a MUSHclient `Aardwolf.db` into the map, with progress lines and a summary. |
+| `shops [here\|<area>]` | The rooms of an area with a `shop` or `bank` detail. |
+| `train [here\|<area>]` | The rooms of an area with a `trainer` detail. |
+| `quest [here\|<area>]` | The rooms of an area with a `questor` detail. |
+| `notes [here\|<area>]` | The rooms of an area that have a note, with the note text. |
+
+A search defaults to `here`, the area of the current room, and fails with "the current room is not
+known" when there is none. An area id is lowercased and matched exactly. The table follows the core
+`find` command, in room uid order:
+
+```text
+Mapper shops in aylor: 2 rooms
+uid | name | area | found
+32418 | The Aylor Bank | aylor | Bank
+```
+
+The detail searches match the comma separated details of a room, whether it was captured from GMCP or
+imported. An area with no stored rooms reports "area <x> has no mapped rooms"; an area with no match
+reports "No shops found in aylor".
+
+### Importing a MUSHclient map
+
+- **Path.** One argument, an absolute path or one starting with `~` (the home directory of the user
+  running the proxy). Quote a path with spaces. A relative path is refused, because the proxy's
+  working directory means nothing to a client.
+- **Read-only and checked first.** The file is opened read-only and validated before anything is
+  written: a file that is not SQLite, or lacks the `rooms`, `exits` or `areas` tables and their
+  columns, is refused and nothing is written. Older databases without `noportal`, `norecall`,
+  `exits.level` or `bookmarks` import too.
+- **Captured data wins.** The import only fills gaps, so importing again is safe and writes nothing.
+  An area is added only when unknown. A room is added only when unknown; a stored room only gains the
+  `norecall` and `noportal` flags it lacks. A stored exit keeps its target (unless unexplored), its
+  requirement (unless it has none) and its cost. A note is set only when the room has none.
+- **Progress.** The client gets `Mapper import: <phase> <done>/<total>` at the start of the areas,
+  rooms and exits phases and every 2000 items, then a summary. Only one import runs at a time.
+
+| MUSH | Mapper |
+| :--- | :--- |
+| `rooms` name, area, terrain, x, y, z | the same room fields |
+| `rooms.info` | `details["details"]`, the shape of a captured room |
+| `rooms.noportal`, `rooms.norecall` | the `noportal` and `norecall` flags |
+| `exits` dir, fromuid, touid | an exit; `*` and `**` portals and recall carry over |
+| `exits.level` above 0 | the requirement `{"level": n}` |
+| `bookmarks.notes`, else `rooms.notes` | the room note |
+| `areas` name, flags, texture, color | the area name, flags and details |
+
+A room whose uid is not a positive integer (such as `nomap_...`), and its exits and notes, is skipped
+and counted, as are exits to or from a room that is not imported.
+
+**Not imported:** `storage` (the bounce portal and bounce recall, which are serialised Lua with no
+core equivalent), `environments`, `rooms.building` and `ignore_exits_mismatch`.
 
 ## Events used
 
