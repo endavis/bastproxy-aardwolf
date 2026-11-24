@@ -27,6 +27,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The afk Plugin](plugins/afk.md) - Set an Aardwolf title and keep the tells while no client is playing
+- [The aflags Plugin](plugins/aflags.md) - Keep the Aardwolf character's affect flags from the aflags command
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
@@ -120,6 +121,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The afk Plugin](plugins/afk.md) - Set an Aardwolf title and keep the tells while no client is playing
+- [The aflags Plugin](plugins/aflags.md) - Keep the Aardwolf character's affect flags from the aflags command
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
@@ -239,6 +241,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
 - [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The afk Plugin](plugins/afk.md) - Set an Aardwolf title and keep the tells while no client is playing
+- [The aflags Plugin](plugins/aflags.md) - Keep the Aardwolf character's affect flags from the aflags command
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events

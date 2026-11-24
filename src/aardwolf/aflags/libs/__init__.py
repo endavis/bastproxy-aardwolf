@@ -1,0 +1,43 @@
+"""Pure helpers for the aflags plugin."""
+
+from ._aflags import (
+    ALL_LINES_ID,
+    CMD,
+    CMD_REGEX,
+    EVENT_AFFECTED_UPDATE,
+    EVENT_AFFOFF,
+    EVENT_AFFON,
+    EVENT_DIFF,
+    EVENT_DISCONNECT,
+    EVENT_UPTODATE,
+    EVENTS,
+    HEADER_REGEX,
+    HIDE_MAX_LINES,
+    TIMEOUT_EVENT,
+    TYPE_AFLAGS,
+    AflagsReader,
+    FlagLearner,
+    flag_diff,
+    split_flags,
+)
+
+__all__ = [
+    "ALL_LINES_ID",
+    "CMD",
+    "CMD_REGEX",
+    "EVENTS",
+    "EVENT_AFFECTED_UPDATE",
+    "EVENT_AFFOFF",
+    "EVENT_AFFON",
+    "EVENT_DIFF",
+    "EVENT_DISCONNECT",
+    "EVENT_UPTODATE",
+    "HEADER_REGEX",
+    "HIDE_MAX_LINES",
+    "TIMEOUT_EVENT",
+    "TYPE_AFLAGS",
+    "AflagsReader",
+    "FlagLearner",
+    "flag_diff",
+    "split_flags",
+]
