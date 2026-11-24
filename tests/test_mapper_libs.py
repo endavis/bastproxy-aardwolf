@@ -5,12 +5,16 @@ from typing import Any
 import pytest
 
 from aardwolf.mapper.libs import (
+    SEARCHES,
     area_from_gmcp,
+    detail_matches,
     mismatch_lines,
     requirement_allowed,
     room_from_gmcp,
     room_uid,
+    search_lines,
     steps_to_commands,
+    stored_room_with_flags,
     to_int,
 )
 
@@ -177,3 +181,62 @@ def test_mismatch_lines_exits_and_both() -> None:
     both = mismatch_lines("12", {"area": ("a", "b"), "exits": exits})
     assert any("area a -> b" in line for line in both)
     assert any("n: none -> 5" in line for line in both)
+
+
+@pytest.mark.parametrize(
+    ("details", "expected"),
+    [
+        ({"details": "Bank, safe"}, ["Bank"]),
+        ({"details": " SHOP ,bank,Trainer"}, ["Shop", "Bank"]),
+        ({"details": ""}, []),
+        ({"details": None}, []),
+        ({"details": "shopkeeper"}, []),
+        ({}, []),
+        (None, []),
+        ("bank", []),
+        (["bank"], []),
+    ],
+)
+def test_detail_matches(details: object, expected: list[str]) -> None:
+    """Items match whole, after strip and lowercase; anything else matches nothing."""
+    assert detail_matches(details, SEARCHES["shops"]) == expected
+
+
+def test_search_lines() -> None:
+    """The table has the title, the header and one line per row."""
+    assert search_lines("Mapper shops in aylor: 1 rooms", [("1", "A Bank", "aylor", "Bank")]) == [
+        "Mapper shops in aylor: 1 rooms",
+        "uid | name | area | found",
+        "1 | A Bank | aylor | Bank",
+    ]
+
+
+def test_stored_room_with_flags() -> None:
+    """Only missing flags are added, and the dict has no exits or note."""
+    stored = {
+        "uid": "1",
+        "name": "R",
+        "area": "a",
+        "terrain": "t",
+        "x": 1,
+        "y": 2,
+        "z": 3,
+        "details": {"details": "bank"},
+        "flags": ["noportal"],
+        "exits": [{"dir": "n"}],
+        "note": "x",
+    }
+    assert stored_room_with_flags(stored, ["noportal"]) is None
+    assert stored_room_with_flags(stored, []) is None
+    assert stored_room_with_flags(stored, ["noportal", "norecall"]) == {
+        "uid": "1",
+        "name": "R",
+        "area": "a",
+        "terrain": "t",
+        "x": 1,
+        "y": 2,
+        "z": 3,
+        "details": {"details": "bank"},
+        "flags": ["noportal", "norecall"],
+    }
+    assert stored_room_with_flags({"uid": "2"}, ["norecall"])["flags"] == ["norecall"]  # type: ignore[index]

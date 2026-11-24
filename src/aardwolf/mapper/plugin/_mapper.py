@@ -1,12 +1,17 @@
 """Aardwolf mapper plugin: feed the core mapper with rooms, areas, flags and walking rules."""
 
+import asyncio
 import logging
+import sqlite3
+import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from bastproxy.libs.logger import log_to
 from bastproxy.libs.records import NetworkData, NetworkDataLine, SendDataDirectlyToClient
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from ..libs import (
@@ -20,15 +25,26 @@ from ..libs import (
     GMCP_LEVEL,
     GMCP_ROOM,
     GMCP_TIER,
+    IMPORT_PROGRESS,
+    IMPORT_SLICE,
     MAPPER,
     NOPORTAL_REGEX,
     NORECALL_REGEX,
+    SEARCHES,
+    MushDbError,
+    MushMap,
     area_from_gmcp,
+    detail_matches,
+    exit_update,
     mismatch_lines,
+    read_mush_db,
     requirement_allowed,
+    resolve_import_path,
     room_from_gmcp,
     room_uid,
+    search_lines,
     steps_to_commands,
+    stored_room_with_flags,
     to_int,
 )
 
@@ -41,6 +57,8 @@ class MapperPlugin(BasePlugin):
         """Start with no known room."""
         self._current: str | None = None
         self._requested_areas: set[str] = set()
+        self._importing = False
+        self._unload_token = 0
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -55,7 +73,8 @@ class MapperPlugin(BasePlugin):
 
     @RegisterPluginHook("uninitialize")
     def _phook_uninitialize(self) -> None:
-        """Take the callbacks back from the mapper."""
+        """Take the callbacks back from the mapper and stop a running import."""
+        self._unload_token += 1
         self._mapper_api("requirement.unregister")(self.plugin_id)
         self._mapper_api("movement.unregister")(self.plugin_id)
 
@@ -211,3 +230,194 @@ class MapperPlugin(BasePlugin):
     def _movement(self, steps: list[dict[str, Any]]) -> list[str]:
         """Turn walk steps into commands."""
         return steps_to_commands(steps)
+
+    # commands
+
+    def _args(self) -> dict[str, Any]:
+        """Return the arguments of the running command."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        return dict(args) if args else {}
+
+    def _escape(self, text: str) -> str:
+        """Escape colour codes so a name or note shows as it is."""
+        result: str = self.api("plugins.core.colors:colorcode.escape")(text)
+        return result
+
+    # importing a MUSHclient map
+
+    @AddCommand()
+    @AddParser(description="import a MUSHclient Aardwolf.db into the map")
+    @AddArgument("path", help="the Aardwolf.db file; quote it when it has spaces")
+    def _command_importmush(self) -> CommandResult:
+        """Import the rooms, exits, areas and notes of a MUSHclient map database."""
+        if self._importing:
+            return CommandResult(False, ["Mapper import: an import is already running"])
+        try:
+            path = resolve_import_path(str(self._args().get("path", "")))
+        except MushDbError as exc:
+            return CommandResult(False, [f"Mapper import: {exc}"])
+        self._importing = True
+        try:
+            self.api("libs.asynch:task.add")(
+                self._import(path, self._unload_token), f"{self.plugin_id}:import"
+            )
+        except Exception:
+            self._importing = False
+            raise
+        return CommandResult(True, [f"Mapper import: reading {path}"])
+
+    async def _import(self, path: Path, token: int) -> None:
+        """Read the database in a thread, then write it to the mapper on the loop."""
+        try:
+            try:
+                data = await asyncio.to_thread(read_mush_db, path)
+            except MushDbError as exc:
+                self._client([f"Mapper import: {exc}"])
+                return
+            except Exception:
+                log_to(self.plugin_id, logging.ERROR, "reading %s failed", path, exc_info=True)
+                self._client(["Mapper import: reading the file failed, see the plugin log"])
+                return
+            if token != self._unload_token:
+                return
+            await self._write_import(data, token)
+        finally:
+            self._importing = False
+
+    async def _write_import(self, data: MushMap, token: int) -> None:
+        """Write the read map to the core mapper in time slices; captured data wins."""
+        started = time.monotonic()
+        phase = "areas"
+        done = 0
+        total = len(data.areas)
+        counts = {"areas": 0, "rooms": 0, "flagged": 0, "notes": 0, "exits": 0, "updated": 0}
+
+        async def step() -> bool:
+            """Count an item, report progress, yield when the slice is used; False to stop."""
+            nonlocal started, done
+            done += 1
+            if done % IMPORT_PROGRESS == 0:
+                self._client([f"Mapper import: {phase} {done}/{total}"])
+            if token != self._unload_token:
+                return False
+            if time.monotonic() - started >= IMPORT_SLICE:
+                await asyncio.sleep(0)
+                started = time.monotonic()
+                return token == self._unload_token
+            return True
+
+        try:
+            self._client([f"Mapper import: {phase} 0/{total}"])
+            for area in data.areas:
+                if self._mapper_api("area.get")(area["uid"]) is None:
+                    self._mapper_api("area.add")(**area)
+                    counts["areas"] += 1
+                if not await step():
+                    return
+            phase, done, total = "rooms", 0, len(data.rooms)
+            self._client([f"Mapper import: {phase} 0/{total}"])
+            for room in data.rooms:
+                self._import_room(room, data.notes.get(room["uid"]), counts)
+                if not await step():
+                    return
+            phase, done = "exits", 0
+            total = sum(len(items) for items in data.exits.values())
+            self._client([f"Mapper import: {phase} 0/{total}"])
+            for fromuid, items in data.exits.items():
+                stored = {e["dir"]: e for e in self._mapper_api("exit.list")(fromuid)}
+                for direction, touid, requirement in items:
+                    update = exit_update(stored.get(direction), touid, requirement)
+                    if update is not None:
+                        counts["updated" if direction in stored else "exits"] += 1
+                        self._mapper_api("exit.add")(fromuid, direction, *update)
+                    if not await step():
+                        return
+        except sqlite3.Error as exc:
+            log_to(self.plugin_id, logging.ERROR, "import failed in %s", phase, exc_info=True)
+            self._client([f"Mapper import stopped in {phase} at {done}/{total}: {exc}"])
+            return
+        self._client(
+            [
+                f"Mapper import done: {counts['areas']} areas, {counts['rooms']} rooms "
+                f"(flags added to {counts['flagged']} stored), {counts['exits']} exits "
+                f"({counts['updated']} updated), {counts['notes']} notes; "
+                f"skipped {data.skipped_rooms} rooms and {data.skipped_exits} exits"
+            ]
+        )
+
+    def _import_room(self, room: dict[str, Any], note: str | None, counts: dict[str, int]) -> None:
+        """Add a room the map does not have, or only add the flags a stored room lacks."""
+        stored = self._mapper_api("room.get")(room["uid"])
+        if stored is None:
+            self._mapper_api("room.add")(room)
+            counts["rooms"] += 1
+        else:
+            update = stored_room_with_flags(stored, room["flags"])
+            if update is not None:
+                self._mapper_api("room.add")(update)
+                counts["flagged"] += 1
+        if note and not self._mapper_api("room.note.get")(room["uid"]):
+            self._mapper_api("room.note.set")(room["uid"], note)
+            counts["notes"] += 1
+
+    # searches
+
+    def _search(self, kind: str) -> CommandResult:
+        """List the rooms of an area that match a search, in room uid order."""
+        where = str(self._args().get("area") or "here").strip().lower()
+        if where == "here":
+            current = self._mapper_api("room.current.get")()
+            room = self._mapper_api("room.get")(current) if current else None
+            area = room.get("area") if room else None
+            if not area:
+                return CommandResult(False, ["Mapper: the current room is not known"])
+            where = str(area)
+        rooms = sorted(
+            self._mapper_api("room.list")(area=where),
+            key=lambda r: (to_int(r["uid"]), str(r["uid"])),
+        )
+        if not rooms:
+            return CommandResult(False, [f"Mapper: area {where} has no mapped rooms"])
+        rows: list[tuple[str, str, str, str]] = []
+        for found in rooms:
+            if kind == "notes":
+                text = self._mapper_api("room.note.get")(found["uid"])
+                match = self._escape(str(text)) if text else ""
+            else:
+                match = ", ".join(detail_matches(found.get("details"), SEARCHES[kind]))
+            if match:
+                rows.append(
+                    (str(found["uid"]), self._escape(str(found["name"])), str(found["area"]), match)
+                )
+        if not rows:
+            return CommandResult(True, [f"No {kind} found in {where}"])
+        title = f"Mapper {kind} in {where}: {len(rows)} rooms"
+        return CommandResult(True, search_lines(title, rows))
+
+    @AddCommand()
+    @AddParser(description="list the shops and banks of an area")
+    @AddArgument("area", help="here or an area id", nargs="?", default="here")
+    def _command_shops(self) -> CommandResult:
+        """List the shops and banks of the current area or a named one."""
+        return self._search("shops")
+
+    @AddCommand()
+    @AddParser(description="list the trainers of an area")
+    @AddArgument("area", help="here or an area id", nargs="?", default="here")
+    def _command_train(self) -> CommandResult:
+        """List the trainers of the current area or a named one."""
+        return self._search("train")
+
+    @AddCommand()
+    @AddParser(description="list the questors of an area")
+    @AddArgument("area", help="here or an area id", nargs="?", default="here")
+    def _command_quest(self) -> CommandResult:
+        """List the questors of the current area or a named one."""
+        return self._search("quest")
+
+    @AddCommand()
+    @AddParser(description="list the rooms with a note in an area")
+    @AddArgument("area", help="here or an area id", nargs="?", default="here")
+    def _command_notes(self) -> CommandResult:
+        """List the rooms with a note in the current area or a named one."""
+        return self._search("notes")
