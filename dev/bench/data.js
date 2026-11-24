@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795516944622,
+  "lastUpdate": 1795518032778,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1899,6 +1899,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000011368578321724597",
             "extra": "mean: 5.847151319079185 usec\nrounds: 180506"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "919659507e87923858a2a7c5535ae22ee2549b7f",
+          "message": "feat: port the aarch plugin (merges PR #104, addresses #77)\n\n* feat: migrate the aarch plugin from the old bastproxy\n\nAdd plugins.aardwolf.aarch with the need [filter] command, which counts the\nAarchaeology items and pamphlets in eq's cache and lists the pieces still\nneeded. It reaches eq only through the item.find.by.name API.\n\nFixes old bugs: case-sensitive filter, pamphlet parse crash, misleading\nheader with a filter, silent unknown names, fragile name matching, the\nAarcheology spelling and the single-word filter. Each change is listed in\ndocs/plugins/aarch.md.\n\nAddresses #77\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: record that Aardwolf's help confirms the aarch piece table\n\nhelp aarchaeology-rewards on a live character lists each piece with its\npamphlet number. The 50 names match the plugin's table and pamphlet #N\nis piece N, so the docs no longer ask the maintainer to confirm it.\n\nBatched in the PR for #77.\n\nAddresses #77\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T11:00:01Z",
+          "tree_id": "04b7e45e44c4baee39433eba7bd4e47271526f8e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/919659507e87923858a2a7c5535ae22ee2549b7f"
+        },
+        "date": 1795518032428,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6138484.191707684,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0794515174210132e-8",
+            "extra": "mean: 162.90666698317372 nsec\nrounds: 63168"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 312528.9756418348,
+            "unit": "iter/sec",
+            "range": "stddev: 2.8292104096290346e-7",
+            "extra": "mean: 3.1997033169366746 usec\nrounds: 160540"
           }
         ]
       }
