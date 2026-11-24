@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795525886624,
+  "lastUpdate": 1795526123018,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2089,6 +2089,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.71174062015769e-7",
             "extra": "mean: 5.926435920752975 usec\nrounds: 176679"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "55b9bce81c94b62d3f8927b8a0abeceea3e76d1c",
+          "message": "feat: migrate the statmn plugin from the old bastproxy (merges PR #109, addresses #82)\n\n* feat: migrate the statmn plugin from the old bastproxy\n\nAdd plugins.aardwolf.statmn: totals of quests, campaigns, global quests\nand mob kills over a recent window, read through the statdb stats.select\nAPI, plus a one-line message for each quest, campaign, gquest and level\ncompletion. Port of the old plugin on the new core APIs and events; ten\nold bugs are fixed and listed in docs/plugins/statmn.md.\n\nAddresses #82\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: keep the statmn timed report off by default\n\nThe port started the report timer at load with the 5-minute default, so\na StatMonitor report would print every 5 minutes. In the old plugin the\ntimer only started after \"show\" was changed, so in practice no timed\nreport appeared. The maintainer chose to keep it off: \"show\" now\ndefaults to 0, a saved non-zero value still starts the timer at load,\nand \"rep\" is unchanged.\n\nAddresses #82\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T13:14:46Z",
+          "tree_id": "0fd048180f6298357716084ab3601f2d294e2436",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/55b9bce81c94b62d3f8927b8a0abeceea3e76d1c"
+        },
+        "date": 1795526122371,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3055368.590786986,
+            "unit": "iter/sec",
+            "range": "stddev: 4.237109555770339e-8",
+            "extra": "mean: 327.2927538154816 nsec\nrounds: 196117"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 174538.22234095426,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010572505693739915",
+            "extra": "mean: 5.729404061687619 usec\nrounds: 178891"
           }
         ]
       }
