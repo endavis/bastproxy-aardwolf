@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795527924136,
+  "lastUpdate": 1795528490733,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2203,6 +2203,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 6.748406523082505e-7",
             "extra": "mean: 3.346005894769758 usec\nrounds: 157258"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3477b8441b3a402e8d6f58bc114c0b513b57a528",
+          "message": "refactor: rename the shared libs package to _libs (merges PR #114, addresses #112)\n\nRename src/aardwolf/libs (aardu, itemu) to src/aardwolf/_libs so the\nleading underscore marks it as not a plugin and it no longer shares a\nname with each plugin's own libs/ subpackage. Per-plugin libs/ packages\nare unchanged. Imports, tests and docs updated. No behaviour change.\n\nAddresses #112\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T13:54:11Z",
+          "tree_id": "d2052b482fec139712f7b038950102419bc73968",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/3477b8441b3a402e8d6f58bc114c0b513b57a528"
+        },
+        "date": 1795528489853,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5020017.401193957,
+            "unit": "iter/sec",
+            "range": "stddev: 1.588063669818752e-8",
+            "extra": "mean: 199.2024967407804 nsec\nrounds: 52925"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 264757.9735673069,
+            "unit": "iter/sec",
+            "range": "stddev: 9.312751778844442e-7",
+            "extra": "mean: 3.7770344988147437 usec\nrounds: 141744"
           }
         ]
       }
