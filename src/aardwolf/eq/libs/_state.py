@@ -42,6 +42,7 @@ class EqState:
         self.worn: list[int | None] = []
         self.lastworn: dict[int, int] = {}
         self.vault_counts: dict[str, int] | None = None
+        self.vault_read = False
         self.reset()
 
     def reset(self) -> None:
@@ -51,6 +52,7 @@ class EqState:
         self.worn = [None] * len(WEARLOCS)
         self.lastworn = {}
         self.vault_counts = None
+        self.vault_read = False
 
     # containers
 
@@ -149,6 +151,8 @@ class EqState:
     def commit(self, cid: str, parsed: Iterable[dict[str, Any]]) -> list[str]:
         """Replace the contents of a container with the lines read. Return the new bag ids."""
         self.ensure_container(cid)
+        if cid == VAULT:
+            self.vault_read = True
         for serial in self.serials(cid):
             self._detach(serial)
         new_bags: list[str] = []
