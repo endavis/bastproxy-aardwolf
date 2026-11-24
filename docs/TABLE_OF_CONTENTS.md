@@ -25,6 +25,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
+- [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
@@ -115,6 +116,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
+- [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
@@ -231,6 +233,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [The a102 Plugin](plugins/a102.md) - Toggle Aardwolf telnet option 102 features with shared counts and read its state reports
+- [The aarch Plugin](plugins/aarch.md) - Show which Aardwolf Aarchaeology items and pamphlets are still needed to complete the set
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
