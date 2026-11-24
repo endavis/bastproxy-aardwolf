@@ -129,13 +129,20 @@ settings, timers and GMCP value APIs. The plugin adds none.
 
 ## MUD output
 
-The plugin matches no MUD text itself. These come from the old plugin and the skills plugin and are
-**unconfirmed** on a real character:
+The plugin matches no MUD text itself. These come from the old plugin and the skills plugin.
 
-1. `cast <sn>` casts a spell by number.
-2. The tags `{affon}`, `{affoff}`, `{recoff}`, `{skillgain}` and `{sfail}`, and the fail codes 1 to
-   12, as read by the skills plugin.
-3. The GMCP `char.vitals` keys `mana` and `moves`.
+Confirmed on a real character (Underwater breathing, sn 333):
+
+1. `cast 333` casts the spell by number.
+2. A lost concentration sends `{sfail}333,0,1,-1` (fail code 1, `lostconc`) before "You lost your
+   concentration while trying to cast underwater breathing."; the plugin cast again at once.
+3. The spell taking hold sends `{affon}333,300` before "You feel gills growing on your neck!"; the
+   wait ended and `list` showed the spell as `A`.
+
+Still **unconfirmed** on a real character:
+
+1. The tags `{affoff}`, `{recoff}` and `{skillgain}`, and the fail codes 2 to 12.
+2. The GMCP `char.vitals` keys `mana` and `moves`.
 
 These are taken as confirmed by other plugins: `char.status.state` 3 is active, and `room.info.num`
 is the room number.
@@ -184,7 +191,7 @@ is the room number.
 
 ## Known gaps
 
-- The MUD texts listed as unconfirmed above need a check on a real character.
+- The MUD texts still listed as unconfirmed above need a check on a real character.
 - Casts are not queued, so a cast typed by a client at the same time as the plugin's may confuse the
   wait; the 15 second timer frees it.
 - The spell lists for other characters (the old `other` list) were never used and are not ported.
