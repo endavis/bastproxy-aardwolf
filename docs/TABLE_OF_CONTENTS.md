@@ -28,6 +28,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
@@ -113,6 +114,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events
@@ -224,6 +226,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The config Plugin](plugins/config.md) - Keep the settings that several Aardwolf plugins share, starting with the list of questmasters
 - [The connect Plugin](plugins/connect.md) - Set up Aardwolf GMCP, press return at login prompts and detect when the character is first active
 - [The cp Plugin](plugins/cp.md) - Follow the campaigns of an Aardwolf character and raise the mobs left, the completion and the failure as events
+- [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
 - [The level Plugin](plugins/level.md) - Detect levels, powerups, hero, superhero, remort and tier on Aardwolf and raise them as events

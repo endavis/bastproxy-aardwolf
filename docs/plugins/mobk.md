@@ -61,9 +61,9 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
   `mobk_slit`, `mobk_disintegrate` and `mobk_banish`. The event is raised only when an experience
   line was seen for the kill; either way the kill is then reset, so a kill raises once.
 - **Weapons.** `wielded_weapon` and `second_weapon` are the serials of the items in slots 24 and 25.
-  There is no eq plugin yet, so the plugin calls `plugins.aardwolf.eq:eq.worn.get` only when
+  The [eq plugin](eq.md) provides `plugins.aardwolf.eq:eq.worn.get`. The plugin calls it only when
   `libs.api:api.exists` says it exists, and leaves the serials empty otherwise. The API name is the
-  constant `EQ_WORN_API` of the `mobk` libs; an eq plugin must match it, or the constant changes.
+  constant `EQ_WORN_API` of the `mobk` libs, which the eq plugin matches.
   The result may be an object with a `serial` attribute or a mapping with a `serial` key.
 - **Room and level.** `room_id` is GMCP `room.info.num`, -1 when it is missing. `level` is the
   total level from `aardwolf.libs.aardu.actual_level_from_gmcp`.
