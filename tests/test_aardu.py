@@ -271,3 +271,23 @@ def test_actual_level_from_gmcp_with_redos() -> None:
         }
     )
     assert actual_level_from_gmcp(gmcp) == 11 * TIER + 1
+
+
+@pytest.mark.parametrize(
+    ("line", "verb", "damage", "hits"),
+    [
+        ("*Your stab ERADICATES a lazy pupil. [40]", "ERADICATES", 40, 1),
+        ("Your stab mars a lazy pupil. [26]", "mars", 26, 1),
+        ("*[2] Your stab ERADICATES a lazy pupil. [80]", "ERADICATES", 80, 2),
+        ("[2] *Your stab ERADICATES a lazy pupil. [80]", "ERADICATES", 80, 2),
+    ],
+)
+def test_parse_damage_line_critical(line: str, verb: str, damage: int, hits: int) -> None:
+    """A leading star (a critical hit) does not leak into the damage type."""
+    assert parse_damage_line(line) == {
+        "damage": damage,
+        "hits": hits,
+        "damtype": "stab",
+        "damverb": verb,
+        "enemy": "a lazy pupil",
+    }

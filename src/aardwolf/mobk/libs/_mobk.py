@@ -116,8 +116,8 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec("mobk_slit", r"^You sneak behind (?P<name>.*) and slit .* throat.$", None),
     TriggerSpec("mobk_disintegrate", r"^You have disintegrated (?P<name>.*)!$", None),
     TriggerSpec("mobk_banish", r"^You look at (?P<name>.*) very strangely.$", None),
-    TriggerSpec("mobk_damage", r"^\[(.*)\] Your (.*) \[(.*)\]$", None),
-    TriggerSpec("mobk_damage2", r"^Your (.*) \[(.*)\]$", None),
+    TriggerSpec("mobk_damage", r"^\*?\[(.*)\] \*?Your (.*) \[(.*)\]$", None),
+    TriggerSpec("mobk_damage2", r"^\*?Your (.*) \[(.*)\]$", None),
     TriggerSpec(
         "mobk_bsincombat",
         r"^You spin around (.*), catching (.*) off guard, and execute a vicious double backstab.$",

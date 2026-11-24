@@ -82,7 +82,8 @@ The plugin raises no event. It consumes `ev_plugins.aardwolf.mobk_kill`; the key
 | `setting.gets` | `plugins.core.settings:setting.get` |
 | `send.client` with `preamble=False` | the same, through a directly sent `NetworkData` |
 
-The old plugin showed the table on the next empty line, and so does the port.
+The old plugin showed the table on the next empty line, and so does the port. A live fight on a
+real Aardwolf character confirmed that the table prints after the kill's lines.
 
 Fixes in the port:
 

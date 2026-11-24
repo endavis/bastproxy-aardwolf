@@ -49,7 +49,10 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
   takes the enemy from the line. `mobk_gold` sets the name from the corpse when none is set.
 - **Damage.** `mobk_damage` and `mobk_damage2` parse the line with
   `aardwolf.libs.aardu.parse_damage_line` and add it to `damage`, by damage type, as `hits`, `misses`
-  and `damage`. The first damage line sets `starttime`. Damage to an enemy other than the current
+  and `damage`. A critical hit has a leading `*`, which both triggers accept (before `Your`, and for
+  the counted form before or after the `[n]`). A live fight gave `*Your stab ERADICATES a lazy pupil.
+  [40]` next to `Your stab mars a lazy pupil. [26]`; both add to the `stab` damage. The first damage
+  line sets `starttime`. Damage to an enemy other than the current
   mob goes to a cache; when the plugin switches to that enemy, the cache entry becomes its damage.
   `mobk_bsincombat` adds `damage["backstab"]` with `incombat` set to true.
 - **Gold.** `mobk_gold` takes the gold from a corpse, `mobk_splitgold` the share of a split. A value
