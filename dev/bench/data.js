@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795519693946,
+  "lastUpdate": 1795520108758,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1975,6 +1975,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000001108339166496714",
             "extra": "mean: 5.861296489104991 usec\nrounds: 177305"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e3ba79d0a9ed5677fa64f87d1aa7fda173c3ea1",
+          "message": "feat: port the afk plugin (merges PR #106, addresses #87)\n\n* feat: migrate the afk plugin from the old bastproxy\n\nAdd plugins.aardwolf.afk. When the last client that can play leaves, it\nsets an AFK title and keeps tells received over GMCP comm.channel; when a\nclient logs in it restores the user's title and reports the queued tells.\nCommands: show, clear, toggle. The title sends are hidden queued mudcmds.\nOld bugs and changes are listed in docs/plugins/afk.md.\n\nAddresses #87\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: restore an empty title when afk ends\n\nA live check found that a character with no title kept the AFK title\nafter AFK ended: the plugin skips an empty remembered title (so it\nnever sends a bare \"title \"), and it only learned the title from titles\ntyped through the proxy.\n\nWhen AFK turns on, the plugin now reads the current title with a hidden\nqueued \"title\" (\"Your title is: <title>\", empty for no title), then sets\nthe AFK title. When AFK ends it sends \"title <title>\", or \"title clear\"\nwhen the title was empty or the read timed out. \"Your title is\ncleared.\" finishes the queued command. The texts were captured on a\nlive character and are marked confirmed in docs/plugins/afk.md.\n\nBatched in the PR for #87.\n\nAddresses #87\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T11:34:37Z",
+          "tree_id": "ba499bdfd91ea70e72bade652adfc3b7258faf8b",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/2e3ba79d0a9ed5677fa64f87d1aa7fda173c3ea1"
+        },
+        "date": 1795520107858,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5980566.105031691,
+            "unit": "iter/sec",
+            "range": "stddev: 3.2593874108319334e-8",
+            "extra": "mean: 167.20825126548803 nsec\nrounds: 60478"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 304398.30444988766,
+            "unit": "iter/sec",
+            "range": "stddev: 3.494262796269184e-7",
+            "extra": "mean: 3.285169415799514 usec\nrounds: 159262"
           }
         ]
       }
