@@ -313,6 +313,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_gq_plugin.py",
     "tests/test_itemid_libs.py",
     "tests/test_itemid_plugin.py",
+    "tests/test_itemkeep_libs.py",
+    "tests/test_itemkeep_plugin.py",
     "tests/test_itemu.py",
     "tests/test_level_libs.py",
     "tests/test_level_plugin.py",
