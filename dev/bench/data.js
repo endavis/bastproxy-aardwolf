@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795515150207,
+  "lastUpdate": 1795515911298,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1785,6 +1785,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000015294416334507054",
             "extra": "mean: 6.013398346740998 usec\nrounds: 177589"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64881c0033b90abbe4b79e16563717902446ecbd",
+          "message": "feat: port the eq plugin's eq and inv display commands (merges PR #101, addresses #97)\n\nplugins.aardwolf.eq gets the old display commands, built from its state\nby a pure table builder in eq/libs/_display.py.\n\n- eq [-n] [-c] [-s]: the worn table, each location coloured. Empty\n  optional slots are hidden, and shield and hold are hidden while a\n  second weapon is wielded.\n- inv [container] [-n] [-c] [-s] [-g]: the flag, level, serial and score\n  columns, identical items grouped as (  n) with the serial \"Many\".\n  Inventory adds the keyring count line and the vault count lines; the\n  vault shows \"not been refreshed\" until it is read. Container names\n  match in any case, and inv Worn shows the worn table.\n- EqState.vault_read records that the vault was read, so a character\n  with no vault sees an empty vault rather than \"not refreshed\".\n- Score shows \"Unkn\" unless identify merged one into the item.\n\nOld bugs fixed (vault counts compared as strings, a Python 2 print, a\nrefresh command that never existed in the unread-vault message, @x with\nno digits, the rule line never resetting its colour, debug output on\nevery run) are listed in docs/plugins/eq.md, and its \"Not ported yet\"\nsection is gone.\n\nAddresses #97\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T10:24:27Z",
+          "tree_id": "74661b7c7b1bab1e9eca096eea8124f3e33d87d1",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/64881c0033b90abbe4b79e16563717902446ecbd"
+        },
+        "date": 1795515910629,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6018609.132317903,
+            "unit": "iter/sec",
+            "range": "stddev: 2.1209424455998233e-8",
+            "extra": "mean: 166.15134460723442 nsec\nrounds: 61676"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 305489.6887847351,
+            "unit": "iter/sec",
+            "range": "stddev: 4.05902698101771e-7",
+            "extra": "mean: 3.273432906943891 usec\nrounds: 158228"
           }
         ]
       }
