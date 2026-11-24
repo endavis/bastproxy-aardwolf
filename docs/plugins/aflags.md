@@ -58,8 +58,17 @@ required, so it does not load until asked.
 
 ## MUD output
 
-The format is inferred from the old plugin's regex and from how it read the lines. It was not
-captured from a live character, so the synthetic example below is unconfirmed:
+A live character with one affect answered `aflags` with the header, two blank lines and the prompt:
+
+```text
+Affect Flags: detecthidden
+
+
+<prompt>
+```
+
+The example below, with several flags and a continuation line, is inferred from the old plugin's
+regex and has not been seen live:
 
 ```text
 Affect Flags: Sanctuary, Haste
@@ -68,9 +77,8 @@ Affect Flags: Sanctuary, Haste
 <100/100hp 50/50mn 90/90mv>
 ```
 
-The header is matched by `^Affect Flags: (?P<flags>.*)$`. Whether the MUD wraps the flags onto more
-lines, and whether it prints a blank line or only the prompt after them, is not confirmed; the
-reader ends on either.
+The header is matched by `^Affect Flags: (?P<flags>.*)$`. The reader ends on a blank line or the
+prompt. Whether the MUD wraps a long flag list onto more lines is not confirmed.
 
 ## Events
 
@@ -143,4 +151,5 @@ Other changes:
   `{affon}` and `{affoff}` belong to the skills plugin.
 - The learned flags of an affect are not used or saved.
 - When a read times out, the flags are not refreshed again until the next change.
-- The output format is unconfirmed (see MUD output).
+- The wrapping of a long flag list, and the output with no flags set, are unconfirmed (see MUD
+  output).
