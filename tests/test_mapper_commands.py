@@ -37,6 +37,7 @@ class FakeMapper:
         self.tasks: list[Coroutine[Any, Any, None]] = []
         self.calls: list[str] = []
         self.fail_exit_add = False
+        self.gmcp: dict[str, Any] = {}
 
     def state(self) -> dict[str, Any]:
         """Return a deep copy of everything stored."""
@@ -62,9 +63,11 @@ class FakeMapper:
             "room.note.set": self.note_set,
             "exit.add": self.exit_add,
             "exit.list": self.exit_list,
+            "exit.remove": self.exit_remove,
             "libs.asynch:task.add": lambda coro, task_name: self.tasks.append(coro),
             "plugins.core.commands:command.current.args.get": lambda: self.args,
             "plugins.core.colors:colorcode.escape": lambda text: text,
+            "libs.net.protocols:gmcp.value.get": self.gmcp.get,
         }
         func = table[short if name.startswith(MAPPER) else name]
 
@@ -130,6 +133,10 @@ class FakeMapper:
         }
         return True
 
+    def exit_remove(self, fromuid: str, dir: str) -> bool:
+        """Remove an exit; True when it existed."""
+        return self.exits.pop((fromuid, dir), None) is not None
+
     def exit_list(self, fromuid: str) -> list[dict[str, Any]]:
         """List the exits of a room."""
         return [copy.deepcopy(e) for (f, _), e in self.exits.items() if f == fromuid]
@@ -154,6 +161,14 @@ class Env:
         if result.success:
             assert len(self.fake.tasks) == 1
             asyncio.run(self.fake.tasks.pop())
+        return result
+
+    def run(self, name: str, /, **args: object) -> "CommandResult":
+        """Run a command with these arguments and, when it queued tasks, run them too."""
+        self.fake.args = args
+        result: CommandResult = getattr(self.plugin, f"_command_{name}")()
+        while self.fake.tasks:
+            asyncio.run(self.fake.tasks.pop(0))
         return result
 
     def search(self, command: str, area: str = "here") -> "CommandResult":
@@ -529,3 +544,201 @@ def test_command_arguments_are_declared(env: Env) -> None:
         parser.add_argument(*arguments[0]["args"], **arguments[0]["kwargs"])
         assert parser.parse_args([]).area == "here"
         assert parser.parse_args(["aylor"]).area == "aylor"
+
+
+def room(uid: str, area: str, name: str = "A Room") -> dict[str, Any]:
+    """Return a stored room."""
+    return {"uid": uid, "name": name, "area": area, "flags": [], "details": None}
+
+
+@pytest.fixture
+def mapped(env: Env) -> Env:
+    """Rooms 1 to 3 in area a and 9 in area b, standing in room 1."""
+    for uid, area in (("1", "a"), ("2", "a"), ("3", "a"), ("9", "b")):
+        env.fake.rooms[uid] = room(uid, area, f"Room {uid}")
+    env.fake.exit_add("1", "n", "2")
+    env.fake.exit_add("1", "open door;wait(2);e", "3", 1, {"level": 50})
+    env.fake.exit_add("3", "pull lever", "9")
+    env.fake.exit_add("9", "squeeze", "1")
+    env.fake.current = "1"
+    return env
+
+
+def test_cexits_listing(mapped: Env) -> None:
+    """here lists the area, thisroom the room, an area id that area; plain exits are left out."""
+    here = mapped.run("cexits", where="here")
+    assert here.success
+    assert here.message[0] == "Mapper custom exits in here: 2"
+    assert here.message[1] == "uid | name | area | command | to | level"
+    assert here.message[2] == "1 | Room 1 | a | open door;wait(2);e | 3 | 50"
+    assert here.message[3] == "3 | Room 3 | a | pull lever | 9 | 0"
+    assert len(mapped.run("cexits", where="thisroom").message) == 3
+    assert mapped.run("cexits", where="b").message[2].startswith("9 | Room 9 | b | squeeze")
+    mapped.fake.exit_add("*", "enter", "1")
+    assert len(mapped.run("cexits", where="here").message) == 4
+
+
+def test_cexits_empty_and_unknown_room(mapped: Env) -> None:
+    """An area with none gets a message; here needs a known room."""
+    assert mapped.run("cexits", where="nowhere").message == ["No custom exits found in nowhere"]
+    mapped.fake.current = None
+    assert not mapped.run("cexits", where="here").success
+
+
+def test_cexitdel(mapped: Env) -> None:
+    """One named cexit, or all of the room's, are deleted; plain exits stay."""
+    mapped.fake.exit_add("1", "pull rope", "2")
+    assert not mapped.run("cexitdel", command=["nothing"]).success
+    assert mapped.run("cexitdel", command=["pull", "rope"]).success
+    assert ("1", "pull rope") not in mapped.fake.exits
+    assert ("1", "open door;wait(2);e") in mapped.fake.exits
+    assert mapped.run("cexitdel", command=[]).success
+    assert set(mapped.fake.exits) >= {("1", "n"), ("3", "pull lever")}
+    assert ("1", "open door;wait(2);e") not in mapped.fake.exits
+    assert not mapped.run("cexitdel", command=[]).success
+    mapped.fake.current = None
+    assert not mapped.run("cexitdel", command=[]).success
+
+
+def test_cexitpurge(mapped: Env) -> None:
+    """Without --confirm nothing changes; with it only the named area is purged."""
+    before = set(mapped.fake.exits)
+    counted = mapped.run("cexitpurge", where="a", confirm=False)
+    assert "2 custom exits in a" in counted.message[0]
+    assert set(mapped.fake.exits) == before
+    assert mapped.run("cexitpurge", where="here", confirm=True).success
+    assert set(mapped.fake.exits) == {("1", "n"), ("9", "squeeze")}
+    assert mapped.run("cexitpurge", where="here", confirm=True).message == [
+        "No custom exits found in a"
+    ]
+    assert mapped.run("cexitpurge", where="all", confirm=True).success
+    assert set(mapped.fake.exits) == {("1", "n")}
+    mapped.fake.current = None
+    assert not mapped.run("cexitpurge", where="here", confirm=True).success
+
+
+def test_lockexit(mapped: Env) -> None:
+    """List the exits, show a lock, set one keeping touid and cost, and remove it."""
+    listed = mapped.run("lockexit", exit=[], room=None, level=None)
+    assert listed.message[1:] == ["exit | to | level", "n | 2 | 0", "open door;wait(2);e | 3 | 50"]
+    shown = mapped.run("lockexit", exit=["open", "door;wait(2);e"], room=None, level=None)
+    assert "needs level 50" in shown.message[0]
+    mapped.fake.exit_add("1", "s", "2", 4)
+    assert mapped.run("lockexit", exit=["s"], room=None, level=100).success
+    assert mapped.fake.exits[("1", "s")] == {
+        "fromuid": "1",
+        "dir": "s",
+        "touid": "2",
+        "cost": 4,
+        "requirement": {"level": 100},
+    }
+    assert mapped.run("lockexit", exit=["s"], room="1", level=0).success
+    assert mapped.fake.exits[("1", "s")]["requirement"] is None
+    assert mapped.fake.exits[("1", "s")]["cost"] == 4
+    assert mapped.run("lockexit", exit=["pull", "lever"], room="3", level=70).success
+    assert mapped.fake.exits[("3", "pull lever")]["requirement"] == {"level": 70}
+
+
+def test_lockexit_failures(mapped: Env) -> None:
+    """A missing exit and an unknown room fail."""
+    assert not mapped.run("lockexit", exit=["up"], room=None, level=5).success
+    assert not mapped.run("lockexit", exit=["n"], room="77", level=5).success
+    mapped.fake.current = None
+    assert not mapped.run("lockexit", exit=[], room=None, level=None).success
+
+
+def portal(
+    env: Env, *command: str, level: int = 0, touid: str | None = None, recall: bool = False
+) -> "CommandResult":
+    """Run the portal command."""
+    return env.run("portal", command=list(command), level=level, touid=touid, recall=recall)
+
+
+def test_portal_adds(mapped: Env) -> None:
+    """A portal goes under *, recall and home under **, --recall forces **; touid defaults here."""
+    assert portal(mapped, "enter", "portal", level=20).success
+    assert mapped.fake.exits[("*", "enter portal")]["touid"] == "1"
+    assert mapped.fake.exits[("*", "enter portal")]["requirement"] == {"level": 20}
+    assert portal(mapped, "Home", touid="2").success
+    assert ("**", "Home") in mapped.fake.exits
+    assert portal(mapped, "gate", recall=True, touid="3").success
+    assert ("**", "gate") in mapped.fake.exits
+    assert not portal(mapped, "gate", touid="77").success
+    assert not portal(mapped, "x;wait(99)").success
+    mapped.fake.current = None
+    assert not portal(mapped, "gate").success
+
+
+def test_portal_other_kind_is_replaced(mapped: Env) -> None:
+    """Adding a command under the other kind removes the old exit."""
+    portal(mapped, "gate")
+    portal(mapped, "gate", recall=True)
+    assert ("*", "gate") not in mapped.fake.exits
+    assert ("**", "gate") in mapped.fake.exits
+
+
+def add_portals(env: Env) -> None:
+    """Three portals in two areas, added out of order."""
+    portal(env, "zzz", touid="9", level=5)
+    portal(env, "recall", touid="3")
+    portal(env, "aaa", touid="2")
+
+
+def test_portals_listing(mapped: Env) -> None:
+    """Sorted by area, room number and command; numbers stay stable under a filter."""
+    add_portals(mapped)
+    result = mapped.run("portals", filter="")
+    assert result.message[1] == "# | kind | area | name | to | command | level"
+    assert result.message[2:] == [
+        "#1 | portal | a | Room 2 | 2 | aaa | 0",
+        "#2 | recall | a | Room 3 | 3 | recall | 0",
+        "#3 | portal | b | Room 9 | 9 | zzz | 5",
+    ]
+    assert mapped.run("portals", filter="B").message[2:] == [
+        "#3 | portal | b | Room 9 | 9 | zzz | 5"
+    ]
+    assert mapped.run("portals", filter="nope").message == ["No portals found"]
+
+
+def test_portal_edits(mapped: Env) -> None:
+    """Each edit works by #N and by command and keeps the other fields."""
+    add_portals(mapped)
+    assert mapped.run("portalchange", ref="#1", command=["bbb", "ccc"]).success
+    assert ("*", "aaa") not in mapped.fake.exits
+    assert mapped.fake.exits[("*", "bbb ccc")]["touid"] == "2"
+    assert mapped.run("portallevel", ref="zzz", level=40).success
+    assert mapped.fake.exits[("*", "zzz")]["requirement"] == {"level": 40}
+    assert mapped.fake.exits[("*", "zzz")]["touid"] == "9"
+    assert mapped.run("portallevel", ref="zzz", level=0).success
+    assert mapped.fake.exits[("*", "zzz")]["requirement"] is None
+    assert mapped.run("portalrecall", ref="zzz").success
+    assert ("*", "zzz") not in mapped.fake.exits
+    assert mapped.fake.exits[("**", "zzz")]["touid"] == "9"
+    assert mapped.run("portalrecall", ref="zzz").success
+    assert ("*", "zzz") in mapped.fake.exits
+    assert ("**", "zzz") not in mapped.fake.exits
+    assert mapped.run("portaldel", ref="recall").success
+    assert ("**", "recall") not in mapped.fake.exits
+
+
+def test_portal_unknown_reference(mapped: Env) -> None:
+    """An unknown number or command fails, and a bad new command is refused."""
+    add_portals(mapped)
+    before = mapped.fake.state()
+    assert not mapped.run("portalchange", ref="#9", command=["x"]).success
+    assert not mapped.run("portalchange", ref="aaa", command=["wait(0)"]).success
+    assert not mapped.run("portallevel", ref="nope", level=3).success
+    assert not mapped.run("portalrecall", ref="nope").success
+    assert not mapped.run("portaldel", ref="nope").success
+    assert mapped.fake.state() == before
+
+
+def test_portalpurge(mapped: Env) -> None:
+    """It needs --confirm and leaves the exits of rooms alone."""
+    assert mapped.run("portalpurge", confirm=False).message == ["No portals found"]
+    add_portals(mapped)
+    count = len(mapped.fake.exits)
+    assert "3 portals" in mapped.run("portalpurge", confirm=False).message[0]
+    assert len(mapped.fake.exits) == count
+    assert mapped.run("portalpurge", confirm=True).success
+    assert {f for f, _ in mapped.fake.exits} == {"1", "3", "9"}
