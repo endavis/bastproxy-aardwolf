@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795481822882,
+  "lastUpdate": 1795513789262,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1709,6 +1709,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.734151461262923e-7",
             "extra": "mean: 4.293120198007402 usec\nrounds: 124844"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52710d2afb74adb219eee0f3976e147c5da62310",
+          "message": "feat: port the itemid plugin (merges PR #99, addresses #76)\n\n* feat: port the itemid plugin\n\nplugins.aardwolf.itemid identifies an item by queuing invdetails and\nidentify for its serial through mudcmds, parses both replies into one\nplain dict in eqdb's item shape, hands it to eq (and to eqdb when eq\ndoes not know the item), and raises ev_plugins.aardwolf.itemid_identified.\n\n- Both commands hide their output when queued, up to and including the\n  prompt after them; typed ones are shown and not parsed. Command timing\n  starts in beforef, which runs only for queued commands.\n- Replies are matched to serials through a queue of pending serials, and\n  an invheader for another serial is dropped. Tagged lines outside the\n  {invdetails} block (a fetch's {invmon}) are not read.\n- An item outside the inventory is fetched first and put back after,\n  and the event waits for eq's matching eq_put or eq_worn.\n- APIs item.identify, item.format and item.show; the id command shows\n  the item box, with -f to identify again and -d to read eqdb.\n- The cache is in memory and cleared on disconnect.\n\nThe old bugs fixed (the item box crashed for every item, Light and\nPortal never shown, zeros written into the item, a stale item reused,\nan identify that never ended stopping the queue, and more) are listed\nin docs/plugins/itemid.md. codespell ignores \"sav\", the Sav stat column.\n\nAddresses #76\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: keep eq's place keys out of identify merges and eqdb saves\n\neq keeps an item's place in \"container\" (a container id such as\n\"Inventory\"), while eqdb reads \"container\" as the container detail of a\nbag (capacity and so on) and wants a mapping. item.identify.add merged\nthe identify attributes into eq's cached item and saved that copy, so:\n\n- for any item with a place, eqdb's save refused the \"container\"\n  string (\"the container detail has the wrong shape\"), and\n  item.identify.add logged it and returned False;\n- an identify that carried a container detail overwrote eq's place.\n\nitem.identify.add now never overwrites container, origcontainer or\nhasbeenided in the cache, and the copy it saves to eqdb leaves those\nplace keys out before laying the attributes over it, so a container\ndetail is saved and a place string never is.\n\nBatched in the PR for #76, whose itemid port is the first caller.\n\nAddresses #76\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: unescape Aardwolf's colour codes in eq item names\n\nAardwolf sends the colour codes of an item name as text in invdata and\neqdata lines (@WGueldar's@w ...). The proxy's colour coded copy of the\nline escapes each literal @ as @@, so eq stored cname with @@W codes and\nits plain name kept @W codes; itemid's box showed them raw and eqdb\nwould have saved them.\n\nparse_item_line now turns @@ back into @ in cname, and name is cname\nwith the codes stripped.\n\nFound by the live check of the itemid port. Batched in the PR for #76.\n\nAddresses #76\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: show the item type and bag name in itemid's box\n\nA live check on a real character found two gaps in the itemid box:\n\n- {invheader} carries the item type as a name (Weapon), not a number.\n  parse_item_data kept the string, so the box had no Type line, a light\n  had no duration and eqdb's itype column got text. The invheader\n  layout now maps the name through OBJECTTYPESREV, in any case; an\n  unknown name stays text.\n- A bagged item's Location showed the bag's serial. It now shows the\n  bag's plain name from eq and the serial, and the bare serial when eq\n  does not know the bag.\n\ndocs/plugins/itemid.md drops the known gaps the live check confirmed.\n\nAddresses #76\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T09:49:16Z",
+          "tree_id": "eefba147c9a9bd5a9843825e8b5ad2aa9d80c67d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/52710d2afb74adb219eee0f3976e147c5da62310"
+        },
+        "date": 1795513788523,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6167630.141550563,
+            "unit": "iter/sec",
+            "range": "stddev: 8.965358442976928e-9",
+            "extra": "mean: 162.13683003835192 nsec\nrounds: 62720"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 314986.30377969274,
+            "unit": "iter/sec",
+            "range": "stddev: 2.857752987737414e-7",
+            "extra": "mean: 3.174741212555764 usec\nrounds: 159745"
           }
         ]
       }
