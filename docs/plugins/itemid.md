@@ -193,6 +193,12 @@ Each of these was a bug in the old plugin unless it says changed.
 - **Changed: events.** One event for every item replaces `itemid_<serial>` and `itemid_all`.
 - **Changed: where the item is shown.** The location and the wear slot come from eq when the box is
   shown, not from the item.
+- **Fixed: the type in `{invheader}`.** Aardwolf sends it as a name (`Weapon`), not a number, so the
+  box had no Type line and a light had no duration. `parse_item_data` now maps the name to its
+  number (any case); an unknown name stays text.
+- **Changed: the location of a bagged item.** The box shows the bag's plain name from eq and its
+  serial, `Vladia's Shopping Bag (3984162635)`, wrapped when long, and the bare serial when eq
+  does not know the bag.
 - **Changed: the box layout.** Every line is now 67 columns wide. The enchant line that has
   "(removable by enchanter)" was longer than the box and is now shortened. The stat and resist
   tables are laid out on one column grid, so the header and the values line up, and the physical
@@ -205,14 +211,15 @@ Each of these was a bug in the old plugin unless it says changed.
 
 ## Known gaps
 
-These cannot be checked from code and need a live check on a character:
+A live check on a real character confirmed the `{invdetails}` header names and fields and the
+`", "` separator of `flags`; that identify ends with ` A full appraisal will reveal further
+information on this item.`, a blank line, then the prompt; that an unknown serial is answered here
+with `Could not find <serial>` when eq does not know it; and that worn and bagged items work by
+fetching them. What is left cannot be checked from code:
 
-- The exact `{invdetails}` header names and fields, whether the `flags` field is separated by
-  `", "`, and whether the name of a skill mod is the sn of the skill.
-- Whether a blank line, or only the prompt, follows the last identify divider, trailing spaces on
-  the `|` lines, the `Id` and `Reward.....` labels, and whether a continuation line repeats the
-  colon of the label column (the reader strips one).
-- What Aardwolf answers for an unknown serial for each command. The plugin relies on the timeout.
+- Whether the name of a skill mod is the sn of the skill.
+- Trailing spaces on the `|` lines, the `Id` and `Reward.....` labels, and whether a continuation
+  line repeats the colon of the label column (the reader strips one).
 - Whether `invdetails` and `identify` work on worn and bagged items without fetching them. If they
   do, a follow-up could stop removing worn items.
 - Items in a vault outside a bank, where the fetch fails and the read times out.

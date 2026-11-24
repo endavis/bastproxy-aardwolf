@@ -425,3 +425,37 @@ def test_a_sparse_item_does_not_raise() -> None:
     ]
     item = {"serial": 8, "keywords": "one two", "flags": "glow", "drink": {"liquidmax": 0}}
     assert all(len(strip(line)) == WIDTH for line in box(item))
+
+
+def test_a_real_style_invheader_shows_the_type_and_a_light_its_duration() -> None:
+    weapon = read([("invheader", "3984278750|1|Weapon|15|2|wield|melt-drop, v3|||||||16")])
+    text = "\n".join(strip(line) for line in box(weapon))
+    assert "Type       : Weapon" in text
+    assert "Level  : 1" in text
+    light = read(
+        [
+            ("invheader", "3984278751|1|Light|0|2|light|glow, v3|||||||10"),
+            ("light", "30"),
+        ]
+    )
+    assert "Duration   : 30 minutes" in "\n".join(strip(line) for line in box(light))
+
+
+def test_a_bag_location_shows_the_bag_name_and_serial() -> None:
+    text = "\n".join(
+        strip(line)
+        for line in format_item(
+            {"serial": 1}, "3984162635", None, skill_name, strip, "Vladia's Shopping Bag"
+        )
+    )
+    assert "Location   : Vladia's Shopping Bag (3984162635)" in text
+    assert "Location   : 3984162635" in "\n".join(
+        strip(line) for line in box({"serial": 1}, "3984162635")
+    )
+
+
+def test_a_long_bag_name_wraps_within_the_box() -> None:
+    name = "a very long bag name that will not fit on one line of the box " * 2
+    lines = format_item({"serial": 1}, "3984162635", None, skill_name, strip, name.strip())
+    assert all(len(strip(line)) == WIDTH for line in lines)
+    assert "(3984162635)" in "\n".join(strip(line) for line in lines)

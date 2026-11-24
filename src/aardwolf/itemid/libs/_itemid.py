@@ -474,6 +474,7 @@ def format_item(
     worn_slot: int | None,
     skill_name: Callable[[int | str], str | None],
     strip: Strip,
+    bag_name: str | None = None,
 ) -> list[str]:
     """Return the lines of the item box.
 
@@ -483,6 +484,7 @@ def format_item(
         worn_slot: The wear slot, used when the location is Worn.
         skill_name: Returns the name of a skill by sn, or None.
         strip: Removes colour codes, to measure a line.
+        bag_name: The plain name of the bag the item is in, when location is its serial.
     """
     lines = [DIVIDER]
 
@@ -509,6 +511,8 @@ def format_item(
     if location:
         if location == WORN and worn_slot is not None and 0 <= worn_slot < len(WEARLOCS):
             single("Location", "@R", f"Worn - {WEARLOCS[worn_slot]}")
+        elif bag_name:
+            wrapped("Location", "@R", f"{bag_name} ({location})")
         else:
             single("Location", "@R", location)
 

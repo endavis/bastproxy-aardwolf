@@ -18,8 +18,10 @@ Changes from the old behaviour:
   ``ValueError``. An unknown layout used to return ``None``; it now raises ``ValueError``.
   ``eqdata`` without ``strip_color`` raises ``ValueError``. Extra trailing fields are still
   ignored.
-* The dead branch for ``layoutname == 'invheader' and name == 'type'`` is dropped: the field
-  is called ``itype`` and is numeric, so it never ran.
+* The old branch for ``layoutname == 'invheader' and name == 'type'`` never ran, because the
+  field is called ``itype``. It was the conversion Aardwolf needs: real ``{invheader}`` lines
+  carry the type as a name (``Weapon``), so ``parse_item_data`` maps it through
+  ``OBJECTTYPESREV``, case-insensitively, to the number. An unknown name stays a string.
 * ``xrange`` (Python 2) is gone.
 """
 
@@ -215,6 +217,11 @@ def parse_item_data(
             item[name] = int(raw)
         except ValueError:
             item[name] = raw
+
+    if layout == "invheader":
+        itype = item["itype"]
+        if isinstance(itype, str):
+            item["itype"] = OBJECTTYPESREV.get(itype.strip().lower(), itype)
 
     if layout == "eqdata" and strip_color is not None:
         item["name"] = strip_color(str(item["cname"]))

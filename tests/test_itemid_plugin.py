@@ -731,3 +731,17 @@ def test_a_tagged_line_before_the_block_is_not_read(
     env.fake.feed([PROMPT], prompt=True)
     assert logged == []
     assert env.fake.added[0][1]["statmod"] == {"Strength": 2}
+
+
+def test_the_box_names_the_bag_an_item_is_in(env: Env) -> None:
+    def text() -> str:
+        return "\n".join(re.sub(r"@.", "", line) for line in env.plugin._box({"serial": 2001}))
+
+    assert "Location   : 3002 " in text()
+    bag = eq_item(3002, "Inventory")
+    bag["name"] = "Vladia's Shopping Bag"
+    env.fake.eq[3002] = bag
+    assert "Location   : Vladia's Shopping Bag (3002)" in text()
+    assert "Location   : Inventory" in "\n".join(
+        re.sub(r"@.", "", line) for line in env.plugin._box({"serial": 1001})
+    )

@@ -407,14 +407,26 @@ class ItemIdPlugin(BasePlugin):
             slot if isinstance(slot, int) else None,
             self._skill_name,
             self._strip,
+            self._bag_name(location),
         )
+
+    def _bag_name(self, location: object) -> str | None:
+        """Return the plain name of the bag at a location, or None when it is not a known bag."""
+        bag = _serial(location)
+        if bag is None:
+            return None
+        found = self._eq_item(bag)
+        name = found.get("name") if found else None
+        return str(name) if name else None
 
     @AddAPI("item.format", description="return the lines of the item box for an item dict")
     def _api_item_format(self, item: dict[str, Any], location: str | None = None) -> list[str]:
         """Return the lines of the item box; ``location`` defaults to where eq has the item."""
         if location is None:
             return self._box(item)
-        return format_item(item, location, None, self._skill_name, self._strip)
+        return format_item(
+            item, location, None, self._skill_name, self._strip, self._bag_name(location)
+        )
 
     @AddAPI("item.show", description="show an item to the client, identifying it when needed")
     def _api_item_show(self, serial: int | str, database: bool = False) -> None:
