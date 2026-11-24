@@ -42,6 +42,7 @@ lists every discovered plugin, loaded or not.
 | [a102](a102.md) | `plugins.aardwolf.a102` | Toggles Aardwolf telnet option 102 features with shared counts and publishes the MUD's option 102 reports. |
 | [statdb](statdb.md) | `plugins.aardwolf.statdb` | Records character stats, quests, campaigns, global quests, levels and mob kills in a database, and reports on them. |
 | [eqdb](eqdb.md) | `plugins.aardwolf.eqdb` | Keeps the character's identified items in a database and lets other plugins save and get an item. |
+| [eq](eq.md) | `plugins.aardwolf.eq` | Tracks the items the character wears, carries, keeps on the keyring and stores in the vault, and raises the changes as events. |
 | [quest](quest.md) | `plugins.aardwolf.quest` | Turns the GMCP quest messages into quest events and keeps the current quest. |
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 | [level](level.md) | `plugins.aardwolf.level` | Detects levels, powerups, hero, superhero, remort and tier from the MUD output and raises them as events. |

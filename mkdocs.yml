@@ -111,6 +111,7 @@ nav:
       - a102: plugins/a102.md
       - statdb: plugins/statdb.md
       - eqdb: plugins/eqdb.md
+      - eq: plugins/eq.md
       - quest: plugins/quest.md
       - whois: plugins/whois.md
       - level: plugins/level.md

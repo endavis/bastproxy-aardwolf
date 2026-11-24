@@ -18,8 +18,9 @@ container, light, portal, furniture, drink, food and spells data). It is a port 
 proxy's `eqdb` plugin and keeps its schema, so a database written by the old plugin is used as it
 is.
 
-The plugin never imports another plugin. Nothing in this repository calls its save API yet: the
-eq, itemid and itemkeep ports are the planned callers. Until they are loaded the tables stay empty.
+The plugin never imports another plugin. The [eq plugin](eq.md) calls its save API from
+`item.identify.add`, when this plugin is loaded. The itemid and itemkeep ports are planned callers
+too; until an identify is added the tables stay empty.
 
 ## Loading
 
