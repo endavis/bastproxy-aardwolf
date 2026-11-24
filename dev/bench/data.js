@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795526123018,
+  "lastUpdate": 1795526828051,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2127,6 +2127,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010572505693739915",
             "extra": "mean: 5.729404061687619 usec\nrounds: 178891"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c1cfdb778125967a2de2917226ef84b2fe6715e7",
+          "message": "feat: port the su plugin (merges PR #110, addresses #80)\n\n* feat: port the su plugin\n\nAdd plugins.aardwolf.su, which recasts the spellups in its list when\nthey wear off. It casts only while enabled (default on, as in the old\nplugin), connected, with an active character in GMCP state 3 and the\nskills up to date, and never while a cast is pending, the room is\nnocast or mana or moves ran out. It reaches skills and move through\ntheir APIs and events only.\n\nOld bugs fixed and listed in docs/plugins/su.md: rem all returned\nnothing and never saved, nomoves recorded the mana, a cast with no\nreply stopped casting for good, transient state was saved in settings,\nen and dis never synced, and a few messages and loops.\n\nAddresses #80\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: record the su texts confirmed on a real character\n\nA live check on Aardwolf with Underwater breathing (sn 333) confirmed\n\"cast 333\", \"{sfail}333,0,1,-1\" for a lost concentration (the plugin\ncast again) and \"{affon}333,300\" when the spell took hold (the wait\nended and the list showed it affecting). The other tags, fail codes 2\nto 12 and the char.vitals keys stay listed as unconfirmed.\n\nAddresses #80\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T13:26:10Z",
+          "tree_id": "0bb1c547f715f97c6ca38ed291734964e1963c8d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/c1cfdb778125967a2de2917226ef84b2fe6715e7"
+        },
+        "date": 1795526827329,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5086685.127333821,
+            "unit": "iter/sec",
+            "range": "stddev: 1.6238239411673173e-8",
+            "extra": "mean: 196.59168495144277 nsec\nrounds: 53141"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 266149.9015845512,
+            "unit": "iter/sec",
+            "range": "stddev: 5.130550839181077e-7",
+            "extra": "mean: 3.7572811188221213 usec\nrounds: 141024"
           }
         ]
       }
