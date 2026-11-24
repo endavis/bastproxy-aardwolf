@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795520108758,
+  "lastUpdate": 1795520531272,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2013,6 +2013,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.494262796269184e-7",
             "extra": "mean: 3.285169415799514 usec\nrounds: 159262"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4ac1f838538312e59a8461450c35f6996c78b326",
+          "message": "feat: port the aflags plugin (merges PR #107, addresses #79)\n\n* feat: port the aflags plugin\n\nKeep the character's affect flags from a hidden queued `aflags`, refresh\nthem when the skills plugin reports an affect change, and raise\nev_plugins.aardwolf.aflags_diff with the flags added and removed. Adds\nthe flag.check API and the refresh, check and list commands, tests, and\ndocs/plugins/aflags.md with the old bugs fixed.\n\nAddresses #79\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: record the aflags output seen on a live character\n\nA live character with one affect answered a queued aflags with\n\"Affect Flags: detecthidden\", two blank lines and the prompt, and the\nproxy hid all of it from the client. The docs now show that output and\nkeep only the long-list wrapping and the no-flags output as unconfirmed.\n\nBatched in the PR for #79.\n\nAddresses #79\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T11:41:32Z",
+          "tree_id": "98597ed647db7175f4ee5657261afeabb0c4c5c5",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/4ac1f838538312e59a8461450c35f6996c78b326"
+        },
+        "date": 1795520530882,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3853077.053896249,
+            "unit": "iter/sec",
+            "range": "stddev: 3.419018495112964e-8",
+            "extra": "mean: 259.53283207476875 nsec\nrounds: 193874"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 222393.53469597964,
+            "unit": "iter/sec",
+            "range": "stddev: 4.947378266222987e-7",
+            "extra": "mean: 4.496533594679529 usec\nrounds: 115301"
           }
         ]
       }
