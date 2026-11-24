@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795545600776,
+  "lastUpdate": 1795561694253,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2279,6 +2279,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000001433985805374138",
             "extra": "mean: 6.062786151803636 usec\nrounds: 174521"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6aaa4e2119b508c4cd807eba9ddc6fec900860fb",
+          "message": "feat: add the Aardwolf mapper adapter (merges PR #122, addresses #118)\n\n* chore: update the bastproxy core pin in uv.lock\n\nMove the bastproxy pin from 9acaff5e to 02fd7e92. That commit adds the\ncore mapper plugins.client.mapper (endavis/bastproxy#755 and #757), and\nalso brings the startup gc freeze (endavis/bastproxy#759). Only the\nbastproxy entry in uv.lock changes.\n\nAddresses #118\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: add the Aardwolf mapper adapter\n\nAdd plugins.aardwolf.mapper. It feeds the core mapper\n(plugins.client.mapper) only through its APIs and events.\n\n- Rooms: GMCP room.info becomes room.add (with the exits) and\n  room.current.set, on the move plugin's room-change event. The first\n  room after a load or a reconnect comes from the GMCP cache or the\n  first room.info.\n- Areas: an unknown area is requested with \"request area\" once per\n  connection, and the room.area reply goes to area.add.\n- Flags: noportal and norecall come from \"Magic walls bounce you back.\"\n  and \"You cannot recall/return home from this room.\", and the room's\n  exits are kept.\n- Requirements: a {\"level\", \"tier\"} requirement is checked against GMCP\n  char.status.level and char.base.tier. Portals and recalls use\n  level + 10 * tier, as the old mapper did.\n- Movement: runs of plain directions become one \"run 3n2e\" speedwalk,\n  a single direction is sent bare, and any other exit is sent as-is.\n- Mismatch: room_mismatch is reported to the client with what changed\n  and the purge command to use.\n\nDocs are in docs/plugins/mapper.md, with an index row, a nav entry and\nthe regenerated table of contents. The new tests are added to the\nmutmut test selection.\n\nAddresses #118\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T23:07:06Z",
+          "tree_id": "6a532288d1332d85449034b000a0d8ba43ae47ce",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6aaa4e2119b508c4cd807eba9ddc6fec900860fb"
+        },
+        "date": 1795561693666,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5093614.22866538,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7411887546529826e-8",
+            "extra": "mean: 196.3242513287109 nsec\nrounds: 55879"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 247040.12458185497,
+            "unit": "iter/sec",
+            "range": "stddev: 6.002918784616196e-7",
+            "extra": "mean: 4.047925419777941 usec\nrounds: 147995"
           }
         ]
       }
