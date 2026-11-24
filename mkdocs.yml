@@ -130,6 +130,7 @@ nav:
       - scanh: plugins/scanh.md
       - move: plugins/move.md
       - skills: plugins/skills.md
+      - su: plugins/su.md
       - repop: plugins/repop.md
       - iceage: plugins/iceage.md
       - statmn: plugins/statmn.md
