@@ -565,3 +565,21 @@ def test_drop_container_drops_nested_bags() -> None:
     assert sorted(dropped) == [51, 52]
     assert state.container_copy(51) is None
     assert 52 not in state.items
+
+
+def test_parse_colorcoded_line_unescapes_literal_at_signs() -> None:
+    plain = "3984146950,,@WGueldar's@w crafted leather pants@w,1,7,0,21,-1"
+    colored = "3984146950,,@@WGueldar's@@w crafted leather pants@@w,1,7,0,21,-1"
+    parsed = parse_item_line(plain, colored, strip)
+    assert parsed is not None
+    assert parsed["cname"] == "@WGueldar's@w crafted leather pants@w"
+    assert parsed["name"] == "Gueldar's crafted leather pants"
+
+
+def test_parse_colorcoded_line_keeps_ansi_codes_beside_escaped_ones() -> None:
+    plain = "1,,@Ra @Wbag@w,1,7,0,21,-1"
+    colored = "@R1,,@Ra @@Wbag@@w,1,7,0,21,-1@w"
+    parsed = parse_item_line(plain, colored, strip)
+    assert parsed is not None
+    assert parsed["cname"] == "@Ra @Wbag@w"
+    assert parsed["name"] == "a bag"

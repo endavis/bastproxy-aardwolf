@@ -204,7 +204,9 @@ def parse_item_line(
     """Parse an item line into a dict, or None when it is not one.
 
     ``cname`` is taken from the colour coded text when that matches too, else it is the plain
-    name; ``name`` is ``cname`` with the colour codes stripped by ``strip``.
+    name. The colour coded text escapes each literal ``@`` as ``@@``, so ``@@`` becomes ``@``
+    and Aardwolf's own codes in the name stay codes. ``name`` is ``cname`` with the colour
+    codes stripped by ``strip``.
     """
     match = ITEM_LINE_REGEX.match(noansi)
     if not match:
@@ -216,7 +218,7 @@ def parse_item_line(
     if isinstance(colorcoded, str):
         colored = _COLOR_LINE_REGEX.match(colorcoded)
         if colored:
-            item["cname"] = colored.group("cname")
+            item["cname"] = colored.group("cname").replace("@@", "@")
     item["name"] = strip(item["cname"])
     return item
 

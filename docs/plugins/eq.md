@@ -48,7 +48,9 @@ kept from the client: the plugin still reads them, and other lines are shown as 
   container id or `None`), `origcontainer` (where `item.fetch` took it from), `hasbeenided` and
   anything `item.identify.add` merged in. The APIs return copies.
 - **Item lines.** `serial,shortflags,cname,level,itype,unique,wearslot,timer`. The name is taken
-  greedily, so a name that has commas is kept whole.
+  greedily, so a name that has commas is kept whole. Aardwolf sends its colour codes in the name
+  as text (`@WGueldar's@w ...`), and the proxy's colour coded copy of the line escapes each `@` as
+  `@@`, so `cname` turns `@@` back into `@`.
 - **Data commands.** Four mudcmds types, `eq_worn` (`eqdata`), `eq_inventory` (`invdata`),
   `eq_keyring` (`keyring data`) and `eq_vault` (`vault data`), plus one `eq_container_<serial>`
   (`invdata <serial>`) for each bag. The names carry an `eq_` prefix because type names are global.
