@@ -312,6 +312,8 @@ pytest_add_cli_args_test_selection = [
     "tests/test_eqdb_plugin.py",
     "tests/test_gq_libs.py",
     "tests/test_gq_plugin.py",
+    "tests/test_iceage_libs.py",
+    "tests/test_iceage_plugin.py",
     "tests/test_itemid_libs.py",
     "tests/test_itemid_plugin.py",
     "tests/test_itemkeep_libs.py",
