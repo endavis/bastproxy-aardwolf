@@ -49,6 +49,7 @@ lists every discovered plugin, loaded or not.
 | [idle](idle.md) | `plugins.aardwolf.idle` | Sends `look` when Aardwolf warns that the character is idle, so it is not disconnected. |
 | [daily](daily.md) | `plugins.aardwolf.daily` | Raises an event when the daily blessing can be received, and shows when the next one is with `next`. |
 | [afk](afk.md) | `plugins.aardwolf.afk` | Sets an AFK title and keeps the tells while no client that can play is connected. |
+| [aflags](aflags.md) | `plugins.aardwolf.aflags` | Keeps the character's affect flags from the `aflags` command and raises the flags added and removed. |
 | [quest](quest.md) | `plugins.aardwolf.quest` | Turns the GMCP quest messages into quest events and keeps the current quest. |
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 | [level](level.md) | `plugins.aardwolf.level` | Detects levels, powerups, hero, superhero, remort and tier from the MUD output and raises them as events. |
