@@ -112,6 +112,7 @@ nav:
       - statdb: plugins/statdb.md
       - eqdb: plugins/eqdb.md
       - eq: plugins/eq.md
+      - itemid: plugins/itemid.md
       - quest: plugins/quest.md
       - whois: plugins/whois.md
       - level: plugins/level.md

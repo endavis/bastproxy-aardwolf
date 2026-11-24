@@ -19,8 +19,9 @@ proxy's `eqdb` plugin and keeps its schema, so a database written by the old plu
 is.
 
 The plugin never imports another plugin. The [eq plugin](eq.md) calls its save API from
-`item.identify.add`, when this plugin is loaded. The itemid and itemkeep ports are planned callers
-too; until an identify is added the tables stay empty.
+`item.identify.add`, when this plugin is loaded, and the [itemid plugin](itemid.md) calls it
+directly when eq does not know the item. The itemkeep port is a planned caller too; until an
+identify is added the tables stay empty.
 
 ## Loading
 
