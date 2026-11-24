@@ -54,6 +54,7 @@ lists every discovered plugin, loaded or not.
 | [whois](whois.md) | `plugins.aardwolf.whois` | Parses the output of the `whois` command into a saved state and raises it as an event. |
 | [level](level.md) | `plugins.aardwolf.level` | Detects levels, powerups, hero, superhero, remort and tier from the MUD output and raises them as events. |
 | [mobk](mobk.md) | `plugins.aardwolf.mobk` | Follows the combat output and raises an event for each mob kill, with its experience, gold, damage and special kills. |
+| [ct](ct.md) | `plugins.aardwolf.ct` | Shows a table of the damage done, by damage type, after each mob kill. |
 | [cp](cp.md) | `plugins.aardwolf.cp` | Follows the campaigns of the character and raises the mobs left, the completion and the failure as events. |
 | [gq](gq.md) | `plugins.aardwolf.gq` | Follows the global quests of the character and raises the declaration, the mobs left and the end as events. |
 | [promptfix](promptfix.md) | `plugins.aardwolf.promptfix` | Makes the prompt and the battle prompt end in `%c`, so the next line from the MUD never sticks to them, and marks the prompt lines as prompts. |

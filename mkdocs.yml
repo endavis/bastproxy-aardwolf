@@ -123,6 +123,7 @@ nav:
       - whois: plugins/whois.md
       - level: plugins/level.md
       - mobk: plugins/mobk.md
+      - ct: plugins/ct.md
       - cp: plugins/cp.md
       - gq: plugins/gq.md
       - promptfix: plugins/promptfix.md

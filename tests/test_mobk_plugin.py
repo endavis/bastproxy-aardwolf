@@ -517,3 +517,33 @@ def test_last_is_a_copy_kept_after_reset(env: Env) -> None:
     env.plugin.kill["name"] = "Other"
     assert env.plugin.last_kill is not None
     assert env.plugin.last_kill["name"] == "A rat"
+
+
+CRIT = "*Your stab ERADICATES a lazy pupil. [40]"
+NORMAL = "Your stab mars a lazy pupil. [26]"
+
+
+@pytest.mark.parametrize(
+    "crit",
+    [
+        CRIT,
+        "*[2] Your stab ERADICATES a lazy pupil. [40]",
+        "[2] *Your stab ERADICATES a lazy pupil. [40]",
+    ],
+)
+def test_critical_hit_is_added_to_the_damage(env: Env, crit: str) -> None:
+    """A critical hit (leading star) is matched and added, with the normal hit, by type."""
+    env.fake.feed(NORMAL, crit)
+    stab = env.plugin.kill["damage"]["stab"]
+    assert stab["damage"] == 66
+    assert stab["hits"] == 1 + (1 if crit == CRIT else 2)
+    assert env.plugin.kill["name"] == "a lazy pupil"
+
+
+def test_kill_with_only_a_critical_hit_has_damage(env: Env) -> None:
+    """A kill whose only hit was a critical one is raised with a damage table and a start time."""
+    fake = env.fake
+    fake.feed(CRIT, XP, "Mocktar gives you 5 gold coins for the corpse of a lazy pupil.")
+    kill = fake.kills()[0]
+    assert kill["damage"] == {"stab": {"hits": 1, "misses": 0, "damage": 40}}
+    assert kill["starttime"]

@@ -207,6 +207,7 @@ def parse_damage_line(line: str) -> DamageLine:
 
     Args:
         line: The line, optionally prefixed with ``[hits]`` and suffixed with ``[damage]``.
+            A critical hit has a leading ``*``, before the hits or before ``Your``.
 
     Returns:
         The damage, hits, damage type, verb and enemy. Hits defaults to 1, damage to 0 and
@@ -214,10 +215,12 @@ def parse_damage_line(line: str) -> DamageLine:
 
     """
     result: DamageLine = {"damage": 0, "hits": 1, "damtype": "", "damverb": "", "enemy": ""}
-    words = line.split(" ")
+    words = line.removeprefix("*").split(" ")
     if hits := re.match(r"^\[(?P<hits>\d+)\]$", words[0]):
         result["hits"] = int(hits.group("hits"))
         del words[0]
+        if words:
+            words[0] = words[0].removeprefix("*")
     if words and words[0] == "Your":
         del words[0]
     if words and (dam := re.match(r"^\[(?P<damage>\d+)\]$", words[-1])):
