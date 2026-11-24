@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795515911298,
+  "lastUpdate": 1795516628749,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -1823,6 +1823,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.05902698101771e-7",
             "extra": "mean: 3.273432906943891 usec\nrounds: 158228"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e9604b0cfdaf7255478ea2fea14011481eed3bd",
+          "message": "feat: port the iceage plugin (merges PR #102, addresses #84)\n\nPort plugins/aardwolf/iceage.py from the old bastproxy as\nplugins.aardwolf.iceage. Two triggers match the Ice Age and reboot\ncountdown lines and raise ev_plugins.aardwolf.iceage_iceage and\nev_plugins.aardwolf.iceage_reboot, each carrying the minutes left.\n\nOld bugs fixed: the events dropped the captured minutes, the reboot\nminutes were group 2 behind an optional group, and \\d* matched an empty\nnumber. Each change is listed in docs/plugins/iceage.md.\n\nAddresses #84\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T10:36:25Z",
+          "tree_id": "b971416eafd82d4b7c5ae6b600218851c7ff8edb",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/1e9604b0cfdaf7255478ea2fea14011481eed3bd"
+        },
+        "date": 1795516628109,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3838441.057811573,
+            "unit": "iter/sec",
+            "range": "stddev: 3.168641191654072e-8",
+            "extra": "mean: 260.5224321381489 nsec\nrounds: 198492"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 222191.11040105752,
+            "unit": "iter/sec",
+            "range": "stddev: 5.550405666316463e-7",
+            "extra": "mean: 4.500630102594962 usec\nrounds: 114917"
           }
         ]
       }
