@@ -220,13 +220,14 @@ class EqPlugin(BasePlugin):
         for cid in sorted(bags - self._bag_types):
             self._add_bag_type(cid)
 
-    def _queue(self, cid: str) -> None:
-        """Queue the command that reads a container."""
+    def _queue(self, cid: str) -> bool:
+        """Queue the command that reads a container; return True when it was queued."""
         if cid == VAULT and not self._in_bank():
-            return
+            return False
         if cid not in (WORN, INVENTORY, KEYRING, VAULT) and cid not in self._bag_types:
-            return
+            return False
         self.api("plugins.core.mudcmds:command.queue")(type_for(cid).cmdtype)
+        return True
 
     def _refresh_all(self) -> None:
         """Queue every container: worn, inventory, keyring, the vault in a bank, the bags."""
@@ -377,6 +378,14 @@ class EqPlugin(BasePlugin):
     def _api_container_get(self, cid: int | str) -> dict[str, Any] | None:
         """Return ``{cid, items}`` of a container; Worn adds ``slots`` and Vault ``counts``."""
         return self.state.container_copy(cid)
+
+    @AddAPI("container.refresh", description="queue the read of one container")
+    def _api_container_refresh(self, cid: int | str) -> bool:
+        """Queue the read of Worn, Inventory, Keyring, Vault or a bag; False when it cannot be."""
+        resolved = self._resolve_container(str(cid))
+        if resolved is None:
+            return False
+        return self._queue(resolved)
 
     @AddAPI("eq.worn.get", description="return a copy of the item worn at a slot or location")
     def _api_eq_worn_get(self, location: int | str) -> dict[str, Any] | None:

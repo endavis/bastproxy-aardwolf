@@ -1026,3 +1026,26 @@ def test_death_in_the_middle_of_a_block_drops_it(env: Env) -> None:
     assert "eq_data_line" not in env.fake.enabled()
     env.fake.feed([SWORD, "{/eqdata}"])
     assert env.plugin.state.serials("Worn") == []
+
+
+# refreshing one container (#148)
+
+
+def test_container_refresh_queues_one_read(env: Env) -> None:
+    env.fill()
+    assert env.plugin._api_container_refresh("inventory") is True
+    assert env.plugin._api_container_refresh(2002) is True
+    assert env.plugin._api_container_refresh("2002") is True
+    assert env.plugin._api_container_refresh("Worn") is True
+    assert env.fake.queued == ["eq_inventory", "eq_container_2002", "eq_container_2002", "eq_worn"]
+
+
+def test_container_refresh_refuses_what_it_cannot_read(env: Env) -> None:
+    env.fill()
+    assert env.plugin._api_container_refresh("nosuch") is False
+    assert env.plugin._api_container_refresh(9999) is False
+    assert env.plugin._api_container_refresh("Vault") is False
+    assert env.fake.queued == []
+    env.fake.gmcp["room.info.details"] = "bank"
+    assert env.plugin._api_container_refresh("Vault") is True
+    assert env.fake.queued == ["eq_vault"]

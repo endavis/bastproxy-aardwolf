@@ -153,6 +153,7 @@ All are `plugins.aardwolf.eq:<name>`.
 | `item.get(serial)` | a copy of the item, or `None`; the serial may be an int or text |
 | `item.find.by.name(name)` | copies of the items with `name` in their name, case sensitive |
 | `container.get(cid)` | `{cid, items}`, with `slots` for Worn and `counts` for Vault, or `None`; `items` are serials |
+| `container.refresh(cid)` | `True` when the read of one container was queued: `Worn`, `Inventory`, `Keyring`, `Vault` (names are not case sensitive) or a bag serial, as an int or text. `False` for an unknown container, or for the vault outside a bank |
 | `eq.worn.get(location)` | a copy of the item worn at a slot number or location name, or `None`; never raises |
 | `item.fetch(serial)` | `True` when the item is known: sends the command that takes it out of its container and notes where it came from |
 | `item.put(serial, container=None, location=None)` | the container id, or `None` when nothing was done: puts the item in `container`, or back where it came from, fetching it first when it is in another container |
@@ -181,7 +182,7 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | Old | New |
 | :--- | :--- |
 | `eq.getitem` | `plugins.aardwolf.eq:item.get` |
-| `eq.getcontainer` | `plugins.aardwolf.eq:container.get` |
+| `eq.getcontainer` | `plugins.aardwolf.eq:container.get`; its `refresh()` is `container.refresh` |
 | `eq.findname` | `plugins.aardwolf.eq:item.find.by.name` |
 | `eq.getworn` | `plugins.aardwolf.eq:eq.worn.get` |
 | `eq.get` | `plugins.aardwolf.eq:item.fetch` |
