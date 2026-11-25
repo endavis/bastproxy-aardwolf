@@ -29,7 +29,7 @@ The plugin id is `plugins.aardwolf.mapper`:
 #bp.core.pluginm.load plugins.aardwolf.mapper
 ```
 
-It depends on the events, triggers and colors core plugins, on the [move plugin](move.md) and on the
+It depends on the events, triggers, colors, commands and web core plugins, on the [move plugin](move.md) and on the
 core `plugins.client.mapper`, so loading it loads them too.
 
 ## Behaviour
@@ -182,6 +182,33 @@ and counted, as are exits to or from a room that is not imported.
 
 **Not imported:** `storage` (the bounce portal and bounce recall, which are serialised Lua; the core
 path search chains recall and portals itself, so no setting is needed), `environments`, `rooms.building` and `ignore_exits_mismatch`.
+
+## Web pages
+
+With the core web server enabled (see the
+[web server](https://github.com/endavis/bastproxy/blob/main/docs/web-server.md) and the
+[web system](https://github.com/endavis/bastproxy/blob/main/docs/claude/web_system.md)), the plugin
+serves three tables on the core web server. A browser needs the session login of the web server, and
+the pages are read only (GET). Each table sorts, filters and pages through the core table controls,
+and its rows are the rows of the matching text command, built by the same code.
+
+| Path | Same rows as | Query keys |
+| :--- | :--- | :--- |
+| `/aardwolf/mapper/portals` | `portals` | none |
+| `/aardwolf/mapper/cexits` | `cexits` | `area`, `show` |
+| `/aardwolf/mapper/places` | `shops`, `train`, `quest`, `notes` | `area`, `kind` |
+
+- **`area`** is an area id, in any case; it defaults to the area of the current room. An area with no
+  mapped rooms, or an unknown current room, is a 404. An id over 100 characters is a 400.
+- **`show`** on `cexits` is `cexits` (the default) or `locks`. `locks` lists every exit of the area
+  with a requirement level above 0, plain exits included, in the same columns.
+- **`kind`** on `places` is `shops` (the default), `train`, `quest` or `notes`; any other value is a
+  400.
+- **Links.** The area and name cells link to the room and area pages of the core client mapper
+  (`/client/mapper/room?uid=` and `/client/mapper/area?uid=`). A link cell sorts and filters by its
+  text.
+- **Routes.** The plugin adds the routes when it loads, only if the web plugin is loaded, and removes
+  them when it unloads.
 
 ## Events used
 

@@ -5,8 +5,12 @@ from typing import Any
 import pytest
 
 from aardwolf.mapper.libs import (
+    MAX_AREA_ARG,
+    PLACE_KINDS,
     SEARCHES,
+    area_arg,
     area_from_gmcp,
+    area_link,
     detail_matches,
     is_cexit,
     is_recall_command,
@@ -18,11 +22,13 @@ from aardwolf.mapper.libs import (
     requirement_level,
     resolve_portal,
     room_from_gmcp,
+    room_link,
     room_uid,
     search_lines,
     split_command,
     steps_to_commands,
     table_lines,
+    table_view,
     to_int,
     total_wait,
 )
@@ -331,3 +337,91 @@ def test_table_lines() -> None:
     """A table is a title, a header and a line per row."""
     assert table_lines("T", ("a", "b"), [("1", "2")]) == ["T", "a | b", "1 | 2"]
     assert search_lines("S", [("1", "n", "z", "f")])[1] == "uid | name | area | found"
+
+
+COLUMNS = [
+    {"name": "uid", "label": "Room", "type": "text"},
+    {"name": "name", "label": "Name", "type": "text"},
+    {"name": "level", "label": "Level", "type": "int"},
+]
+ROWS: list[list[Any]] = [
+    ["10", {"text": "Beta", "href": "/x?uid=10"}, 5],
+    ["2", {"text": "alpha", "href": "/x?uid=2"}, 5],
+    ["3", "Gamma", 1],
+    ["x", "beta two", 9],
+]
+
+
+def view(
+    *,
+    sort: str | None = None,
+    descending: bool = False,
+    filters: dict[str, str | int | float] | None = None,
+    offset: int = 0,
+    count: int = 50,
+) -> tuple[list[Any], int]:
+    """Run table_view over ROWS; the defaults change nothing."""
+    return table_view(
+        ROWS,
+        COLUMNS,
+        sort=sort,
+        descending=descending,
+        filters=filters or {},
+        offset=offset,
+        count=count,
+    )
+
+
+def test_links_hold_only_text_and_href() -> None:
+    """A link cell is exactly the two keys, with the uid percent-encoded."""
+    assert room_link("5", "Inn") == {"text": "Inn", "href": "/client/mapper/room?uid=5"}
+    assert area_link("a b&c", "A") == {"text": "A", "href": "/client/mapper/area?uid=a+b%26c"}
+
+
+def test_area_arg() -> None:
+    """The area is trimmed and lower cased, empty is here, too long is refused."""
+    assert area_arg("  AyLor ") == "aylor"
+    assert area_arg("") == "here"
+    assert area_arg("a" * MAX_AREA_ARG) == "a" * MAX_AREA_ARG
+    assert area_arg("a" * (MAX_AREA_ARG + 1)) is None
+
+
+def test_place_kinds_are_the_searches_and_notes() -> None:
+    """The places page offers every search command."""
+    assert PLACE_KINDS == ("shops", "train", "quest", "notes")
+
+
+def test_table_view_without_options_keeps_order() -> None:
+    """No sort and no filter returns every row in order."""
+    rows, total = view()
+    assert rows == ROWS
+    assert total == 4
+
+
+def test_table_view_sorts_text_by_link_text_and_room_numbers_by_value() -> None:
+    """A link sorts by its text, digits by value before other text; descending reverses."""
+    assert [r[0] for r in view(sort="uid")[0]] == ["2", "3", "10", "x"]
+    assert [r[0] for r in view(sort="name")[0]] == ["2", "10", "x", "3"]
+    assert [r[0] for r in view(sort="name", descending=True)[0]] == ["3", "x", "10", "2"]
+
+
+def test_table_view_sort_is_stable() -> None:
+    """Equal cells keep their order, ascending and descending."""
+    assert [r[0] for r in view(sort="level")[0]] == ["3", "10", "2", "x"]
+    assert [r[0] for r in view(sort="level", descending=True)[0]] == ["x", "10", "2", "3"]
+
+
+def test_table_view_filters() -> None:
+    """Text matches a part without case, a link by its text; an int matches when equal."""
+    assert [r[0] for r in view(filters={"name": "BETA"})[0]] == ["10", "x"]
+    assert view(filters={"level": 5})[1] == 2
+    assert [r[0] for r in view(filters={"name": "beta", "level": 9})[0]] == ["x"]
+    assert view(filters={"name": "zzz"}) == ([], 0)
+
+
+def test_table_view_pages() -> None:
+    """The offset and count pick the page; the total counts all matching rows."""
+    rows, total = view(offset=1, count=2)
+    assert [r[0] for r in rows] == ["2", "3"]
+    assert total == 4
+    assert view(offset=10) == ([], 4)

@@ -2,7 +2,8 @@
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from typing import Any, Protocol
+from urllib.parse import urlencode
 
 PLUGIN_ID = "plugins.aardwolf.mapper"
 MAPPER = "plugins.client.mapper"
@@ -42,6 +43,37 @@ IMPORT_SLICE = 0.05
 # most rows of one map.batch.add call; mirrors the core mapper's BATCH_LIMIT, which a plugin
 # cannot import, and a call over it is refused
 IMPORT_BATCH = 1000
+WEB_ROUTE_ADD = "plugins.core.web:web.route.add"
+WEB_ROUTE_REMOVE = "plugins.core.web:web.route.remove"
+# the pages of the core client mapper that a room or area cell links to
+CORE_ROOM_PAGE = "/client/mapper/room"
+CORE_AREA_PAGE = "/client/mapper/area"
+PLACE_KINDS = (*SEARCHES, "notes")
+# longest `area` query value a page accepts; a real area id is far shorter
+MAX_AREA_ARG = 100
+PORTAL_COLUMNS: list[dict[str, str]] = [
+    {"name": "number", "label": "#", "type": "int"},
+    {"name": "kind", "label": "Kind", "type": "text"},
+    {"name": "area", "label": "Area", "type": "text"},
+    {"name": "name", "label": "Name", "type": "text"},
+    {"name": "to", "label": "To", "type": "text"},
+    {"name": "command", "label": "Command", "type": "text"},
+    {"name": "level", "label": "Level", "type": "int"},
+]
+CEXIT_COLUMNS: list[dict[str, str]] = [
+    {"name": "uid", "label": "Room", "type": "text"},
+    {"name": "name", "label": "Name", "type": "text"},
+    {"name": "area", "label": "Area", "type": "text"},
+    {"name": "command", "label": "Command", "type": "text"},
+    {"name": "to", "label": "To", "type": "text"},
+    {"name": "level", "label": "Level", "type": "int"},
+]
+PLACE_COLUMNS: list[dict[str, str]] = [
+    {"name": "uid", "label": "Room", "type": "text"},
+    {"name": "name", "label": "Name", "type": "text"},
+    {"name": "area", "label": "Area", "type": "text"},
+    {"name": "found", "label": "Found", "type": "text"},
+]
 
 
 def to_int(value: object) -> int:
@@ -334,3 +366,111 @@ def table_lines(title: str, header: Sequence[str], rows: Iterable[Sequence[str]]
 def search_lines(title: str, rows: Iterable[tuple[str, str, str, str]]) -> list[str]:
     """Return a search table: the title, a header, and one line per (uid, name, area, found)."""
     return table_lines(title, ("uid", "name", "area", "found"), rows)
+
+
+class WebTableQuery(Protocol):
+    """The part of the core web plugin's table query that the pages read."""
+
+    @property
+    def sort(self) -> str | None:
+        """The column to sort by."""
+
+    @property
+    def descending(self) -> bool:
+        """True for a descending sort."""
+
+    @property
+    def filters(self) -> Mapping[str, str | int | float]:
+        """The column filters."""
+
+    @property
+    def offset(self) -> int:
+        """The rows before the page."""
+
+    @property
+    def count(self) -> int:
+        """The rows of a page."""
+
+
+class WebRequest(Protocol):
+    """The part of the core web plugin's request that the pages read."""
+
+    @property
+    def query(self) -> Mapping[str, str]:
+        """The first value of each query key."""
+
+    @property
+    def table(self) -> WebTableQuery | None:
+        """The validated table query of a table route."""
+
+
+def room_link(uid: str, text: str) -> dict[str, str]:
+    """Return a link cell to the core mapper page of a room; `text` is already escaped."""
+    return {"text": text, "href": f"{CORE_ROOM_PAGE}?{urlencode({'uid': uid})}"}
+
+
+def area_link(uid: str, text: str) -> dict[str, str]:
+    """Return a link cell to the core mapper page of an area; `text` is already escaped."""
+    return {"text": text, "href": f"{CORE_AREA_PAGE}?{urlencode({'uid': uid})}"}
+
+
+def area_arg(value: str) -> str | None:
+    """Return the `area` query value as an area id, `here` when empty, None when too long."""
+    area = value.strip().lower()
+    if len(area) > MAX_AREA_ARG:
+        return None
+    return area or "here"
+
+
+def _cell_text(cell: object) -> str:
+    """Return the text of a cell: the text of a link cell, else the cell as a string."""
+    if isinstance(cell, Mapping):
+        return str(cell.get("text", ""))
+    return str(cell)
+
+
+def _cell_key(cell: object, kind: str) -> tuple[int, int, str]:
+    """Return the sort key of a cell: a number by value, a text of digits (a room number) by
+    value before other text, other text by lower case."""
+    shown = _cell_text(cell)
+    if kind == "int":
+        return (0, to_int(cell), "")
+    if shown.isascii() and shown.isdigit():
+        return (0, int(shown), "")
+    return (1, 0, shown.casefold())
+
+
+def _cell_matches(cell: object, kind: str, wanted: str | int | float) -> bool:
+    """Return True when a cell passes a column filter: a number is equal, text is contained."""
+    if kind == "text":
+        return str(wanted).casefold() in _cell_text(cell).casefold()
+    return to_int(cell) == wanted
+
+
+def table_view(
+    rows: Sequence[Sequence[object]],
+    columns: Sequence[Mapping[str, str]],
+    *,
+    sort: str | None,
+    descending: bool,
+    filters: Mapping[str, str | int | float],
+    offset: int,
+    count: int,
+) -> tuple[list[Sequence[object]], int]:
+    """Filter, sort and page rows; return the page and the number of rows that match.
+
+    A link cell is read by its text. The sort is stable, also when descending.
+    """
+    kinds = {column["name"]: column["type"] for column in columns}
+    index = {column["name"]: place for place, column in enumerate(columns)}
+    kept = [
+        row
+        for row in rows
+        if all(
+            _cell_matches(row[index[name]], kinds[name], wanted) for name, wanted in filters.items()
+        )
+    ]
+    if sort is not None:
+        place, kind = index[sort], kinds[sort]
+        kept.sort(key=lambda row: _cell_key(row[place], kind), reverse=descending)
+    return list(kept[offset : offset + count]), len(kept)

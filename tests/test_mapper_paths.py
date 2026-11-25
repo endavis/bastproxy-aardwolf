@@ -4,7 +4,8 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from test_mapper_commands import Env, FakeMapper, env, room  # noqa: F401  # env is a fixture pytest finds by name
+from mapper_support import Env, FakeMapper, room
+from test_mapper_commands import env  # noqa: F401  # env is a fixture pytest finds by name
 
 if TYPE_CHECKING:
     from bastproxy.plugins.client.mapper.libs._graph import MapGraph
