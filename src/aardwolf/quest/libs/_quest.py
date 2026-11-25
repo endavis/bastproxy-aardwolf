@@ -74,6 +74,7 @@ EVENTS: dict[str, dict[str, Any]] = {
         "arg_descriptions": {
             "action": "the GMCP action, status",
             "status": "the status of the quest, as the MUD reports it",
+            "wait": "the minutes until the next quest can be taken, from the status message",
         },
     },
     "reset": {

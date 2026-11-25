@@ -43,7 +43,9 @@ database. It is not required, so it does not load until asked.
   While the MUD is not connected the timer shows nothing.
 - **Completion messages.** A quest, campaign, global quest, level or powerup that ends queues a
   message. The messages are held until the next empty line from the MUD and then shown together, so
-  they do not land in the middle of other output. A MUD disconnect shows what is held.
+  they do not land in the middle of other output. A message queued while an empty line is being
+  processed (a level or powerup is finished at an empty line) is shown at once with whatever is
+  held, rather than waiting for the next one. A MUD disconnect shows what is held.
 - **The quest message** lists the quest points and each bonus (lucky, mccp, tier, opk, hardcore,
   `E` daily, `D` double), the total, the trains, practices and trivia points, and how long it
   took. With more than one quest in the database it adds the average quest points and the number of
@@ -103,7 +105,8 @@ When the stats database is not available the command says so.
 The plugin listens to `ev_plugins.aardwolf.quest_comp`, `cp_comp`, `gq_won`, `gq_completed`,
 `gq_done` and `level_gain`, to `ev_libs.net.mud_muddisconnect`, and to its own
 `ev_plugins.aardwolf.statmn_var_show_modified`. It registers on the core empty-line trigger
-(`t_plugins.core.triggers_emptyline`) only while a message is held. It raises no events.
+(`t_plugins.core.triggers_emptyline`) only while a message is held, and reads `plugins.core.events:event.stack.get` to tell when that
+event is running, so it does not register on it then. It raises no events.
 
 ## Old to new
 

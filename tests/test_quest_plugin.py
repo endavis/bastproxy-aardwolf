@@ -294,3 +294,12 @@ def test_live_comp_keys_are_described(env: Env) -> None:
     assert name == "ev_plugins.aardwolf.quest_comp"
     assert (payload["completed"], payload["wait"]) == (1, 30)
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+def test_live_status_keys_are_described(env: Env) -> None:
+    """The status message from Aardwolf can carry wait (#164)."""
+    env.send({"action": "status", "wait": 5})
+    env.send({"action": "status", "status": "ready"})
+    assert [name for name, _ in env.fake.raised] == ["ev_plugins.aardwolf.quest_status"] * 2
+    assert env.fake.raised[0][1]["wait"] == 5
+    assert_raised_described(env.fake.raised, EVENTS)

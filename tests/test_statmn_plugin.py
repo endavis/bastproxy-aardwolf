@@ -12,7 +12,7 @@ import pytest
 from statdb_support import make_db
 
 import aardwolf
-from aardwolf.statmn.libs import EMPTYLINE_ID, NO_DB, SELECT_API
+from aardwolf.statmn.libs import EMPTYLINE_EVENT, EMPTYLINE_ID, NO_DB, SELECT_API
 
 if TYPE_CHECKING:
     from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
@@ -43,6 +43,7 @@ class FakeApi:
         self.setting_defs: dict[str, tuple[Any, ...]] = {}
         self.triggers: dict[str, list[Callable[[], None]]] = {}
         self.register_calls = 0
+        self.stack: list[str] = []
         self.timers: dict[str, tuple[Callable[[], None], float]] = {}
         self.removed: list[str] = []
         self.record: dict[str, Any] = {}
@@ -59,6 +60,7 @@ class FakeApi:
             "plugins.core.settings:setting.add": self._setting_add,
             "plugins.core.settings:setting.get": lambda pid, key: self.settings[key],
             "plugins.core.events:event.current.record.get": lambda: self.record,
+            "plugins.core.events:event.stack.get": lambda: list(self.stack),
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.triggers:trigger.unregister": self._trigger_unregister,
             "plugins.core.timers:timer.exists": lambda n: n in self.timers,
@@ -139,8 +141,12 @@ class Env:
 
     def empty_line(self) -> None:
         """An empty line arrives: run the callbacks on the trigger."""
-        for func in list(self.waiting):
-            func()
+        self.fake.stack.append(EMPTYLINE_EVENT)
+        try:
+            for func in list(self.waiting):
+                func()
+        finally:
+            self.fake.stack.pop()
 
     def shown(self) -> list[str]:
         """Every line sent to the clients, in order."""
@@ -359,6 +365,50 @@ def test_a_quest_message_waits_for_the_empty_line(env: Env) -> None:
     assert len(env.sent) == 1
     assert "Quest finished for" in env.shown()[0]
     assert env.waiting == []
+
+
+def _level_finish_in_empty_line(env: Env, first: bool = True) -> None:
+    """Put a fake level _finish on the empty-line trigger: it raises level_gain."""
+
+    def finish() -> None:
+        env.event(env.plugin._eventcb_level_gain, {"type": "level"})
+
+    funcs = env.fake.triggers.setdefault(EMPTYLINE_ID, [])
+    funcs.insert(0 if first else len(funcs), finish)
+
+
+def test_a_level_gain_inside_an_empty_line_shows_at_once(env: Env) -> None:
+    """Registering on the running empty-line event ran _flush out of order (#162)."""
+    _level_finish_in_empty_line(env)
+    env.empty_line()
+    assert len(env.sent) == 1
+    assert "Gained a level" in env.shown()[0]
+    assert env.fake.register_calls == 0
+    assert env.plugin._flush not in env.waiting
+    assert env.plugin._waiting is False
+
+
+def test_a_message_held_before_the_empty_line_joins_a_level_gain_inside_it(env: Env) -> None:
+    env.event(
+        env.plugin._eventcb_cp_comp, {"qp": 20, "bonusqp": 5, "starttime": 0, "finishtime": 60}
+    )
+    _level_finish_in_empty_line(env)
+    env.empty_line()
+    assert len(env.sent) == 1
+    assert "CP finished" in env.shown()[0]
+    assert any("Gained a level" in line for line in env.shown())
+    assert env.fake.register_calls == 1
+    assert env.plugin._flush not in env.waiting
+
+
+def test_an_event_inside_another_event_still_waits_for_the_empty_line(env: Env) -> None:
+    env.fake.stack = ["ev_plugins.aardwolf.cp_comp"]
+    env.event(env.plugin._eventcb_quest_comp, QUEST)
+    assert env.sent == []
+    assert env.fake.register_calls == 1
+    assert env.plugin._flush in env.waiting
+    env.empty_line()
+    assert len(env.sent) == 1
 
 
 def test_the_quest_average_counts_the_quest_that_statdb_saved_and_not_failed(env: Env) -> None:
