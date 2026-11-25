@@ -69,7 +69,7 @@ The plugin has one setting, one command and one event.
 
 | Setting | Default | Meaning |
 | :--- | :--- | :--- |
-| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the time `next` shows. It must contain a valid directive; it is read each time, so a change needs no reload. |
+| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the time `next` shows. It may use only the directives `%a %A %b %B %c %d %H %I %j %m %M %p %S %U %w %W %x %X %y %Y %z %Z` and `%%`, with at least one directive, and no flags such as `%-d`; it is read each time, so a change needs no reload. |
 
 | Command | Does |
 | :--- | :--- |

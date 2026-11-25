@@ -199,7 +199,7 @@ open, and "The stats database could not be read" when a read fails (the error is
 | `chartdays` | `30` | The number of days the two day charts show (1 to 3650). |
 | `chartlevels` | `50` | The number of levels the level chart shows (1 to 1000). |
 | `chartareas` | `20` | The number of areas the area chart shows (1 to 500). |
-| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the start and finish times the `levels` report shows, in the proxy's local time. It must contain a valid directive. |
+| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the start and finish times the `levels` report shows, in the proxy's local time. It may use only the directives `%a %A %b %B %c %d %H %I %j %m %M %p %S %U %w %W %x %X %y %Y %z %Z` and `%%`, with at least one directive, and no flags such as `%-d`. |
 
 The chart titles show the number in use. All of these are read when used, so a change needs no reload; a value that is not valid is refused and the old one kept. The report used to end its times with a fixed `+0000` although they are local time; the default format has no zone.
 
