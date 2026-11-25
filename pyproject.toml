@@ -359,6 +359,7 @@ pytest_add_cli_args_test_selection = [
     "tests/test_statdb_report.py",
     "tests/test_statdb_schema.py",
     "tests/test_statdb_store.py",
+    "tests/test_statdb_web.py",
     "tests/test_statmn_libs.py",
     "tests/test_statmn_plugin.py",
     "tests/test_su_libs.py",

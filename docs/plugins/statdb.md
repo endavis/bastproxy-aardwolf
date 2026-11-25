@@ -124,6 +124,58 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
 failing. The `db*` commands that bastproxy's sqldb plugin adds work on this database too.
 
+## Web pages
+
+The plugin serves the same data as pages of the core web plugin (`plugins.core.web`, a dependency
+of this plugin). A browser needs a login session first: run the web plugin's login command in the
+client and open the link it prints. The web plugin enforces this and allows GET only, so the pages
+change nothing. The routes are removed when this plugin unloads.
+
+The pages are under `/aardwolf/statdb/`, and `/aardwolf/statdb/` itself lists them as text.
+
+| Route | Mirrors | Columns |
+| :--- | :--- | :--- |
+| `milestones` | `list` | milestone, date (UTC, `Now` for the current row), then each compared stat |
+| `quests` | `quests` | id, qp, mc, tr, lk, pk, hc, dbl, tl, tp, tn, pr, gold, lvl, mins, result, mob, room, area |
+| `levels` | `levels` | id, lvl, type (L or P), tr, bt, pr, hp, mn, mv, s, i, w, c, d, l, mins |
+| `cps` | `cps` | id, lvl (`T R L`), qp, bn, tp, tn, pr, gold, mobs, mins, result |
+| `cpmobs` | `cps -n` | cp_id, name, location |
+| `gqs` | `gqs` | id, lvl (`T R L`), qp, qm, tp, tn, pr, gold, mobs, mins, won |
+| `gqmobs` | `gqs -n` | gq_id, num, name, location |
+| `mobs` | `mobs` | lvl, mob, txp, xp, rxp, oxp, tp, s, gold |
+| `mobkills` | `mobkills` | time (UTC), name, lvl, txp, gold, room, flags |
+| `comp?first=&second=` | `comp` | the comparison text; a name that does not exist is said so |
+| `chart/qp-per-day` | | quest points per day, the newest 30 days |
+| `chart/gold-per-day` | | gold per day, the newest 30 days |
+| `chart/level-time` | | minutes per level, the last 50 timed levels |
+| `chart/area-kills` | | kills per area, the top 20 |
+
+**Tables.** `quests`, `levels`, `cps`, `gqs` and `mobs` show the summary of their text command above
+the table. Without a sort a table lists the newest row first, so page 1 with `count=N` is the rows
+of `<command> N`. The table parameters are the web plugin's: `sort`, `dir`, `page`, `count` and one
+`f_<column>` filter per column. An unknown column, a bad `dir`, `page` or `count`, an unparsable
+number or a text filter over 200 characters is answered with 400 before this plugin runs. A text
+filter is a case-insensitive part of the value (`%` and `_` match themselves); a number filter is
+exact.
+
+**Durations and dates.** "Mins" is a float number of minutes (empty when a time is unknown), where
+the text commands show a formatted length. Dates are UTC. `result` is `Done` or `Failed`; the
+`levels` gap is the same one the `levels` command shows.
+
+**Detail views.** Table cells hold no links. The `-n` detail views are filters instead:
+`quests?f_id=3`, `levels?f_id=3`, `cpmobs?f_cp_id=3` and `gqmobs?f_gq_id=3`. The per-level kill
+summary of `levels -n` has no web page.
+
+**Charts.** Each chart is an SVG bar chart with every label escaped; it holds no script and no
+link. With no rows it says "No data". `chart/area-kills` has to map each room to an area: it asks
+the core mapper (`plugins.client.mapper:room.get` and `area.get`) on the event loop, a room the
+mapper does not know counts under "Unknown", and with no mapper loaded every kill does.
+
+**Queries.** Every page reads in a worker thread on its own read-only connection, so it never blocks
+the proxy and cannot write. The SQL is a fixed fragment per column; a request value is only ever
+a bound parameter. A page says "The stats database is not available" when the database did not
+open, and "The stats database could not be read" when a read fails (the error is logged).
+
 ## Settings
 
 | Setting | Default | Description |

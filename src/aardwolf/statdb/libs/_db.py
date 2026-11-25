@@ -4,18 +4,26 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 
-class StatsDb(Protocol):
-    """A database object with the ``Sqldb`` methods statdb calls.
-
-    The library takes this instead of importing bastproxy, so tests and tools can pass any
-    object that has these methods.
-    """
+class ReadDb(Protocol):
+    """The read-only part of the database: what the report queries need."""
 
     def select(
         self, _sql_statement: str, _params: Sequence[Any] | Mapping[str, Any] = (), /
     ) -> list[dict[str, Any]]:
         """Run a select statement and return its rows."""
         ...
+
+    def getlastrowid(self, _table_name: str, /) -> int:
+        """Return the highest key of a table, or -1 when it is empty."""
+        ...
+
+
+class StatsDb(ReadDb, Protocol):
+    """A database object with the ``Sqldb`` methods statdb calls.
+
+    The library takes this instead of importing bastproxy, so tests and tools can pass any
+    object that has these methods.
+    """
 
     def modify(self, _sql_statement: str, _data: object = None, /) -> tuple[int | None, Any]:
         """Run one modifying statement and return ``(lastrowid, None)``."""
@@ -55,10 +63,6 @@ class StatsDb(Protocol):
 
     def getrow(self, _row_id: int, _table_name: str, /) -> list[dict[str, Any]] | dict[str, Any]:
         """Return the row with a key, as a list."""
-        ...
-
-    def getlastrowid(self, _table_name: str, /) -> int:
-        """Return the highest key of a table, or -1 when it is empty."""
         ...
 
     def selectbykeyword(self, _selectstmt: str, _keyword: str, /) -> dict[Any, dict[str, Any]]:
