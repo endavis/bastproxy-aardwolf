@@ -7,12 +7,13 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     DEFAULT_QUESTMASTERS,
-    EVENT_QUESTMASTERS_CHANGED,
-    EVENT_QUESTMASTERS_MODIFIED,
     EVENTS,
     QUESTMASTERS,
+    SUFFIX_QUESTMASTERS_CHANGED,
     add_name,
     normalize_name,
     remove_name,
@@ -28,7 +29,7 @@ class ConfigPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events and the setting."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -54,14 +55,14 @@ class ConfigPlugin(BasePlugin):
         """Return a copy of the questmaster names."""
         return self._questmasters()
 
-    @RegisterToEvent(event_name=EVENT_QUESTMASTERS_MODIFIED)
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_questmasters_modified")
     def _eventcb_questmasters_modified(self) -> None:
         """Pass the core setting event on as the questmasters changed event."""
         record = self.api("plugins.core.events:event.current.record.get")()
         if record["oldvalue"] == _INIT:
             return
         self.api("plugins.core.events:event.raise")(
-            EVENT_QUESTMASTERS_CHANGED,
+            own_event(self.plugin_id, SUFFIX_QUESTMASTERS_CHANGED),
             event_args={"questmasters": list(record["newvalue"])},
         )
 

@@ -4,17 +4,17 @@ from collections.abc import Mapping
 from typing import Any
 
 EVENT_GMCP_QUEST = "ev_libs.net.mud_gmcp_comm.quest"
-PREFIX = "ev_plugins.aardwolf.quest_"
 
+# the values are event suffixes; the plugin builds the full names from its plugin id
 ACTION_EVENTS: dict[str, str] = {
-    "ready": f"{PREFIX}ready",
-    "start": f"{PREFIX}start",
-    "killed": f"{PREFIX}killed",
-    "comp": f"{PREFIX}comp",
-    "fail": f"{PREFIX}failed",
-    "timeout": f"{PREFIX}failed",
-    "status": f"{PREFIX}status",
-    "reset": f"{PREFIX}reset",
+    "ready": "ready",
+    "start": "start",
+    "killed": "killed",
+    "comp": "comp",
+    "fail": "failed",
+    "timeout": "failed",
+    "status": "status",
+    "reset": "reset",
 }
 
 _STATE_KEYS = {
@@ -49,34 +49,34 @@ _COMP_KEYS = {
 }
 
 EVENTS: dict[str, dict[str, Any]] = {
-    f"{PREFIX}ready": {
+    "ready": {
         "description": ["raised when the MUD says a quest can be taken"],
         "arg_descriptions": {},
     },
-    f"{PREFIX}start": {
+    "start": {
         "description": ["raised when a quest starts, with the reset quest state"],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    f"{PREFIX}killed": {
+    "killed": {
         "description": ["raised when the target of the quest is killed, with the quest state"],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    f"{PREFIX}comp": {
+    "comp": {
         "description": ["raised when a quest is completed, with the quest state"],
         "arg_descriptions": {**_STATE_KEYS, **_COMP_KEYS},
     },
-    f"{PREFIX}failed": {
+    "failed": {
         "description": ["raised when a quest fails or times out, with the quest state"],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    f"{PREFIX}status": {
+    "status": {
         "description": ["raised with the GMCP status message of the quest"],
         "arg_descriptions": {
             "action": "the GMCP action, status",
             "status": "the status of the quest, as the MUD reports it",
         },
     },
-    f"{PREFIX}reset": {
+    "reset": {
         "description": ["raised when the MUD resets the quest timer"],
         "arg_descriptions": {},
     },

@@ -13,6 +13,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     API_EQ_IDENTIFY_ADD,
     API_EQ_ITEM_FETCH,
@@ -25,12 +27,12 @@ from ..libs import (
     EVENT_EQ_INVENTORY_REMOVED,
     EVENT_EQ_PUT,
     EVENT_EQ_WORN,
-    EVENT_IDENTIFIED,
     EVENTS,
     GROUP_IDENTIFY,
     GROUP_INVDETAILS,
     HIDE_MAX,
     INVENTORY,
+    SUFFIX_IDENTIFIED,
     TIMEOUT_EVENT,
     TRIGGERS,
     TYPE_IDENTIFY,
@@ -90,7 +92,7 @@ class ItemIdPlugin(BasePlugin):
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
         """Add the event, the command types, the triggers and the timeout handlers."""
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             self.api("plugins.core.events:event.add")(
                 event_name,
                 self.plugin_id,
@@ -313,7 +315,9 @@ class ItemIdPlugin(BasePlugin):
                 self._client([f"Could not identify {serial}"])
             return
         payload = {"serial": serial, "item": copy.deepcopy(item)}
-        self.api("plugins.core.events:event.raise")(EVENT_IDENTIFIED, event_args=payload)
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, SUFFIX_IDENTIFIED), event_args=payload
+        )
         if wanted:
             self._client(self._box(item))
 

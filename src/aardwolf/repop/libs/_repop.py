@@ -2,7 +2,6 @@
 
 from string import Template
 
-PLUGIN_ID = "plugins.aardwolf.repop"
 EVENT_GMCP_REPOP = "ev_libs.net.mud_gmcp_comm.repop"
 SETTING_CHANNEL = "channel"
 DEFAULT_CHANNEL = "gt"

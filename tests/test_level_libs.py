@@ -6,7 +6,6 @@ import pytest
 
 from aardwolf.level.libs import (
     EVENTS,
-    PREFIX,
     STATS,
     TRIGGERS,
     WATCHES,
@@ -125,7 +124,7 @@ def test_watches() -> None:
 
 def test_events_have_no_raw_braces() -> None:
     """Descriptions go through str.format, so they hold no braces."""
-    assert all(name.startswith(PREFIX) for name in EVENTS)
+    assert set(EVENTS) == {"gain", "hero", "superhero", "remort", "tier", "preremort"}
     for info in EVENTS.values():
         text = " ".join(info["description"]) + " ".join(info["arg_descriptions"].values())
         assert "{" not in text

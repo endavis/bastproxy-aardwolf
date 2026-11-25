@@ -22,11 +22,10 @@ from aardwolf.itemid.libs import (
     API_EQDB_ITEM_GET,
     API_EQDB_ITEM_SAVE,
     API_SKILL_GET,
-    EVENT_IDENTIFIED,
-    EVENTS,
     TYPE_IDENTIFY,
     TYPE_INVDETAILS,
 )
+from aardwolf.itemid.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -34,6 +33,8 @@ if TYPE_CHECKING:
     from aardwolf.itemid.plugin import _itemid
 
 PLUGIN_ID = "plugins.aardwolf.itemid"
+EVENT_IDENTIFIED = f"ev_{PLUGIN_ID}_identified"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 GROUP_INV = f"{PLUGIN_ID}.invdetails"
 GROUP_ID = f"{PLUGIN_ID}.identify"
 PROMPT = "<100/100hp 50/50mn 90/90mv> "

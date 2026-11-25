@@ -1,6 +1,7 @@
 """Tests for the Aardwolf su plugin, with a stubbed API."""
 
 import ast
+import inspect
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -214,6 +215,16 @@ def test_after_load(env: Env) -> None:
     assert set(added) == {"enabled", "nocastrooms"}
     assert added["enabled"][2] is True
     assert added["nocastrooms"][3] is dict
+
+
+def test_registered_events_of_its_own_setting(env: Env) -> None:
+    """The setting event is named from the plugin id; no other event carries the plugin's id."""
+    names: set[str] = set()
+    for _, method in inspect.getmembers(env.plugin, inspect.ismethod):
+        for item in getattr(method, "event_registration", []):
+            names.add(item["event_name"].format(**env.plugin.__dict__))
+    own = {name for name in names if name.startswith(f"ev_{PLUGIN_ID}_")}
+    assert own == {f"ev_{PLUGIN_ID}_var_enabled_modified"}
 
 
 def test_after_load_seeds_nocast_from_the_room(

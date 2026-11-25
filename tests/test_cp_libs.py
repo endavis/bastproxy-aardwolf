@@ -10,6 +10,7 @@ from aardwolf.cp.libs import (
     EVENTS,
     INFO_HIDE_START,
     NEVER_REGEX,
+    SUFFIX_COMP,
     TRIGGERS,
     bonus_qp,
     info_mobs,
@@ -321,7 +322,7 @@ def test_info_mobs_repeats_a_target_by_its_count() -> None:
 def test_new_state_has_completeby() -> None:
     """The state starts without a Complete By time, and the key is described."""
     assert new_state(5.0, 1)["completeby"] == ""
-    assert "completeby" in EVENTS["ev_plugins.aardwolf.cp_comp"]["arg_descriptions"]
+    assert "completeby" in EVENTS[SUFFIX_COMP]["arg_descriptions"]
 
 
 CHECK_OPENERS = (

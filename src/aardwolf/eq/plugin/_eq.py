@@ -13,6 +13,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
 from aardwolf._libs.itemu import WEARLOCS
 
 from ..libs import (
@@ -84,7 +85,7 @@ class EqPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events, the command types and the triggers."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -164,9 +165,11 @@ class EqPlugin(BasePlugin):
         """Return the groups the current trigger matched."""
         return dict(self._record().get("matches") or {})
 
-    def _raise(self, name: str, payload: dict[str, Any]) -> None:
-        """Raise an event with a payload that is a copy, so no one changes the state."""
-        self.api("plugins.core.events:event.raise")(name, event_args=copy.deepcopy(payload))
+    def _raise(self, suffix: str, payload: dict[str, Any]) -> None:
+        """Raise one of this plugin's events with a payload that is a copy."""
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, suffix), event_args=copy.deepcopy(payload)
+        )
 
     def _args(self) -> dict[str, Any]:
         """Return the arguments of the running command."""

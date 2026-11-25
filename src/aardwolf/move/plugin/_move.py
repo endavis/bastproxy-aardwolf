@@ -8,12 +8,14 @@ from bastproxy.libs.logger import log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     EVENT_DISCONNECT,
     EVENT_GMCP_ROOM,
-    EVENT_MOVE_ROOM,
     EVENTS,
     GMCP_ROOM,
+    SUFFIX_ROOM,
     move_payload,
     room_num,
 )
@@ -31,7 +33,7 @@ class MovePlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the event and seed the last room from the GMCP cache."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -52,7 +54,9 @@ class MovePlugin(BasePlugin):
         payload = move_payload(self._last, data)
         if payload is not None:
             log_to(self.plugin_id, logging.DEBUG, "raising move_room: %s", payload)
-            self.api("plugins.core.events:event.raise")(EVENT_MOVE_ROOM, event_args=payload)
+            self.api("plugins.core.events:event.raise")(
+                own_event(self.plugin_id, SUFFIX_ROOM), event_args=payload
+            )
         self._last = copy.deepcopy(data)
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)

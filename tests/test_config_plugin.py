@@ -1,6 +1,7 @@
 """Tests for the config plugin, with a stubbed API."""
 
 import argparse
+import inspect
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -11,9 +12,9 @@ from event_keys import assert_raised_described
 
 from aardwolf.config.libs import (
     DEFAULT_QUESTMASTERS,
-    EVENT_QUESTMASTERS_CHANGED,
-    EVENTS,
+    SUFFIX_QUESTMASTERS_CHANGED,
 )
+from aardwolf.config.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from bastproxy.plugins.core.commands import CommandResult
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
     from aardwolf.config.plugin._config import ConfigPlugin
 
 PLUGIN_ID = "plugins.aardwolf.config"
+EVENT_QUESTMASTERS_CHANGED = f"ev_{PLUGIN_ID}_{SUFFIX_QUESTMASTERS_CHANGED}"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 
 
 class FakeApi:
@@ -106,6 +109,15 @@ def test_load_adds_setting_and_events(env: Env) -> None:
     assert list(env.fake.events_added) == list(EVENTS)
     for name, info in EVENTS.items():
         assert env.fake.events_added[name]["arg_descriptions"] == info["arg_descriptions"]
+
+
+def test_registered_events(env: Env) -> None:
+    """The plugin listens to the event of its own questmasters setting only."""
+    names: set[str] = set()
+    for _, method in inspect.getmembers(env.plugin, inspect.ismethod):
+        for item in getattr(method, "event_registration", []):
+            names.add(item["event_name"].format(**env.plugin.__dict__))
+    assert names == {f"ev_{PLUGIN_ID}_var_questmasters_modified"}
 
 
 def test_api_returns_defaults_as_a_copy(env: Env) -> None:

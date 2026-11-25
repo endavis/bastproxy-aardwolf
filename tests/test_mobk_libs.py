@@ -5,9 +5,8 @@ import re
 import pytest
 
 from aardwolf.mobk.libs import (
-    EVENT_KILL,
     EVENTS,
-    PREFIX,
+    SUFFIX_KILL,
     TRIGGERS,
     add_to_damage,
     damage_default,
@@ -87,8 +86,8 @@ def test_xp_groups() -> None:
 
 def test_event_describes_every_key() -> None:
     """The event describes each key of a new kill, and its text has no raw braces."""
-    assert f"{PREFIX}kill" == EVENT_KILL
-    info = EVENTS[EVENT_KILL]
+    assert SUFFIX_KILL == "kill"
+    info = EVENTS[SUFFIX_KILL]
     assert set(info["arg_descriptions"]) == set(new_kill())
     text = " ".join(info["description"]) + " ".join(info["arg_descriptions"].values())
     assert "{" not in text

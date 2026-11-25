@@ -1,7 +1,6 @@
 """Pure helpers for the prompt fixer plugin."""
 
 from ._promptfix import (
-    EVENT_AUTOFIX_MODIFIED,
     EVENT_DISCONNECT,
     EVENT_LINE_MODIFY,
     EVENT_PROMPTS,
@@ -9,7 +8,6 @@ from ._promptfix import (
     MAX_PROMPT_LINE,
     MAX_VISIBLE,
     MIN_PROMPT_LITERAL,
-    PLUGIN_ID,
     PROMPT_KINDS,
     PROMPT_MARK_PRIORITY,
     PROMPT_SET_REGEX,
@@ -31,7 +29,6 @@ from ._promptfix import (
 )
 
 __all__ = [
-    "EVENT_AUTOFIX_MODIFIED",
     "EVENT_DISCONNECT",
     "EVENT_LINE_MODIFY",
     "EVENT_PROMPTS",
@@ -39,7 +36,6 @@ __all__ = [
     "MAX_PROMPT_LINE",
     "MAX_VISIBLE",
     "MIN_PROMPT_LITERAL",
-    "PLUGIN_ID",
     "PROMPT_KINDS",
     "PROMPT_MARK_PRIORITY",
     "PROMPT_SET_REGEX",

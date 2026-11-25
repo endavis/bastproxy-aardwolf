@@ -12,13 +12,14 @@ from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs import aardu
+from aardwolf._libs.eventu import own_event, own_events
 
 from ..libs import (
     EQ_WORN_API,
     EVENT_GMCP_STATUS,
-    EVENT_KILL,
     EVENTS,
     SECOND_SLOT,
+    SUFFIX_KILL,
     TRIGGERS,
     WIELDED_SLOT,
     TriggerSpec,
@@ -60,7 +61,7 @@ class MobkPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the event and the triggers."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -306,7 +307,7 @@ class MobkPlugin(BasePlugin):
             log_to([self.plugin_id], logging.DEBUG, "raising a mobkill: %s", self.kill)
             self.last_kill = copy.deepcopy(dict(self.kill))
             self.api("plugins.core.events:event.raise")(
-                EVENT_KILL, event_args=copy.deepcopy(dict(self.kill))
+                own_event(self.plugin_id, SUFFIX_KILL), event_args=copy.deepcopy(dict(self.kill))
             )
         self._reset_kill()
 

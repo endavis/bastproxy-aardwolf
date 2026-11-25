@@ -7,14 +7,14 @@ import pytest
 
 from aardwolf.eq.libs import (
     CONTAINER_ITYPE,
-    EVENT_INVENTORY_ADDED,
-    EVENT_INVENTORY_REMOVED,
-    EVENT_PUT,
-    EVENT_REMOVED,
-    EVENT_TAKEN,
-    EVENT_WORN,
     INVENTORY,
     KEYRING,
+    SUFFIX_INVENTORY_ADDED,
+    SUFFIX_INVENTORY_REMOVED,
+    SUFFIX_PUT,
+    SUFFIX_REMOVED,
+    SUFFIX_TAKEN,
+    SUFFIX_WORN,
     VAULT,
     WORN,
     EqState,
@@ -357,7 +357,7 @@ def test_invmon_remove() -> None:
     assert state.worn[24] is None
     assert state.lastworn == {10: 24}
     assert out.refresh == []
-    assert [e[0] for e in out.events] == [EVENT_REMOVED]
+    assert [e[0] for e in out.events] == [SUFFIX_REMOVED]
     assert out.events[0][1]["location"] == 24
     assert out.events[0][1]["item"]["serial"] == 10
 
@@ -374,7 +374,7 @@ def test_invmon_wear() -> None:
     out = state.apply_invmon(2, 1, -1, 0)
     assert state.worn[0] == 1
     assert 1 not in state.serials(INVENTORY)
-    assert out.events[0][0] == EVENT_WORN
+    assert out.events[0][0] == SUFFIX_WORN
     assert out.events[0][1]["location"] == 0
 
 
@@ -391,7 +391,7 @@ def test_invmon_removed_or_consumed(action: int) -> None:
     out = state.apply_invmon(action, 1, -1, -1)
     assert 1 not in state.items
     assert state.serials(INVENTORY) == [2, 50]
-    assert out.events == [(EVENT_INVENTORY_REMOVED, {"item": out.events[0][1]["item"]})]
+    assert out.events == [(SUFFIX_INVENTORY_REMOVED, {"item": out.events[0][1]["item"]})]
     assert out.events[0][1]["item"]["serial"] == 1
 
 
@@ -416,7 +416,7 @@ def test_invmon_added_known_item() -> None:
     state.upsert(item(60))
     out = state.apply_invmon(4, 60, -1, -1)
     assert state.serials(INVENTORY)[0] == 60
-    assert [e[0] for e in out.events] == [EVENT_INVENTORY_ADDED, EVENT_PUT]
+    assert [e[0] for e in out.events] == [SUFFIX_INVENTORY_ADDED, SUFFIX_PUT]
     assert out.events[1][1]["serial"] == 60
     assert out.events[1][1]["container"] == INVENTORY
     assert out.events[1][1]["item"]["serial"] == 60
@@ -427,7 +427,7 @@ def test_invmon_added_unknown_item_raises_put_with_no_item() -> None:
     state = seeded()
     out = state.apply_invmon(4, 999, -1, -1)
     assert out.refresh == [INVENTORY]
-    assert out.events == [(EVENT_PUT, {"serial": 999, "container": INVENTORY, "item": None})]
+    assert out.events == [(SUFFIX_PUT, {"serial": 999, "container": INVENTORY, "item": None})]
 
 
 def test_invmon_added_bag_gets_a_container_and_a_refresh() -> None:
@@ -444,7 +444,7 @@ def test_invmon_taken_out_of_a_bag() -> None:
     out = state.apply_invmon(5, 3, 50, -1)
     assert state.serials("50") == []
     assert state.serials(INVENTORY)[-1] == 3
-    assert [e[0] for e in out.events] == [EVENT_TAKEN]
+    assert [e[0] for e in out.events] == [SUFFIX_TAKEN]
     assert out.events[0][1]["container"] == "50"
     assert out.refresh == []
 
@@ -454,7 +454,7 @@ def test_invmon_taken_from_an_unknown_bag_does_not_raise() -> None:
     out = state.apply_invmon(5, 3, 777, -1)
     assert out.new_containers == ["777"]
     assert out.refresh == ["777", INVENTORY]
-    assert out.events[0][0] == EVENT_TAKEN
+    assert out.events[0][0] == SUFFIX_TAKEN
     assert out.events[0][1]["container"] == "777"
 
 
@@ -463,7 +463,7 @@ def test_invmon_put_into_a_bag() -> None:
     out = state.apply_invmon(6, 1, 50, -1)
     assert state.serials("50")[0] == 1
     assert 1 not in state.serials(INVENTORY)
-    assert out.events[0][0] == EVENT_PUT
+    assert out.events[0][0] == SUFFIX_PUT
     assert out.events[0][1]["container"] == "50"
     assert out.refresh == []
 
@@ -488,7 +488,7 @@ def test_invmon_vault_put_removes_the_item_from_the_inventory() -> None:
     out = state.apply_invmon(9, 1, -1, -1)
     assert 1 not in state.serials(INVENTORY)
     assert state.serials(VAULT)[-1] == 1
-    assert out.events[0][0] == EVENT_PUT
+    assert out.events[0][0] == SUFFIX_PUT
     assert out.events[0][1]["container"] == VAULT
 
 
@@ -504,7 +504,7 @@ def test_invmon_vault_take_adds_the_item_to_the_inventory() -> None:
     out = state.apply_invmon(10, 30, -1, -1)
     assert state.serials(VAULT) == []
     assert state.serials(INVENTORY)[0] == 30
-    assert out.events[0][0] == EVENT_TAKEN
+    assert out.events[0][0] == SUFFIX_TAKEN
     assert out.events[0][1]["container"] == VAULT
 
 
@@ -518,11 +518,11 @@ def test_invmon_keyring_put_and_take() -> None:
     state = seeded()
     out = state.apply_invmon(11, 1, -1, -1)
     assert state.serials(KEYRING)[0] == 1
-    assert out.events[0][0] == EVENT_PUT
+    assert out.events[0][0] == SUFFIX_PUT
     assert out.events[0][1]["container"] == KEYRING
     out = state.apply_invmon(12, 20, -1, -1)
     assert state.serials(INVENTORY)[0] == 20
-    assert out.events[0][0] == EVENT_TAKEN
+    assert out.events[0][0] == SUFFIX_TAKEN
     assert out.events[0][1]["container"] == KEYRING
 
 

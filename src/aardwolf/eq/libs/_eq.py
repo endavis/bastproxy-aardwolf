@@ -6,13 +6,14 @@ from typing import Any, NamedTuple
 
 from aardwolf._libs.itemu import OBJECTTYPESREV
 
-PREFIX = "ev_plugins.aardwolf.eq_"
-EVENT_WORN = f"{PREFIX}worn"
-EVENT_REMOVED = f"{PREFIX}removed"
-EVENT_INVENTORY_ADDED = f"{PREFIX}inventory_added"
-EVENT_INVENTORY_REMOVED = f"{PREFIX}inventory_removed"
-EVENT_PUT = f"{PREFIX}put"
-EVENT_TAKEN = f"{PREFIX}taken"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its
+# plugin id
+SUFFIX_WORN = "worn"
+SUFFIX_REMOVED = "removed"
+SUFFIX_INVENTORY_ADDED = "inventory_added"
+SUFFIX_INVENTORY_REMOVED = "inventory_removed"
+SUFFIX_PUT = "put"
+SUFFIX_TAKEN = "taken"
 
 # the disconnect event, listened to by name
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
@@ -47,29 +48,29 @@ _CONTAINER = "the container: Inventory, Keyring, Vault, or the serial of a bag, 
 _NO_ITEM_KEY = "the item as a dict"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_WORN: {
+    SUFFIX_WORN: {
         "description": ["raised when an item is worn"],
         "arg_descriptions": {"item": _NO_ITEM_KEY, "location": "the wear slot it went to"},
     },
-    EVENT_REMOVED: {
+    SUFFIX_REMOVED: {
         "description": ["raised when an item is taken off and goes to the inventory"],
         "arg_descriptions": {"item": _NO_ITEM_KEY, "location": "the wear slot it came from"},
     },
-    EVENT_INVENTORY_ADDED: {
+    SUFFIX_INVENTORY_ADDED: {
         "description": ["raised when an item known to the plugin is added to the inventory"],
         "arg_descriptions": {"item": _NO_ITEM_KEY},
     },
-    EVENT_INVENTORY_REMOVED: {
+    SUFFIX_INVENTORY_REMOVED: {
         "description": ["raised when an item leaves the inventory, or is consumed"],
         "arg_descriptions": {"item": _NO_ITEM_KEY},
     },
-    EVENT_PUT: {
+    SUFFIX_PUT: {
         "description": [
             "raised when an item is put into a container, or added to the inventory",
         ],
         "arg_descriptions": {"serial": _SERIAL, "container": _CONTAINER, "item": _ITEM},
     },
-    EVENT_TAKEN: {
+    SUFFIX_TAKEN: {
         "description": ["raised when an item is taken out of a container, a vault or the keyring"],
         "arg_descriptions": {"serial": _SERIAL, "container": _CONTAINER, "item": _ITEM},
     },

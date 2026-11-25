@@ -2,16 +2,14 @@
 
 from typing import Any
 
-PLUGIN_ID = "plugins.aardwolf.config"
 QUESTMASTERS = "questmasters"
 DEFAULT_QUESTMASTERS = ("Commander Barcett", "A QuestoR", "Questor")
 
-EVENT_QUESTMASTERS_CHANGED = "ev_plugins.aardwolf.config_questmasters_changed"
-# the event the core settings plugin raises when the setting changes or loads
-EVENT_QUESTMASTERS_MODIFIED = "ev_plugins.aardwolf.config_var_questmasters_modified"
+# the suffix of the event this plugin raises; the plugin builds the full name from its plugin id
+SUFFIX_QUESTMASTERS_CHANGED = "questmasters_changed"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_QUESTMASTERS_CHANGED: {
+    SUFFIX_QUESTMASTERS_CHANGED: {
         "description": ["raised when the list of questmaster names changes, with a copy"],
         "arg_descriptions": {"questmasters": "the list of questmaster names after the change"},
     },

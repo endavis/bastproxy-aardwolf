@@ -3,8 +3,9 @@
 from collections.abc import Callable, Mapping
 from typing import Any, NamedTuple
 
-PREFIX = "ev_plugins.aardwolf.mobk_"
-EVENT_KILL = f"{PREFIX}kill"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its
+# plugin id
+SUFFIX_KILL = "kill"
 
 EVENT_GMCP_STATUS = "ev_libs.net.mud_gmcp_char.status"
 
@@ -41,7 +42,7 @@ _KILL_KEYS = {
 }
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_KILL: {
+    SUFFIX_KILL: {
         "description": ["raised once for each kill, when the corpse is gone, with a copy"],
         "arg_descriptions": dict(_KILL_KEYS),
     },

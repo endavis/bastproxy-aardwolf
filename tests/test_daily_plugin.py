@@ -15,11 +15,10 @@ from event_keys import assert_raised_described
 import aardwolf
 from aardwolf.daily.libs import (
     BLESSING_WAIT,
-    EVENT_AVAILABLE,
-    EVENTS,
     TIMER_NAME,
     TRIGGERS,
 )
+from aardwolf.daily.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -27,6 +26,8 @@ if TYPE_CHECKING:
     from aardwolf.daily.plugin._daily import DailyPlugin
 
 PLUGIN_ID = "plugins.aardwolf.daily"
+EVENT_AVAILABLE = f"ev_{PLUGIN_ID}_available"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 WAIT = "You can receive a new daily blessing in 1 hour, 2 minutes and 3 seconds."
 WAIT_SHORT = "You can receive a new daily blessing in 5 seconds."
 WAIT_ZERO = "You can receive a new daily blessing in 0 seconds."

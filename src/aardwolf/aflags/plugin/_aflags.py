@@ -10,6 +10,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     ALL_LINES_ID,
     CMD,
@@ -17,12 +19,12 @@ from ..libs import (
     EVENT_AFFECTED_UPDATE,
     EVENT_AFFOFF,
     EVENT_AFFON,
-    EVENT_DIFF,
     EVENT_DISCONNECT,
     EVENT_UPTODATE,
     EVENTS,
     HEADER_REGEX,
     HIDE_MAX_LINES,
+    SUFFIX_DIFF,
     TIMEOUT_EVENT,
     TYPE_AFLAGS,
     AflagsReader,
@@ -49,7 +51,7 @@ class AflagsPlugin(BasePlugin):
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
         """Add the event, the command type and the timeout handler."""
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             self.api("plugins.core.events:event.add")(
                 event_name,
                 self.plugin_id,
@@ -122,7 +124,7 @@ class AflagsPlugin(BasePlugin):
         if sn is not None:
             log_to([self.plugin_id], logging.DEBUG, "sn %d sets the flags %s", sn, added or removed)
         if added or removed:
-            self._raise(EVENT_DIFF, {"added": added, "removed": removed, "sn": sn})
+            self._raise(SUFFIX_DIFF, {"added": added, "removed": removed, "sn": sn})
         self.api("plugins.core.mudcmds:command.finish")(TYPE_AFLAGS)
         if self._again:
             self._again = False
@@ -136,9 +138,11 @@ class AflagsPlugin(BasePlugin):
         self._reader.start()
         self._learner.learn([], [])
 
-    def _raise(self, name: str, payload: dict[str, Any]) -> None:
-        """Raise an event with a payload that is a copy."""
-        self.api("plugins.core.events:event.raise")(name, event_args=copy.deepcopy(payload))
+    def _raise(self, suffix: str, payload: dict[str, Any]) -> None:
+        """Raise one of this plugin's events with a payload that is a copy."""
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, suffix), event_args=copy.deepcopy(payload)
+        )
 
     def _record(self) -> dict[str, Any]:
         """Return the record of the current event."""

@@ -18,15 +18,6 @@ from aardwolf.skills.libs import (
     ARGS_SPELLUP,
     CMDTYPE,
     CMDTYPE_SPELLUP,
-    EVENT_AFFECTED_UPDATE,
-    EVENT_AFFOFF,
-    EVENT_AFFON,
-    EVENT_FAIL,
-    EVENT_GAIN,
-    EVENT_RECOFF,
-    EVENT_RECON,
-    EVENT_UPTODATE,
-    EVENTS,
     HIDE_END_FULL,
     HIDE_END_SPELLUP,
     HIDE_MAX_LINES,
@@ -34,6 +25,7 @@ from aardwolf.skills.libs import (
     HIDE_START_SPELLUP,
     TRIGGERS,
 )
+from aardwolf.skills.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -41,6 +33,15 @@ if TYPE_CHECKING:
     from aardwolf.skills.plugin._skills import SkillsPlugin
 
 PLUGIN_ID = "plugins.aardwolf.skills"
+EVENT_AFFECTED_UPDATE = f"ev_{PLUGIN_ID}_affected_update"
+EVENT_AFFOFF = f"ev_{PLUGIN_ID}_affoff"
+EVENT_AFFON = f"ev_{PLUGIN_ID}_affon"
+EVENT_FAIL = f"ev_{PLUGIN_ID}_fail"
+EVENT_GAIN = f"ev_{PLUGIN_ID}_gain"
+EVENT_RECOFF = f"ev_{PLUGIN_ID}_recoff"
+EVENT_RECON = f"ev_{PLUGIN_ID}_recon"
+EVENT_UPTODATE = f"ev_{PLUGIN_ID}_uptodate"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 NOW = 1000.0
 GROUPS = ("slist", "slist_spells", "slist_recoveries")
 FULL_Q = f"slist {ARGS_FULL}"

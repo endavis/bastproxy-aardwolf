@@ -13,14 +13,8 @@ from event_keys import assert_raised_described
 from mudcmds_support import CoreHide
 
 import aardwolf
+from aardwolf.eq.libs import EVENTS as SUFFIX_EVENTS
 from aardwolf.eq.libs import (
-    EVENT_INVENTORY_ADDED,
-    EVENT_INVENTORY_REMOVED,
-    EVENT_PUT,
-    EVENT_REMOVED,
-    EVENT_TAKEN,
-    EVENT_WORN,
-    EVENTS,
     HIDE_MAX_LINES,
 )
 from aardwolf.eqdb.libs import ItemStore
@@ -31,6 +25,13 @@ if TYPE_CHECKING:
     from aardwolf.eq.plugin._eq import EqPlugin
 
 PLUGIN_ID = "plugins.aardwolf.eq"
+EVENT_INVENTORY_ADDED = f"ev_{PLUGIN_ID}_inventory_added"
+EVENT_INVENTORY_REMOVED = f"ev_{PLUGIN_ID}_inventory_removed"
+EVENT_PUT = f"ev_{PLUGIN_ID}_put"
+EVENT_REMOVED = f"ev_{PLUGIN_ID}_removed"
+EVENT_TAKEN = f"ev_{PLUGIN_ID}_taken"
+EVENT_WORN = f"ev_{PLUGIN_ID}_worn"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 GROUP = f"{PLUGIN_ID}.data"
 PROMPT = "[201/201hp 176/176mn 630/630mv 13qt 773tnl] >"
 SWORD = "1001,KG,a test sword,25,5,0,24,-1"

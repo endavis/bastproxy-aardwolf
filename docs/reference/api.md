@@ -30,6 +30,15 @@ Pure helpers for levels, class abbreviations and combat damage lines.
       show_root_heading: true
       show_root_full_path: true
 
+## Event Name Utilities Module
+
+Helpers that build a plugin's own event names from its plugin id.
+
+::: aardwolf._libs.eventu
+    options:
+      show_root_heading: true
+      show_root_full_path: true
+
 ## Item Utilities Module
 
 Item tables and the parser for item data lines.

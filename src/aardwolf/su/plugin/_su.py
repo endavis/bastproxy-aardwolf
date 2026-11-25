@@ -33,7 +33,6 @@ from ..libs import (
     EVENT_AFFOFF,
     EVENT_AFFON,
     EVENT_DISCONNECT,
-    EVENT_ENABLED_MODIFIED,
     EVENT_FAIL,
     EVENT_GAIN,
     EVENT_GMCP_STATUS,
@@ -362,7 +361,7 @@ class SuPlugin(BasePlugin):
         if was:
             self._nextspell()
 
-    @RegisterToEvent(event_name=EVENT_ENABLED_MODIFIED)
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modified(self) -> None:
         """Casting was turned on: cast what is missing."""
         record = self._record()

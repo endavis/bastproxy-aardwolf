@@ -6,11 +6,11 @@ from typing import Any, NamedTuple
 
 from aardwolf._libs import aardu
 
-PREFIX = "ev_plugins.aardwolf.cp_"
-EVENT_MOBSORIG = f"{PREFIX}mobsorig"
-EVENT_MOBSLEFT = f"{PREFIX}mobsleft"
-EVENT_COMP = f"{PREFIX}comp"
-EVENT_FAILED = f"{PREFIX}failed"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its plugin id
+SUFFIX_MOBSORIG = "mobsorig"
+SUFFIX_MOBSLEFT = "mobsleft"
+SUFFIX_COMP = "comp"
+SUFFIX_FAILED = "failed"
 
 EVENT_MOBK_KILL = "ev_plugins.aardwolf.mobk_kill"
 EVENT_CHAR_ACTIVE = "ev_libs.api_character_active"
@@ -66,19 +66,19 @@ _STATE_KEYS = {
 }
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_MOBSORIG: {
+    SUFFIX_MOBSORIG: {
         "description": ["raised the first time the mobs of a campaign are known, with a copy"],
         "arg_descriptions": {"mobsleft": _STATE_KEYS["mobsleft"]},
     },
-    EVENT_MOBSLEFT: {
+    SUFFIX_MOBSLEFT: {
         "description": ["raised when the mobs left of a campaign are known or change"],
         "arg_descriptions": {"mobsleft": _STATE_KEYS["mobsleft"]},
     },
-    EVENT_COMP: {
+    SUFFIX_COMP: {
         "description": ["raised when a campaign is complete and its rewards are known"],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    EVENT_FAILED: {
+    SUFFIX_FAILED: {
         "description": ["raised when a campaign is cleared, with a copy of the state"],
         "arg_descriptions": dict(_STATE_KEYS),
     },

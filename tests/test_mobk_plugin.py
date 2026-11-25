@@ -14,12 +14,15 @@ from statdb_support import make_db
 
 import aardwolf
 from aardwolf._libs.aardu import actual_level
-from aardwolf.mobk.libs import EQ_WORN_API, EVENT_KILL, EVENTS, TRIGGERS
+from aardwolf.mobk.libs import EQ_WORN_API, TRIGGERS
+from aardwolf.mobk.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.mobk.plugin._mobk import MobkPlugin
 
 PLUGIN_ID = "plugins.aardwolf.mobk"
+EVENT_KILL = f"ev_{PLUGIN_ID}_kill"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 GMCP: dict[str, Any] = {
     "char.status.level": 50,
     "char.base.remorts": 1,

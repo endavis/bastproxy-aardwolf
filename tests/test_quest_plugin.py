@@ -11,12 +11,13 @@ from event_keys import assert_raised_described
 from statdb_support import make_db
 
 import aardwolf
-from aardwolf.quest.libs import EVENTS
+from aardwolf.quest.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.quest.plugin._quest import QuestPlugin
 
 PLUGIN_ID = "plugins.aardwolf.quest"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 NOW = 1000.0
 START = {"action": "start", "targ": "a rat", "area": "Sewers", "room": "Dark Hall", "timer": 30}
 WHOIS = {"name": "Bast", "level": 50, "totallevels": 50, "remorts": 1, "classes": []}

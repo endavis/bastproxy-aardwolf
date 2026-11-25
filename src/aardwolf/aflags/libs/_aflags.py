@@ -11,11 +11,11 @@ EVENT_AFFECTED_UPDATE = f"{SKILLS_PREFIX}affected_update"
 EVENT_UPTODATE = f"{SKILLS_PREFIX}uptodate"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 
-# the event this plugin raises
-EVENT_DIFF = "ev_plugins.aardwolf.aflags_diff"
+# the suffix of the event this plugin raises; the plugin builds the full name from its plugin id
+SUFFIX_DIFF = "diff"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_DIFF: {
+    SUFFIX_DIFF: {
         "description": ["raised when a read of the affect flags found a flag added or removed"],
         "arg_descriptions": {
             "added": "the flags that are new, sorted, as a list",

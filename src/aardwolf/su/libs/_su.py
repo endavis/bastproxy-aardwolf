@@ -3,8 +3,6 @@
 from collections.abc import Callable, Collection, Iterable, MutableMapping
 from typing import Any
 
-PLUGIN_ID = "plugins.aardwolf.su"
-
 # the skills plugin's events, the move plugin's event and the disconnect event, listened to by name
 EVENT_AFFON = "ev_plugins.aardwolf.skills_affon"
 EVENT_AFFOFF = "ev_plugins.aardwolf.skills_affoff"
@@ -17,8 +15,6 @@ EVENT_MOVE_ROOM = "ev_plugins.aardwolf.move_room"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 EVENT_GMCP_VITALS = "ev_libs.net.mud_gmcp_char.vitals"
 EVENT_GMCP_STATUS = "ev_libs.net.mud_gmcp_char.status"
-# the settings plugin raises this when the enabled setting changes
-EVENT_ENABLED_MODIFIED = "ev_plugins.aardwolf.su_var_enabled_modified"
 SETTING_INIT = "__init__"
 
 # the APIs of the skills plugin, used by name
