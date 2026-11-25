@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795649176909,
+  "lastUpdate": 1795650172017,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2887,6 +2887,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.111743139046358e-7",
             "extra": "mean: 3.6977001004896297 usec\nrounds: 143308"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7b57549698509f040e4fc988c433806169defc8",
+          "message": "fix: correct campaign and gq tracking for repeated mobs, ended campaigns and wins (merges PR #168, addresses #154, #155, #153)\n\n#154: a mobk_kill carries only the mob's name. cp and gq keep removing\nthe first match (the same in both plugins), and when the killed name is\nlisted at more than one location they now queue `campaign check` or\n`gq check` after raising the mobs-left event, so the MUD's list replaces\nthe guess at once. Duplicates at one location queue nothing.\n\n#155: scanh asks plugins.aardwolf.cp:oncp at every {scan} start and clears\nits campaign targets unless cp is loaded and a campaign is on; at load it\nreads the mobs left only while oncp is true. This covers a campaign that\nexpires without a completion or failure event, a stale state after a\nrestart, and cp being unloaded. No new cp API or event.\n\n#153: the gq win announcement trigger is always on (no longer in gqin) and\nfollows the old regex forms. When the winner is the character (case\nignored), gq_won is raised even if the join was missed or the gq number\ndiffers (logged at debug), with won set and finishtime filled in so statdb\ncounts the win.\n\nDocs: cp, gq and scanh plugin pages.\n\nApproved existing-test edits (#153): ALWAYS_ON gains gq_wonannounce in\ntest_gq_libs.py and test_gq_plugin.py; the always-on count test now\nexpects eight and is renamed; the gqin group no longer holds\ngq_wonannounce; the \"1st win!\" case now matches and moved to its own\nannouncement test; test_announce_of_another_gquest_does_nothing became\ntest_announce_of_another_gquest_number_still_raises_won.\n\nAddresses #154\nAddresses #155\nAddresses #153\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T23:42:16Z",
+          "tree_id": "0cffb06feeebc7ed8f9ed760b4194cea506d603d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/e7b57549698509f040e4fc988c433806169defc8"
+        },
+        "date": 1795650170949,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5930554.574444823,
+            "unit": "iter/sec",
+            "range": "stddev: 1.661510327297858e-8",
+            "extra": "mean: 168.61829487398538 nsec\nrounds: 60887"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 291242.80902809015,
+            "unit": "iter/sec",
+            "range": "stddev: 5.703139365689742e-7",
+            "extra": "mean: 3.433561169585995 usec\nrounds: 152208"
           }
         ]
       }
