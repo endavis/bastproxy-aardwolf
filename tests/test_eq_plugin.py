@@ -1049,3 +1049,33 @@ def test_container_refresh_refuses_what_it_cannot_read(env: Env) -> None:
     env.fake.gmcp["room.info.details"] = "bank"
     assert env.plugin._api_container_refresh("Vault") is True
     assert env.fake.queued == ["eq_vault"]
+
+
+# commands without an item (#149)
+
+
+def test_item_is_optional_for_icache_get_and_put(env: Env) -> None:
+    import argparse
+
+    for command in (env.plugin._command_icache, env.plugin._command_get, env.plugin._command_put):
+        parser = argparse.ArgumentParser(exit_on_error=False)
+        for argument in command.command_data.arguments:
+            parser.add_argument(*argument["args"], **argument["kwargs"])
+        parsed = parser.parse_args([])
+        assert parsed.item == ""
+
+
+def test_bare_get_and_put_are_sent_without_a_trailing_space(env: Env) -> None:
+    env.fake.args = {"item": "", "otherargs": []}
+    env.plugin._command_get()
+    env.plugin._command_put()
+    assert env.sent == ["get", "put"]
+
+
+def test_bare_icache_shows_the_cache_size(env: Env) -> None:
+    env.fill()
+    env.fake.args = {"item": ""}
+    count = len(env.plugin.state.items)
+    assert env.plugin._command_icache().message == [
+        f"{count} items in the cache; give a serial to show one"
+    ]

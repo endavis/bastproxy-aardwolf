@@ -171,9 +171,9 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | Command | Does |
 | :--- | :--- |
 | `#bp.aardwolf.eq.refresh` | queues worn, inventory, keyring, the vault in a bank, and the bags |
-| `#bp.aardwolf.eq.icache <serial>` | shows `Item <serial>` and one sorted `key: value` line per field, or says it is not cached or not a serial |
-| `#bp.aardwolf.eq.get <item> [words]` | with a known serial, fetches the item; otherwise sends `get <item> [words]`, quoting words that hold spaces |
-| `#bp.aardwolf.eq.put <item> [bag]` | with a known item and no bag, puts it back where it came from; with a known bag serial, puts it there; otherwise sends `put <item> [words]` |
+| `#bp.aardwolf.eq.icache [serial]` | shows `Item <serial>` and one sorted `key: value` line per field, or says it is not cached or not a serial; without a serial it says how many items are in the cache |
+| `#bp.aardwolf.eq.get [item] [words]` | with a known serial, fetches the item; otherwise sends `get <item> [words]`, quoting words that hold spaces; bare, it sends `get` |
+| `#bp.aardwolf.eq.put [item] [bag]` | with a known item and no bag, puts it back where it came from; with a known bag serial, puts it there; otherwise sends `put <item> [words]`; bare, it sends `put` |
 | `#bp.aardwolf.eq.eq [-n] [-c] [-s]` | shows what is worn, one row per slot with its location, flags, level and name. `-n` leaves out the flags, `-c` adds the score and `-s` the serial. Empty optional locations (the medals, `second`, the floating, tattoo, `above`, `portal` and `sleeping` slots) are hidden, and so are the empty `shield` and `hold` while `second` is filled |
 | `#bp.aardwolf.eq.inv [container] [-n] [-c] [-s] [-g]` | shows `Inventory` (the default), `Worn`, `Keyring`, `Vault` or the bag with that serial; names are not case sensitive. Identical items (same name, flags and level) fold into one row counted as `(  n)`, with the serial `Many` under `-s`; `-g` turns grouping off. The inventory ends with the keyring count and, once the vault was read and it holds items, the vault counts. An empty container says `You have nothing in <container>`, an unread vault says to go to a bank and use `#bp.aardwolf.eq.refresh`, and an unknown container says `container <x> does not exist` |
 

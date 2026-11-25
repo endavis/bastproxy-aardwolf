@@ -497,10 +497,13 @@ class EqPlugin(BasePlugin):
 
     @AddCommand()
     @AddParser(description="show what is in the cache for an item")
-    @AddArgument("item", help="the serial of the item")
+    @AddArgument("item", help="the serial of the item", nargs="?", default="")
     def _command_icache(self) -> CommandResult:
-        """Show one line per field of a cached item."""
+        """Show one line per field of a cached item, or the size of the cache."""
         text = str(self._args().get("item", ""))
+        if not text:
+            count = len(self.state.items)
+            return CommandResult(True, [f"{count} items in the cache; give a serial to show one"])
         serial = to_serial(text)
         if serial is None:
             return CommandResult(True, [f"{text} is not a serial number"])
@@ -513,7 +516,7 @@ class EqPlugin(BasePlugin):
 
     @AddCommand(format=False, preamble=False)
     @AddParser(description="get an item, from wherever it is")
-    @AddArgument("item", help="the serial of the item, or what to get")
+    @AddArgument("item", help="the serial of the item, or what to get", nargs="?", default="")
     @AddArgument("otherargs", help="the rest of the get command", nargs="*", default=[])
     def _command_get(self) -> CommandResult:
         """Get an item by serial, or send the words to the MUD as a get command."""
@@ -521,13 +524,14 @@ class EqPlugin(BasePlugin):
         serial = to_serial(args.get("item"))
         if serial is not None and self._api_item_fetch(serial):
             return CommandResult(True, [])
-        words = " ".join(quote_arg(str(word)) for word in [args.get("item"), *args["otherargs"]])
-        self._send(f"get {words}")
-        return CommandResult(True, [f"serial is not known, sending 'get {words}'"])
+        parts = [quote_arg(str(word)) for word in [args.get("item"), *args["otherargs"]] if word]
+        command = " ".join(["get", *parts])
+        self._send(command)
+        return CommandResult(True, [f"serial is not known, sending '{command}'"])
 
     @AddCommand(format=False, preamble=False)
     @AddParser(description="put an item in something")
-    @AddArgument("item", help="the serial of the item, or what to put")
+    @AddArgument("item", help="the serial of the item, or what to put", nargs="?", default="")
     @AddArgument("otherargs", help="the rest of the put command", nargs="*", default=[])
     def _command_put(self) -> CommandResult:
         """Put an item in a bag, or send the words to the MUD as a put command."""
@@ -543,9 +547,10 @@ class EqPlugin(BasePlugin):
             if bag is not None and self.state.has_container(str(bag)):
                 self._api_item_put(serial, str(bag))
                 return CommandResult(True, [])
-        words = " ".join(quote_arg(str(word)) for word in [args.get("item"), *others])
-        self._send(f"put {words}")
-        return CommandResult(True, [f"sending 'put {words}'"])
+        parts = [quote_arg(str(word)) for word in [args.get("item"), *others] if word]
+        command = " ".join(["put", *parts])
+        self._send(command)
+        return CommandResult(True, [f"sending '{command}'"])
 
     def _resolve_container(self, text: str) -> str | None:
         """Return the id of the container a name or serial points at, or None."""
