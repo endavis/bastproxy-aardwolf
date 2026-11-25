@@ -11,12 +11,13 @@ and blanks instead of failing, and the finish and start times are compared to th
 """
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 from aardwolf._libs.aardu import convert_level
 
+from ._db import ReadDb
 from ._store import StatStore
 
 FIELDSTOCOMP = [
@@ -39,6 +40,14 @@ FIELDSTOCOMP = [
 
 NO_STATS = "No stats available"
 NO_KILLS = "No kills recorded"
+# the message of a report whose table has no rows
+EMPTY_MESSAGES = {
+    "quests": "No quests stats are available",
+    "levels": "No levels/pups stats available",
+    "campaigns": "No campaign stats available",
+    "gquests": "No gq stats available",
+    "mobkills": "No mob stats available",
+}
 DEFAULT_MOBKILL_COUNT = 10
 SPECIAL_FLAGS = (
     ("banishment", "B"),
@@ -81,6 +90,18 @@ def format_row(
     return f"{headercolor}{rowname:<14} : {datacolor}{data1!s:<12} {datacolor}{data2!s:<12}"
 
 
+def report_guard(db: ReadDb, table: str) -> str | None:
+    """Return why a report of ``table`` has nothing to show, or None when it has data.
+
+    The stats table must have a row, and so must the table itself.
+    """
+    if db.getlastrowid("stats") <= 0:
+        return NO_STATS
+    if db.getlastrowid(table) <= 0:
+        return EMPTY_MESSAGES[table]
+    return None
+
+
 def _n(value: float | None) -> float:
     """Return value, or 0 when it is None."""
     return value or 0
@@ -109,9 +130,14 @@ def _level_text(level: int) -> str:
 
 def list_milestones(store: StatStore) -> list[str]:
     """List the milestones: the level range, then the named milestones three to a line."""
+    return milestone_lines(store.db)
+
+
+def milestone_lines(db: ReadDb) -> list[str]:
+    """List the milestones of a database, as ``list_milestones`` does."""
     msg: list[str] = []
-    rows = store.db.select("SELECT milestone FROM stats")
-    levels = store.db.select(
+    rows = db.select("SELECT milestone FROM stats")
+    levels = db.select(
         "SELECT MIN(totallevels) as MIN, MAX(totallevels) as MAX FROM stats "
         "WHERE stats.totallevels == stats.milestone"
     )
@@ -173,21 +199,26 @@ def format_comparison(
     return msg
 
 
-def compare_milestones(
-    store: StatStore, first: str, second: str, fmt: Formatters, now: float | None = None
-) -> list[str]:
-    """Compare two milestones.
+def milestone_names(first: str, second: str) -> tuple[str, str]:
+    """Return the two milestone names to compare.
 
-    With no names it compares ``start`` to ``current``; with one name, that milestone to
+    With no names it is ``start`` and ``current``; with one name, that milestone and
     ``current``.
     """
     if first and second:
-        names = (first, second)
-    elif first:
-        names = (first, "current")
-    else:
-        names = ("start", "current")
-    rows = [store.get_milestone(name) for name in names]
+        return (first, second)
+    if first:
+        return (first, "current")
+    return ("start", "current")
+
+
+def comparison_lines(
+    names: tuple[str, str],
+    rows: Sequence[dict[str, Any] | None],
+    fmt: Formatters,
+    now: float | None = None,
+) -> list[str]:
+    """Compare two milestone rows, or say which of them does not exist."""
     missing = [
         f"milestone {name} does not exist" for name, row in zip(names, rows, strict=True) if not row
     ]
@@ -197,6 +228,18 @@ def compare_milestones(
     assert one is not None
     assert two is not None
     return format_comparison(one, two, fmt, now)
+
+
+def compare_milestones(
+    store: StatStore, first: str, second: str, fmt: Formatters, now: float | None = None
+) -> list[str]:
+    """Compare two milestones.
+
+    With no names it compares ``start`` to ``current``; with one name, that milestone to
+    ``current``.
+    """
+    names = milestone_names(first, second)
+    return comparison_lines(names, [store.get_milestone(name) for name in names], fmt, now)
 
 
 # quests
@@ -268,15 +311,47 @@ def show_quest(store: StatStore, number: int, fmt: Formatters) -> list[str]:
 
 def quest_report(store: StatStore, count: int, number: int | None, fmt: Formatters) -> list[str]:
     """Show quest statistics, the last ``count`` quests, or the quest ``number``."""
-    if store.db.getlastrowid("stats") <= 0:
-        return [NO_STATS]
-    if store.db.getlastrowid("quests") <= 0:
-        return ["No quests stats are available"]
+    guard = report_guard(store.db, "quests")
+    if guard:
+        return [guard]
     if number:
         return show_quest(store, number, fmt)
 
     div = _divider(fmt)
-    stats = store.db.select(
+    msg = quest_summary(quest_stats(store.db), fmt)
+
+    if count > 0:
+        last = store.db.getlast("quests", count)
+        if last and isinstance(last, list):
+            msg.append("")
+            msg.append(
+                "@G%-6s %-2s %-2s %-2s %-2s %-2s %-2s %-3s %-2s %-2s %-2s %-2s %-4s %-3s   %s"  # noqa: UP031  # %-formats keep the old column layout
+                % (
+                    "ID",
+                    "QP",
+                    "MC",
+                    "TR",
+                    "LK",
+                    "PK",
+                    "HC",
+                    "DBL",
+                    "TL",
+                    "TP",
+                    "TN",
+                    "PR",
+                    "Gold",
+                    "Lvl",
+                    "Time",
+                )
+            )
+            msg.append(div)
+            msg.extend(_quest_row(item, fmt, extra=True) for item in last)
+    return msg
+
+
+def quest_stats(db: ReadDb) -> dict[str, Any]:
+    """Return the numbers of the quest report: sums, averages and the current stats."""
+    stats = db.select(
         """SELECT AVG(finishtime - starttime) as avetime,
                   SUM(qp) as qp,
                   AVG(qp) as qpquestave,
@@ -302,8 +377,8 @@ def quest_report(store: StatStore, count: int, number: int | None, fmt: Formatte
                   SUM(gold) as gold,
                   AVG(gold) as avegold FROM quests where failed = 0"""
     )[0]
-    stats.update(store.db.select("SELECT COUNT(*) as failedindb FROM quests where failed != 0")[0])
-    current = store.db.select(
+    stats.update(db.select("SELECT COUNT(*) as failedindb FROM quests where failed != 0")[0])
+    current = db.select(
         """SELECT qpearned, questscomplete, questsfailed,
             totallevels FROM stats WHERE milestone = 'current'"""
     )
@@ -315,6 +390,12 @@ def quest_report(store: StatStore, count: int, number: int | None, fmt: Formatte
     stats["indb"] = stats["failedindb"] + stats["qindb"]
     levels = _n(stats["totallevels"])
     stats["qplevelave"] = _n(stats["qpearned"]) / float(levels) if levels else 0
+    return stats
+
+
+def quest_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
+    """Format the numbers of ``quest_stats``."""
+    div = _divider(fmt)
 
     def row(name: str, total: float | None, key: str, unit: str) -> str:
         return format_row(name, _n(total), format_float(stats[key], unit))
@@ -349,33 +430,6 @@ def quest_report(store: StatStore, count: int, number: int | None, fmt: Formatte
         row("Trains", stats["trains"], "trainsave", "/quest"),
         row("Pracs", stats["pracs"], "pracsave", "/quest"),
     ]
-
-    if count > 0:
-        last = store.db.getlast("quests", count)
-        if last and isinstance(last, list):
-            msg.append("")
-            msg.append(
-                "@G%-6s %-2s %-2s %-2s %-2s %-2s %-2s %-3s %-2s %-2s %-2s %-2s %-4s %-3s   %s"  # noqa: UP031  # %-formats keep the old column layout
-                % (
-                    "ID",
-                    "QP",
-                    "MC",
-                    "TR",
-                    "LK",
-                    "PK",
-                    "HC",
-                    "DBL",
-                    "TL",
-                    "TP",
-                    "TN",
-                    "PR",
-                    "Gold",
-                    "Lvl",
-                    "Time",
-                )
-            )
-            msg.append(div)
-            msg.extend(_quest_row(item, fmt, extra=True) for item in last)
     return msg
 
 
@@ -485,91 +539,14 @@ def level_report(
     perlevel: float | None = None,
 ) -> list[str]:
     """Show level statistics, the last ``count`` levels, or the level ``number``."""
-    if store.db.getlastrowid("stats") <= 0:
-        return [NO_STATS]
-    if store.db.getlastrowid("levels") <= 0:
-        return ["No levels/pups stats available"]
+    guard = report_guard(store.db, "levels")
+    if guard:
+        return [guard]
     if number:
         return show_level(store, number, fmt, perlevel)
 
     div = _divider(fmt)
-    current = store.db.select("SELECT totallevels, qpearned FROM stats WHERE milestone = 'current'")
-    levels: dict[str, Any] = dict(current[0]) if current else {"totallevels": 0, "qpearned": 0}
-    pups: dict[str, Any] = dict(
-        store.db.select("SELECT MAX(powerupsall) as powerupsall FROM stats")[0]
-    )
-
-    levels.update(
-        store.db.select(
-            """SELECT AVG(trains) as avetrains,
-                    AVG(bonustrains) as avebonustrains,
-                    AVG(blessingtrains) as aveblessingtrains,
-                    AVG(battlelearntrains) as avebattlelearntrains,
-                    SUM(trains + bonustrains + blessingtrains + battlelearntrains) as totaltrains,
-                    SUM(pracs) as totalpracs,
-                    COUNT(*) as indb
-                    FROM levels where type = 'level' and trains > 0"""
-        )[0]
-    )
-    levels.update(
-        store.db.select(
-            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
-                 FROM levels)
-             SELECT AVG(nextstart - starttime) as avetime FROM timed
-             where type = 'level' and trains > 0 and nextstart IS NOT NULL
-             and starttime > 0 and nextstart > 0"""
-        )[0]
-    )
-    pups.update(
-        store.db.select(
-            """SELECT AVG(trains) as avetrains,
-                    AVG(bonustrains) as avebonustrains,
-                    AVG(blessingtrains) as aveblessingtrains,
-                    AVG(battlelearntrains) as avebattlelearntrains,
-                    SUM(trains + bonustrains + blessingtrains + battlelearntrains) as totaltrains,
-                    COUNT(*) as indb
-                    FROM levels where type = 'pup'"""
-        )[0]
-    )
-    pups.update(
-        store.db.select(
-            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
-                 FROM levels)
-             SELECT AVG(nextstart - starttime) as avetime FROM timed
-             where type = 'pup' and nextstart IS NOT NULL
-             and starttime > 0 and nextstart > 0"""
-        )[0]
-    )
-
-    msg = [
-        format_row("Type", "Levels", "Pups", "@G", "@G"),
-        div,
-        format_row("Total Overall", levels["totallevels"], pups["powerupsall"]),
-        format_row("Total In DB", levels["indb"], pups["indb"]),
-        format_row("Total Trains", _n(levels["totaltrains"]), _n(pups["totaltrains"])),
-    ]
-    level_sum = 0.0
-    pup_sum = 0.0
-    for title, key in (
-        ("Ave Trains", "avetrains"),
-        ("Ave Bon Trains", "avebonustrains"),
-        ("Ave Bls Trains", "aveblessingtrains"),
-        ("Ave BaL Trains", "avebattlelearntrains"),
-    ):
-        level_ave = format_float(levels[key])
-        pup_ave = format_float(pups[key])
-        level_sum += float(level_ave)
-        pup_sum += float(pup_ave)
-        msg.append(format_row(title, level_ave or 0, pup_ave or 0))
-    msg.append(format_row("Ave Overall", level_sum or 0, pup_sum or 0))
-    msg.append(format_row("Total Pracs", _n(levels["totalpracs"]), ""))
-    msg.append(
-        format_row(
-            "Time",
-            fmt.format_time(levels["avetime"]) if levels["avetime"] else "",
-            fmt.format_time(pups["avetime"]) if pups["avetime"] else "",
-        )
-    )
+    msg = level_summary(level_stats(store.db), fmt)
 
     if count > 0:
         last = store.db.getlast("levels", count)
@@ -620,6 +597,94 @@ def level_report(
                         _gap_text(fmt, item["starttime"], nextstart),
                     )
                 )
+    return msg
+
+
+def level_stats(db: ReadDb) -> dict[str, dict[str, Any]]:
+    """Return the numbers of the level report: one dict for levels and one for pups."""
+    current = db.select("SELECT totallevels, qpearned FROM stats WHERE milestone = 'current'")
+    levels: dict[str, Any] = dict(current[0]) if current else {"totallevels": 0, "qpearned": 0}
+    pups: dict[str, Any] = dict(db.select("SELECT MAX(powerupsall) as powerupsall FROM stats")[0])
+
+    levels.update(
+        db.select(
+            """SELECT AVG(trains) as avetrains,
+                    AVG(bonustrains) as avebonustrains,
+                    AVG(blessingtrains) as aveblessingtrains,
+                    AVG(battlelearntrains) as avebattlelearntrains,
+                    SUM(trains + bonustrains + blessingtrains + battlelearntrains) as totaltrains,
+                    SUM(pracs) as totalpracs,
+                    COUNT(*) as indb
+                    FROM levels where type = 'level' and trains > 0"""
+        )[0]
+    )
+    levels.update(
+        db.select(
+            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
+                 FROM levels)
+             SELECT AVG(nextstart - starttime) as avetime FROM timed
+             where type = 'level' and trains > 0 and nextstart IS NOT NULL
+             and starttime > 0 and nextstart > 0"""
+        )[0]
+    )
+    pups.update(
+        db.select(
+            """SELECT AVG(trains) as avetrains,
+                    AVG(bonustrains) as avebonustrains,
+                    AVG(blessingtrains) as aveblessingtrains,
+                    AVG(battlelearntrains) as avebattlelearntrains,
+                    SUM(trains + bonustrains + blessingtrains + battlelearntrains) as totaltrains,
+                    COUNT(*) as indb
+                    FROM levels where type = 'pup'"""
+        )[0]
+    )
+    pups.update(
+        db.select(
+            """WITH timed AS (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
+                 FROM levels)
+             SELECT AVG(nextstart - starttime) as avetime FROM timed
+             where type = 'pup' and nextstart IS NOT NULL
+             and starttime > 0 and nextstart > 0"""
+        )[0]
+    )
+    return {"levels": levels, "pups": pups}
+
+
+def level_summary(stats: dict[str, dict[str, Any]], fmt: Formatters) -> list[str]:
+    """Format the numbers of ``level_stats``."""
+    div = _divider(fmt)
+    levels = stats["levels"]
+    pups = stats["pups"]
+
+    msg = [
+        format_row("Type", "Levels", "Pups", "@G", "@G"),
+        div,
+        format_row("Total Overall", levels["totallevels"], pups["powerupsall"]),
+        format_row("Total In DB", levels["indb"], pups["indb"]),
+        format_row("Total Trains", _n(levels["totaltrains"]), _n(pups["totaltrains"])),
+    ]
+    level_sum = 0.0
+    pup_sum = 0.0
+    for title, key in (
+        ("Ave Trains", "avetrains"),
+        ("Ave Bon Trains", "avebonustrains"),
+        ("Ave Bls Trains", "aveblessingtrains"),
+        ("Ave BaL Trains", "avebattlelearntrains"),
+    ):
+        level_ave = format_float(levels[key])
+        pup_ave = format_float(pups[key])
+        level_sum += float(level_ave)
+        pup_sum += float(pup_ave)
+        msg.append(format_row(title, level_ave or 0, pup_ave or 0))
+    msg.append(format_row("Ave Overall", level_sum or 0, pup_sum or 0))
+    msg.append(format_row("Total Pracs", _n(levels["totalpracs"]), ""))
+    msg.append(
+        format_row(
+            "Time",
+            fmt.format_time(levels["avetime"]) if levels["avetime"] else "",
+            fmt.format_time(pups["avetime"]) if pups["avetime"] else "",
+        )
+    )
     return msg
 
 
@@ -676,22 +741,41 @@ def show_cp(store: StatStore, number: int, fmt: Formatters) -> list[str]:
 
 def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters) -> list[str]:
     """Show campaign statistics, the last ``count`` campaigns, or the campaign ``number``."""
-    if store.db.getlastrowid("stats") <= 0:
-        return [NO_STATS]
-    if store.db.getlastrowid("campaigns") <= 0:
-        return ["No campaign stats available"]
+    guard = report_guard(store.db, "campaigns")
+    if guard:
+        return [guard]
     if number:
         return show_cp(store, number, fmt)
 
     div = _divider(fmt)
-    current = store.db.select(
+    msg = cp_summary(cp_stats(store.db), fmt)
+
+    if count > 0:
+        last = store.db.getlast("campaigns", count)
+        counts = store.db.selectbykeyword(
+            "SELECT cp_id, count(*) as mobcount from cpmobs group by cp_id", "cp_id"
+        )
+        if last and isinstance(last, list):
+            msg.append("")
+            msg.append(CP_HEADER)
+            msg.append(div)
+            msg.extend(
+                _cp_line(item, counts.get(item["cp_id"], {}).get("mobcount", 0), fmt)
+                for item in last
+            )
+    return msg
+
+
+def cp_stats(db: ReadDb) -> dict[str, Any]:
+    """Return the numbers of the campaign report."""
+    current = db.select(
         "SELECT campaignsdone, campaignsfld, totallevels FROM stats WHERE milestone = 'current'"
     )
     stats: dict[str, Any] = (
         dict(current[0]) if current else {"campaignsdone": 0, "campaignsfld": 0, "totallevels": 0}
     )
     stats.update(
-        store.db.select(
+        db.select(
             """SELECT AVG(finishtime - starttime) as avetime,
                   SUM(qp) as totalqp,
                   AVG(qp) as aveqp,
@@ -707,9 +791,13 @@ def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
                   FROM campaigns where failed = 0"""
         )[0]
     )
-    stats.update(
-        store.db.select("SELECT COUNT(*) as failedindb FROM campaigns where failed != 0")[0]
-    )
+    stats.update(db.select("SELECT COUNT(*) as failedindb FROM campaigns where failed != 0")[0])
+    return stats
+
+
+def cp_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
+    """Format the numbers of ``cp_stats``."""
+    div = _divider(fmt)
     indb = int(stats["cindb"]) + int(stats["failedindb"])
     total = int(_n(stats["campaignsdone"])) + int(_n(stats["campaignsfld"]))
 
@@ -736,20 +824,6 @@ def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
         format_row("Trains", _n(stats["totaltrains"]), format_float(stats["avetrains"], "/CP")),
         format_row("Pracs", _n(stats["totalpracs"]), format_float(stats["avepracs"], "/CP")),
     ]
-
-    if count > 0:
-        last = store.db.getlast("campaigns", count)
-        counts = store.db.selectbykeyword(
-            "SELECT cp_id, count(*) as mobcount from cpmobs group by cp_id", "cp_id"
-        )
-        if last and isinstance(last, list):
-            msg.append("")
-            msg.append(CP_HEADER)
-            msg.append(div)
-            msg.extend(
-                _cp_line(item, counts.get(item["cp_id"], {}).get("mobcount", 0), fmt)
-                for item in last
-            )
     return msg
 
 
@@ -805,15 +879,34 @@ def show_gq(store: StatStore, number: int, fmt: Formatters) -> list[str]:
 
 def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters) -> list[str]:
     """Show global quest statistics, the last ``count`` or the global quest ``number``."""
-    if store.db.getlastrowid("stats") <= 0:
-        return [NO_STATS]
-    if store.db.getlastrowid("gquests") <= 0:
-        return ["No gq stats available"]
+    guard = report_guard(store.db, "gquests")
+    if guard:
+        return [guard]
     if number:
         return show_gq(store, number, fmt)
 
     div = _divider(fmt)
-    won = store.db.select(
+    msg = gq_summary(gq_stats(store.db), fmt)
+
+    if count > 0:
+        last = store.db.getlast("gquests", count)
+        counts = store.db.selectbykeyword(
+            "SELECT gq_id, SUM(num) as mobcount from gqmobs group by gq_id", "gq_id"
+        )
+        if last and isinstance(last, list):
+            msg.append("")
+            msg.append(GQ_HEADER)
+            msg.append(div)
+            msg.extend(
+                _gq_line(item, counts.get(item["gq_id"], {}).get("mobcount", 0), fmt)
+                for item in last
+            )
+    return msg
+
+
+def gq_stats(db: ReadDb) -> dict[str, Any]:
+    """Return the numbers of the global quest report."""
+    won = db.select(
         """SELECT AVG(finishtime - starttime) as avetime,
                   SUM(qp) as qp,
                   AVG(qp) as qpave,
@@ -830,20 +923,30 @@ def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
                   AVG(gold) as avegold
                   FROM gquests where won = 1"""
     )[0]
-    current = store.db.select("SELECT gquestswon FROM stats WHERE milestone = 'current'")
+    current = db.select("SELECT gquestswon FROM stats WHERE milestone = 'current'")
     gquestswon = _n(current[0]["gquestswon"]) if current else 0
-    lost = store.db.select(
+    lost = db.select(
         """SELECT AVG(finishtime - starttime) as avetime,
                  SUM(qpmobs) as totalqp,
                  AVG(qpmobs) as aveqp,
                  COUNT(*) as indb
                  FROM gquests where won != 1"""
     )[0]
-    overall = store.db.select(
+    overall = db.select(
         """SELECT SUM(qpmobs + qp) as overallqp,
                  AVG(qpmobs + qp) as aveoverallqp
                  FROM gquests"""
     )[0]
+    return {"won": won, "lost": lost, "overall": overall, "gquestswon": gquestswon}
+
+
+def gq_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
+    """Format the numbers of ``gq_stats``."""
+    div = _divider(fmt)
+    won = stats["won"]
+    lost = stats["lost"]
+    overall = stats["overall"]
+    gquestswon = stats["gquestswon"]
     indb = won["indb"] + lost["indb"]
 
     msg = [
@@ -872,20 +975,6 @@ def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
         div,
         format_row("GQ MOB QP", _n(lost["totalqp"]), format_float(lost["aveqp"], "/GQ")),
     ]
-
-    if count > 0:
-        last = store.db.getlast("gquests", count)
-        counts = store.db.selectbykeyword(
-            "SELECT gq_id, SUM(num) as mobcount from gqmobs group by gq_id", "gq_id"
-        )
-        if last and isinstance(last, list):
-            msg.append("")
-            msg.append(GQ_HEADER)
-            msg.append(div)
-            msg.extend(
-                _gq_line(item, counts.get(item["gq_id"], {}).get("mobcount", 0), fmt)
-                for item in last
-            )
     return msg
 
 
@@ -894,16 +983,32 @@ def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
 
 def mob_report(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     """Show mob kill statistics and the last ``count`` kills."""
-    if store.db.getlastrowid("stats") <= 0:
-        return [NO_STATS]
-    if store.db.getlastrowid("mobkills") <= 0:
-        return ["No mob stats available"]
+    guard = report_guard(store.db, "mobkills")
+    if guard:
+        return [guard]
 
     div = _divider(fmt)
-    current = store.db.select("SELECT monsterskilled FROM stats WHERE milestone = 'current'")
+    msg = mob_summary(mob_stats(store.db), fmt)
+
+    if count > 0:
+        last = store.db.getlast("mobkills", count)
+        if last and isinstance(last, list):
+            msg.append("")
+            msg.append(
+                "@G%3s %-18s %-3s %-3s %-3s %-3s %2s %1s %s"  # noqa: UP031  # %-formats keep the old column layout
+                % ("Lvl", "Mob", "TXP", "XP", "RXP", "OXP", "TP", "S", "Gold")
+            )
+            msg.append(div)
+            msg.extend(_mob_line(item) for item in last)
+    return msg
+
+
+def mob_stats(db: ReadDb) -> dict[str, Any]:
+    """Return the numbers of the mob kill report."""
+    current = db.select("SELECT monsterskilled FROM stats WHERE milestone = 'current'")
     stats: dict[str, Any] = dict(current[0]) if current else {"monsterskilled": 0}
     stats.update(
-        store.db.select(
+        db.select(
             """SELECT SUM(xp) AS xp,
                   SUM(rarexp) as rarexp,
                   SUM(bonusxp) AS bonusxp,
@@ -925,26 +1030,32 @@ def mob_report(store: StatStore, count: int, fmt: Formatters) -> list[str]:
         )[0]
     )
     stats.update(
-        store.db.select(
+        db.select(
             """SELECT AVG(bonusxp) as avebonusxp,
                  COUNT(*) as bonusmobsindb
                  FROM mobkills where bonusxp > 0"""
         )[0]
     )
     stats.update(
-        store.db.select(
+        db.select(
             """SELECT AVG(blessingxp) as aveblessxp,
                  COUNT(*) as blessmobsindb
                  FROM mobkills where blessingxp > 0"""
         )[0]
     )
     stats.update(
-        store.db.select(
+        db.select(
             """SELECT AVG(rarexp) as averarexp,
                  COUNT(*) as raremobsindb
                  FROM mobkills where rarexp > 0"""
         )[0]
     )
+    return stats
+
+
+def mob_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
+    """Format the numbers of ``mob_stats``."""
+    div = _divider(fmt)
     kills = float(stats["indb"])
 
     msg = [
@@ -981,17 +1092,6 @@ def mob_report(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     ):
         total = _n(stats[key])
         msg.append(format_row(title, total, format_float(total / kills, "/kill") or ""))
-
-    if count > 0:
-        last = store.db.getlast("mobkills", count)
-        if last and isinstance(last, list):
-            msg.append("")
-            msg.append(
-                "@G%3s %-18s %-3s %-3s %-3s %-3s %2s %1s %s"  # noqa: UP031  # %-formats keep the old column layout
-                % ("Lvl", "Mob", "TXP", "XP", "RXP", "OXP", "TP", "S", "Gold")
-            )
-            msg.append(div)
-            msg.extend(_mob_line(item) for item in last)
     return msg
 
 

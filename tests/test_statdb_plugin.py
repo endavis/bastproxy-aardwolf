@@ -3,7 +3,7 @@
 import copy
 import inspect
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -17,8 +17,9 @@ import aardwolf
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
+    from bastproxy.plugins.core.web.libs._http import Response
 
-    from aardwolf.statdb.libs import StatStore
+    from aardwolf.statdb.libs import StatStore, TablePage, TableParams, TableResult
     from aardwolf.statdb.plugin._statdb import StatdbPlugin
 
 PLUGIN_ID = "plugins.aardwolf.statdb"
@@ -41,6 +42,12 @@ class FakeApi:
         self.record: dict[str, Any] = {}
         self.gmcp: dict[str, Any] = {}
         self.args: dict[str, Any] = {}
+        self.routes: list[
+            tuple[str, str, Callable[..., Any], str, list[dict[str, str]] | None]
+        ] = []
+        self.route_paths: bool = True
+        self.mapper_rooms: dict[str, dict[str, Any]] | None = None
+        self.mapper_areas: dict[str, dict[str, Any]] = {}
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -59,8 +66,28 @@ class FakeApi:
             "plugins.core.utils:timelength.format": lambda seconds: f"{int(seconds)}s",
             "plugins.core.utils:number.to.readable": lambda number: f"<{number}>",
             "plugins.core.proxy:line.length.get": lambda: 40,
+            "plugins.core.web:web.route.add": self._route_add,
+            "libs.api:api.exists": self._api_exists,
+            "plugins.client.mapper:room.get": lambda uid: (self.mapper_rooms or {}).get(uid),
+            "plugins.client.mapper:area.get": lambda uid: self.mapper_areas.get(uid),
         }
         return table[name]
+
+    def _route_add(
+        self,
+        owner: str,
+        subpath: str,
+        handler: Callable[..., Any],
+        title: str,
+        columns: list[dict[str, str]] | None = None,
+    ) -> str | None:
+        self.routes.append((owner, subpath, handler, title, columns))
+        if not self.route_paths:
+            return None
+        return f"/aardwolf/statdb/{subpath}".rstrip("/")
+
+    def _api_exists(self, name: str) -> bool:
+        return self.mapper_rooms is not None or not name.startswith("plugins.client.mapper:")
 
     def _setting_add(
         self, plugin_id: str, name: str, default: object, stype: str, help: str
@@ -544,3 +571,271 @@ def test_mobkills_argument_is_declared(env: Env) -> None:
     assert data.arguments[0]["kwargs"]["type"] is int
     assert data.arguments[0]["kwargs"]["default"] == 10
     assert data.command["kwargs"]["group"] == "Stats"
+
+
+# web pages
+
+TABLE_ROUTES = {
+    "milestones",
+    "quests",
+    "levels",
+    "cps",
+    "cpmobs",
+    "gqs",
+    "gqmobs",
+    "mobs",
+    "mobkills",
+}
+CHART_ROUTES = {"chart/qp-per-day", "chart/gold-per-day", "chart/level-time", "chart/area-kills"}
+
+
+def _web_routes(env: Env) -> dict[str, tuple[Callable[..., Any], str, list[dict[str, str]] | None]]:
+    """Return the routes the plugin registered, by subpath."""
+    return {
+        subpath: (handler, title, columns)
+        for _owner, subpath, handler, title, columns in env.fake.routes
+    }
+
+
+async def _wait(value: Awaitable[object]) -> object:
+    """Await a handler's result."""
+    return await value
+
+
+def _call(env: Env, subpath: str, query: dict[str, str] | None = None) -> dict[str, Any]:
+    """Run a route handler the way the web plugin does, with a validated table query."""
+    import asyncio
+
+    from bastproxy.plugins.core.web.libs._table import make_columns, parse_table_query
+
+    handler, _title, columns = _web_routes(env)[subpath]
+    params = query or {}
+    table = parse_table_query(params, make_columns(columns)) if columns is not None else None
+    result = handler(SimpleNamespace(query=params, table=table))
+    if inspect.isawaitable(result):
+        result = asyncio.run(_wait(result))
+    assert isinstance(result, dict)
+    return result
+
+
+def _fill_web_data(env: Env) -> None:
+    """Give the plugin's database a few made-up rows."""
+    _start(env)
+    env.store.save_quest(
+        {"starttime": 100, "finishtime": 160, "mobname": "a rat", "qp": 20, "totqp": 25,
+         "gold": 300, "level": 5}
+    )  # fmt: skip
+    env.store.save_cp(
+        {"starttime": 10, "finishtime": 70, "qp": 30, "level": 4, "mobs": [{"name": "an orc"}]}
+    )
+    env.store.save_gq({"starttime": 5, "finishtime": 65, "qp": 40, "level": 5, "won": 1})
+    env.store.save_level({"type": "level", "level": 5, "totallevels": 5, "starttime": 1000})
+    env.store.save_level({"type": "level", "level": 6, "totallevels": 6, "starttime": 1600})
+    env.store.save_mobkill({"name": "a bat", "totalxp": 4, "time": 2600, "level": 5, "room_id": 7})
+    env.store.save_mobkill({"name": "a cat", "totalxp": 5, "time": 2700, "level": 5, "room_id": 8})
+
+
+def test_web_routes_are_registered_under_the_plugin(env: Env) -> None:
+    """Fifteen routes are added by the plugin itself; tables declare their columns."""
+    routes = _web_routes(env)
+    assert len(env.fake.routes) == 15
+    assert {owner for owner, *_rest in env.fake.routes} == {PLUGIN_ID}
+    assert set(routes) == {"", "comp", *TABLE_ROUTES, *CHART_ROUTES}
+    for subpath, (_handler, _title, columns) in routes.items():
+        assert (columns is not None) == (subpath in TABLE_ROUTES)
+    assert [column["name"] for column in routes["mobs"][2] or []][:3] == ["lvl", "mob", "txp"]
+
+
+def test_web_routes_follow_the_unload_contract(env: Env) -> None:
+    """The real route table accepts every route under /aardwolf/statdb and removes them."""
+    from bastproxy.plugins.core.web.libs._store import RouteTable
+
+    table = RouteTable()
+    for owner, subpath, handler, title, columns in env.fake.routes:
+        path = table.add(owner, subpath, handler, title, columns)
+        assert path == f"/aardwolf/statdb/{subpath}".rstrip("/")
+        assert table.match(path) is not None
+    assert table.count() == 15
+    assert table.remove(PLUGIN_ID) == 15
+    assert table.count() == 0
+
+
+def test_web_index_lists_the_pages_as_text(env: Env) -> None:
+    """The index page holds one text line per page the web plugin accepted."""
+    result = _call(env, "")
+    assert result["kind"] == "html"
+    assert len(result["lines"]) == 14
+    assert "Quests: /aardwolf/statdb/quests" in result["lines"]
+    env.fake.routes.clear()
+    env.fake.route_paths = False
+    env.plugin._add_web_routes()
+    assert _call(env, "")["lines"] == []
+
+
+def test_table_handler_returns_a_page_with_the_summary(env: Env) -> None:
+    """A table route returns its rows, the total and the text report's summary."""
+    _fill_web_data(env)
+    result = _call(env, "quests")
+    assert result["kind"] == "table"
+    assert result["total"] == 1
+    assert result["rows"][0][:2] == [1, 20]
+    assert any(line.startswith("@GDB Stats") for line in result["lines"])
+    paged = _call(env, "mobkills", {"count": "1", "page": "2"})
+    assert paged["total"] == 2
+    assert [row[1] for row in paged["rows"]] == ["a bat"]
+    filtered = _call(env, "mobs", {"f_mob": "cat"})
+    assert filtered["total"] == 1
+    assert _call(env, "cpmobs", {"f_cp_id": "1"})["rows"] == [[1, "an orc", "Unknown"]]
+    assert _call(env, "milestones")["lines"]
+
+
+def test_table_handler_says_when_there_is_nothing_to_show(env: Env) -> None:
+    """A report without data returns the text command's message as a page."""
+    assert _call(env, "quests") == {
+        "kind": "html",
+        "title": "Quests",
+        "lines": ["No stats available"],
+    }
+    _start(env)
+    assert _call(env, "cps")["lines"] == ["No campaign stats available"]
+
+
+def test_comp_handler_compares_milestones(env: Env) -> None:
+    """The comp page compares two milestones, and names one that does not exist."""
+    _fill_web_data(env)
+    result = _call(env, "comp", {"first": "start", "second": "current"})
+    assert result["kind"] == "html"
+    assert result["lines"][0].split()[:3] == ["Milestone", "start", "current"]
+    assert _call(env, "comp")["lines"][0].split()[:3] == ["Milestone", "start", "current"]
+    missing = _call(env, "comp", {"first": "nope' OR 1=1 --"})
+    assert missing["lines"] == ["milestone nope' OR 1=1 -- does not exist"]
+
+
+def test_chart_handlers_return_svg(env: Env) -> None:
+    """Each day and level chart returns an SVG document with its title."""
+    _fill_web_data(env)
+    for subpath in ("chart/qp-per-day", "chart/gold-per-day", "chart/level-time"):
+        result = _call(env, subpath)
+        assert result["kind"] == "svg"
+        assert result["svg"].startswith("<svg")
+        assert "No data" not in result["svg"]
+    assert "Quest points per day" in _call(env, "chart/qp-per-day")["svg"]
+
+
+def test_area_chart_without_the_mapper_counts_unknown(env: Env) -> None:
+    """With no mapper every kill is in the Unknown area."""
+    _fill_web_data(env)
+    assert env.fake.mapper_rooms is None
+    svg = _call(env, "chart/area-kills")["svg"]
+    assert "Unknown: 2 kills" in svg
+
+
+def test_area_chart_maps_rooms_to_areas(env: Env) -> None:
+    """With the mapper, kills are added per area name; a missing area uses its uid."""
+    _fill_web_data(env)
+    env.fake.mapper_rooms = {"7": {"area": "cave"}, "8": {"area": "pit"}}
+    env.fake.mapper_areas = {"cave": {"name": "The Cave"}}
+    svg = _call(env, "chart/area-kills")["svg"]
+    assert "The Cave: 1 kills" in svg
+    assert "pit: 1 kills" in svg
+    assert "Unknown" not in svg
+
+
+def test_area_chart_yields_between_lookups(env: Env) -> None:
+    """Looking up many rooms still maps every room."""
+    _start(env)
+    for room in range(1, 121):
+        env.store.save_mobkill({"name": "x", "room_id": room, "time": 1})
+    env.fake.mapper_rooms = {str(room): {"area": "all"} for room in range(1, 121)}
+    env.fake.mapper_areas = {"all": {"name": "Everywhere"}}
+    assert "Everywhere: 120 kills" in _call(env, "chart/area-kills")["svg"]
+
+
+def test_pages_say_so_when_there_is_no_database(env: Env) -> None:
+    """Without a database every page says it is not available."""
+    env.plugin.statdb = None
+    for subpath in TABLE_ROUTES:
+        assert _call(env, subpath)["lines"] == ["The stats database is not available"]
+    assert _call(env, "comp")["lines"] == ["The stats database is not available"]
+    for subpath in CHART_ROUTES:
+        result = _call(env, subpath)
+        assert "The stats database is not available" in result["svg"]
+        assert "No data" in result["svg"]
+
+
+def test_pages_say_so_when_the_database_cannot_be_read(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A sqlite error is logged and the page says the database could not be read."""
+    from aardwolf.statdb.plugin import _statdb
+
+    def fail(*_args: object) -> object:
+        raise sqlite3.OperationalError("disk I/O error")
+
+    for name in ("read_table", "read_milestone_rows", "read_chart", "read_room_kills"):
+        monkeypatch.setattr(_statdb, name, fail)
+    assert _call(env, "quests")["lines"] == ["The stats database could not be read"]
+    assert _call(env, "comp")["lines"] == ["The stats database could not be read"]
+    assert "The stats database could not be read" in _call(env, "chart/qp-per-day")["svg"]
+    assert "The stats database could not be read" in _call(env, "chart/area-kills")["svg"]
+
+
+def test_database_path_comes_from_the_open_database(env: Env, tmp_path: Path) -> None:
+    """The path is the database file, and None when the database is not open."""
+    assert env.plugin._db_path() == tmp_path / "db" / "stats.sqlite"
+    env.plugin.statdb = None
+    assert env.plugin._db_path() is None
+
+
+def test_real_web_app_gates_and_serves_the_routes(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Through the real web app: POST is 405, no session 401, bad parameters 400, GET 200."""
+    import asyncio
+
+    from bastproxy.plugins.core.web.libs._http import Request
+    from bastproxy.plugins.core.web.libs._server import SESSION_COOKIE, WebApp
+    from bastproxy.plugins.core.web.libs._store import PageStore, RouteTable, SessionStore
+
+    from aardwolf.statdb.plugin import _statdb
+
+    _fill_web_data(env)
+    routes = RouteTable()
+    for owner, subpath, handler, title, columns in env.fake.routes:
+        routes.add(owner, subpath, handler, title, columns)
+    sessions = SessionStore()
+    app = WebApp(PageStore(), routes=routes, sessions=sessions)
+    cookies = {SESSION_COOKIE: sessions.create(60)}
+    path = "/aardwolf/statdb/quests"
+
+    def get(request: Request) -> "Response":
+        return asyncio.run(app.dispatch(request))
+
+    assert get(Request("POST", path, {}, cookies)).status == 405
+    assert get(Request("GET", path, {}, {})).status == 401
+
+    opened: list[object] = []
+    real = _statdb.read_table
+
+    def spy(path: Path, page: "TablePage", table: "TableParams") -> "TableResult":
+        opened.append(path)
+        return real(path, page, table)
+
+    monkeypatch.setattr(_statdb, "read_table", spy)
+    for query in (
+        {"sort": "nope"},
+        {"dir": "sideways"},
+        {"page": "0"},
+        {"count": "501"},
+        {"f_nope": "x"},
+        {"f_qp": "abc"},
+        {"f_mob": "x" * 201},
+    ):
+        assert get(Request("GET", path, query, cookies)).status == 400
+    assert opened == []
+
+    response = get(Request("GET", path, {"sort": "qp", "dir": "desc"}, cookies))
+    assert response.status == 200
+    assert b"a rat" in response.body
+    assert len(opened) == 1
+    assert get(Request("GET", "/aardwolf/statdb/chart/qp-per-day", {}, cookies)).status == 200

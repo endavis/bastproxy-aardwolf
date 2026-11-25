@@ -1,10 +1,12 @@
 """The Aardwolf statdb plugin: a stats database filled from the Aardwolf events."""
 
+import asyncio
 import copy
 import logging
 import sqlite3
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 from bastproxy.libs.logger import log_to
@@ -16,21 +18,34 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from aardwolf._libs.aardu import actual_level_from_gmcp
 
 from ..libs import (
+    CHARTS,
     DB_NAME,
     DB_VERSION,
     DEFAULT_MOBKILL_COUNT,
     MIGRATIONS,
+    TABLE_PAGES,
     TABLES,
     Formatters,
     StatStore,
+    TablePage,
+    WebRequest,
+    aggregate_areas,
+    bar_chart_svg,
     compare_milestones,
+    comparison_lines,
     cp_report,
     gq_report,
     level_report,
     list_milestones,
+    milestone_names,
     mob_report,
     mobkill_list,
+    page_lines,
     quest_report,
+    read_chart,
+    read_milestone_rows,
+    read_room_kills,
+    read_table,
 )
 
 PREFIX = "ev_plugins.aardwolf."
@@ -72,6 +87,11 @@ DEAD_TRIGGER = "dead"
 DEAD_REGEX = r"^You die\.$"
 
 NO_DB = "The stats database is not available"
+DB_UNREADABLE = "The stats database could not be read"
+MAPPER = "plugins.client.mapper"
+MAX_MILESTONE_NAME = 200
+LOOKUPS_PER_YIELD = 50
+AREA_CHART_TITLE = "Kills per area (top 20)"
 
 
 class StatdbPlugin(BasePlugin):
@@ -81,6 +101,7 @@ class StatdbPlugin(BasePlugin):
     def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.statdb: StatStore | None = None
+        self._web_pages: list[tuple[str, str]] = []
 
     @property
     def _backup_start_timer(self) -> str:
@@ -130,6 +151,7 @@ class StatdbPlugin(BasePlugin):
             log_to(self.plugin_id, logging.ERROR, "could not add the %s trigger", DEAD_TRIGGER)
 
         self._schedule_backup()
+        self._add_web_routes()
 
     # backups
 
@@ -398,3 +420,161 @@ class StatdbPlugin(BasePlugin):
             return CommandResult(True, [NO_DB])
         args = self._args()
         return CommandResult(True, mobkill_list(self.statdb, args["count"], self._formatters()))
+
+    # web pages
+
+    def _db_path(self) -> Path | None:
+        """Return the path of the database file, or None when the database is not open."""
+        if self.statdb is None:
+            return None
+        path = getattr(self.statdb.db, "db_file", None)
+        return path if isinstance(path, Path) else None
+
+    def _add_web_routes(self) -> None:
+        """Serve the tables, the milestone comparison and the charts under the plugin's path."""
+        add = self.api("plugins.core.web:web.route.add")
+        self._web_pages = []
+
+        def register(
+            subpath: str,
+            handler: Callable[[WebRequest], Any],
+            title: str,
+            columns: list[dict[str, str]] | None = None,
+        ) -> None:
+            path = add(self.plugin_id, subpath, handler, title, columns)
+            if path:
+                self._web_pages.append((path, title))
+
+        add(self.plugin_id, "", self._web_index, "Stats pages", None)
+        for page in TABLE_PAGES.values():
+            register(page.route, self._table_handler(page), page.title, page.route_columns())
+        register("comp", self._web_comp, "Compare two milestones (?first=&second=)")
+        for name, spec in CHARTS.items():
+            register(f"chart/{name}", self._chart_handler(name), spec.title)
+        register("chart/area-kills", self._web_area_chart, AREA_CHART_TITLE)
+
+    @staticmethod
+    def _message_page(title: str, message: str) -> dict[str, Any]:
+        """Return a page that only says a message."""
+        return {"kind": "html", "title": title, "lines": [message]}
+
+    def _unreadable(self, title: str) -> dict[str, Any]:
+        """Log a database failure and return the page that says so."""
+        log_to(self.plugin_id, logging.ERROR, "could not read the stats database", exc_info=True)
+        return self._message_page(title, DB_UNREADABLE)
+
+    def _web_index(self, request: WebRequest) -> dict[str, Any]:
+        """List the pages as plain text."""
+        lines = [f"{title}: {path}" for path, title in self._web_pages]
+        return {"kind": "html", "title": "Stats pages", "lines": lines}
+
+    def _table_handler(self, page: TablePage) -> Callable[[WebRequest], Awaitable[dict[str, Any]]]:
+        """Return the handler of a table page."""
+
+        async def handler(request: WebRequest) -> dict[str, Any]:
+            return await self._table_page(page, request)
+
+        return handler
+
+    async def _table_page(self, page: TablePage, request: WebRequest) -> dict[str, Any]:
+        """Read one page of a table in a thread and return it for the web plugin."""
+        table = request.table
+        if table is None:
+            msg = f"the route {page.route} has no table query"
+            raise ValueError(msg)
+        path = self._db_path()
+        if path is None:
+            return self._message_page(page.title, NO_DB)
+        try:
+            result = await asyncio.to_thread(read_table, path, page, table)
+        except sqlite3.Error:
+            return self._unreadable(page.title)
+        if result.message:
+            return self._message_page(page.title, result.message)
+        return {
+            "kind": "table",
+            "title": page.title,
+            "rows": result.rows or [],
+            "total": result.total,
+            "lines": page_lines(page, result, self._formatters()),
+        }
+
+    async def _web_comp(self, request: WebRequest) -> dict[str, Any]:
+        """Compare two milestones; a name that does not exist is said so."""
+        title = "Compare milestones"
+        path = self._db_path()
+        if path is None:
+            return self._message_page(title, NO_DB)
+        names = milestone_names(
+            request.query.get("first", "")[:MAX_MILESTONE_NAME],
+            request.query.get("second", "")[:MAX_MILESTONE_NAME],
+        )
+        try:
+            rows = await asyncio.to_thread(read_milestone_rows, path, names)
+        except sqlite3.Error:
+            return self._unreadable(title)
+        return {
+            "kind": "html",
+            "title": title,
+            "lines": comparison_lines(names, rows, self._formatters()),
+        }
+
+    def _chart_handler(self, name: str) -> Callable[[WebRequest], Awaitable[dict[str, Any]]]:
+        """Return the handler of a chart that one query gives the bars of."""
+
+        async def handler(request: WebRequest) -> dict[str, Any]:
+            spec = CHARTS[name]
+            path = self._db_path()
+            if path is None:
+                return {"kind": "svg", "svg": bar_chart_svg(NO_DB, [], "")}
+            try:
+                bars = await asyncio.to_thread(read_chart, path, name)
+            except sqlite3.Error:
+                log_to(self.plugin_id, logging.ERROR, "could not read the chart", exc_info=True)
+                return {"kind": "svg", "svg": bar_chart_svg(DB_UNREADABLE, [], "")}
+            return {"kind": "svg", "svg": bar_chart_svg(spec.title, bars, spec.unit)}
+
+        return handler
+
+    async def _room_areas(self, rooms: list[int]) -> dict[int, str]:
+        """Map rooms to area names with the mapper; empty when the mapper is not loaded.
+
+        The lookups are API calls, so they run on the event loop, yielding every
+        ``LOOKUPS_PER_YIELD`` rooms.
+        """
+        exists = self.api("libs.api:api.exists")
+        if not (exists(f"{MAPPER}:room.get") and exists(f"{MAPPER}:area.get")):
+            return {}
+        room_get = self.api(f"{MAPPER}:room.get")
+        area_get = self.api(f"{MAPPER}:area.get")
+        area_names: dict[str, str] = {}
+        areas: dict[int, str] = {}
+        for number, room in enumerate(rooms):
+            if number and number % LOOKUPS_PER_YIELD == 0:
+                await asyncio.sleep(0)
+            info = room_get(str(room)) if room > 0 else None
+            uid = str(info.get("area") or "") if isinstance(info, dict) else ""
+            if not uid:
+                continue
+            if uid not in area_names:
+                area = area_get(uid)
+                name = area.get("name") if isinstance(area, dict) else None
+                area_names[uid] = str(name) if name else uid
+            areas[room] = area_names[uid]
+        return areas
+
+    async def _web_area_chart(self, request: WebRequest) -> dict[str, Any]:
+        """Chart the kills of each area, with the rooms mapped to areas by the mapper."""
+        path = self._db_path()
+        if path is None:
+            return {"kind": "svg", "svg": bar_chart_svg(NO_DB, [], "")}
+        try:
+            counts = await asyncio.to_thread(read_room_kills, path)
+        except sqlite3.Error:
+            log_to(self.plugin_id, logging.ERROR, "could not read the chart", exc_info=True)
+            return {"kind": "svg", "svg": bar_chart_svg(DB_UNREADABLE, [], "")}
+        areas = await self._room_areas(list(counts))
+        return {
+            "kind": "svg",
+            "svg": bar_chart_svg(AREA_CHART_TITLE, aggregate_areas(counts, areas), "kills"),
+        }
