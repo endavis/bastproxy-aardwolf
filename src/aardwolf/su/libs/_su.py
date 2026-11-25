@@ -44,6 +44,9 @@ WAIT_TIMEOUT = 15
 GROUP = "Spellups on Self"
 # a spell with this percent or less is not practiced
 PRACTICED_ABOVE = 10
+# the names of the settings that default to the two constants above
+SETTING_PRACTICED_ABOVE = "practicedabove"
+SETTING_WAIT_TIMEOUT = "waittimeout"
 
 # what a failed cast asks the plugin to do
 ACTION_IGNORE = "ignore"
@@ -185,8 +188,12 @@ def list_row(
     blocked: bool,
     disabled: bool,
     percent: int,
+    practiced_above: int = PRACTICED_ABOVE,
 ) -> str:
-    """Return a line of the list command."""
+    """Return a line of the list command.
+
+    A spell at ``practiced_above`` percent or less is shown as not practiced.
+    """
     return _ROW % (
         index,
         name,
@@ -194,7 +201,7 @@ def list_row(
         "P" if pending else "",
         "B" if blocked else "",
         "D" if disabled else "",
-        "NP" if 0 < percent <= PRACTICED_ABOVE else "",
+        "NP" if 0 < percent <= practiced_above else "",
         "NL" if percent <= 0 else "",
     )
 

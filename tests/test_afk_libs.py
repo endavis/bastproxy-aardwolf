@@ -197,3 +197,10 @@ def test_event_names() -> None:
     assert EVENT_CLIENT_DISCONNECTED.endswith("clients_client_disconnected")
     assert EVENT_CLIENT_LOGGED_IN.endswith("clients_client_logged_in")
     assert EVENT_GMCP_COMM == "ev_libs.net.mud_gmcp_comm.channel"
+
+
+def test_format_tells_time_format_parameter() -> None:
+    stamp = time.mktime((2026, 1, 2, 3, 4, 5, 0, 0, -1))
+    entries = [{"timestamp": stamp, "player": "Zed", "msg": "hi"}]
+    assert format_tells(entries, "%Y")[1].endswith("2026 - Zed: hi")
+    assert format_tells(entries) == format_tells(entries, "%a %b %d %Y %H:%M:%S")

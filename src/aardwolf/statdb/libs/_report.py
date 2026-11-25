@@ -49,6 +49,9 @@ EMPTY_MESSAGES = {
     "mobkills": "No mob stats available",
 }
 DEFAULT_MOBKILL_COUNT = 10
+# the names of the settings that default to the constants of this module
+SETTING_MOBKILL_COUNT = "mobkillcount"
+SETTING_TIME_FORMAT = "timeformat"
 SPECIAL_FLAGS = (
     ("banishment", "B"),
     ("vorpal", "V"),
@@ -57,7 +60,7 @@ SPECIAL_FLAGS = (
     ("deathblow", "D"),
     ("disintegrate", "I"),
 )
-TIME_FORMAT = "%a, %d %b %Y %H:%M:%S +0000"
+TIME_FORMAT = "%a, %d %b %Y %H:%M:%S"
 
 
 @dataclass(frozen=True)
@@ -69,11 +72,13 @@ class Formatters:
         readable: Shortens a number such as 1500000 to ``1.50 M``,
             ``plugins.core.utils:number.to.readable``.
         line_length: The width of the divider lines.
+        time_format: The ``strftime`` pattern of the dates a report shows.
     """
 
     format_time: Callable[[float], str]
     readable: Callable[[float], str]
     line_length: int = 80
+    time_format: str = TIME_FORMAT
 
 
 def format_float(item: float | None, addto: str = "") -> str | int:
@@ -511,11 +516,13 @@ def show_level(
 
     if item["starttime"]:
         msg.append(div)
-        msg.append("Started  : " + time.strftime(TIME_FORMAT, time.localtime(item["starttime"])))
+        msg.append(
+            "Started  : " + time.strftime(fmt.time_format, time.localtime(item["starttime"]))
+        )
         if nextstart is None:
             finished = "Current"
         else:
-            finished = time.strftime(TIME_FORMAT, time.localtime(nextstart))
+            finished = time.strftime(fmt.time_format, time.localtime(nextstart))
         msg.append(f"Finished : {finished}")
 
     if count > 0 and average and average > 0:

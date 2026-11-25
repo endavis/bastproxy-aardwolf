@@ -25,7 +25,9 @@ SELECT_API = "plugins.aardwolf.statdb:stats.select"
 
 NO_DB = "The stats database is not available"
 
+# the default of the linelength setting, and the name of that setting
 LINE_LENGTH = 50
+SETTING_LINE_LENGTH = "linelength"
 # the priority of the completion callbacks: after statdb saves the event at priority 50
 CALLBACK_PRIORITY = 60
 
@@ -355,7 +357,11 @@ _ROW_FORMAT = "{stat}{label:<10} {info}| {stat}{total:>6} {xp:>6} {qp:>5} {tp:>5
 
 
 def report_lines(
-    rows: Sequence[StatRow], window: float, colors: Colors, fmt: Formatters
+    rows: Sequence[StatRow],
+    window: float,
+    colors: Colors,
+    fmt: Formatters,
+    line_length: int = LINE_LENGTH,
 ) -> list[str]:
     """Return the lines of the report: a header, a row for each kind and the totals.
 
@@ -364,13 +370,14 @@ def report_lines(
         window: The length of the report window in seconds.
         colors: The colours of the text.
         fmt: The bastproxy helpers.
+        line_length: The width of the report.
     """
     info = colors.info
     timestr = color_time(fmt.format_time(window, True), colors)
-    divider = info + "-" * LINE_LENGTH
+    divider = info + "-" * line_length
     lines = [
         "",
-        info + fmt.center(f"{info}Stats for {timestr}{info}", "-", LINE_LENGTH, info),
+        info + fmt.center(f"{info}Stats for {timestr}{info}", "-", line_length, info),
         f"{info}{'Type':<10} | {'Total':>6} {'XP':>6} {'QP':>5} {'TP':>5} {'Gold':>10}",
         divider,
     ]

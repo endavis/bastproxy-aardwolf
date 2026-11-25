@@ -11,6 +11,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.validate import int_validator
+
 from ..libs import (
     CALLBACK_PRIORITY,
     DEFAULT_EXPPERMIN,
@@ -26,8 +28,10 @@ from ..libs import (
     EVENT_GQ_WON,
     EVENT_LEVEL_GAIN,
     EVENT_QUEST_COMP,
+    LINE_LENGTH,
     NO_DB,
     SELECT_API,
+    SETTING_LINE_LENGTH,
     Colors,
     Formatters,
     Rows,
@@ -78,6 +82,14 @@ class StatmnPlugin(BasePlugin):
             DEFAULT_EXPPERMIN,
             int,
             "the threshold for showing exp per minute",
+        )
+        add(
+            self.plugin_id,
+            SETTING_LINE_LENGTH,
+            LINE_LENGTH,
+            int,
+            "the width of the report",
+            validator=int_validator(1, 500),
         )
         self._schedule_report()
 
@@ -134,7 +146,8 @@ class StatmnPlugin(BasePlugin):
         rows = window_stats(self._select, time.time() - window)
         if rows is None:
             return None
-        return report_lines(rows, window, self._colors(), self._formatters())
+        line_length = int(str(self._setting(SETTING_LINE_LENGTH)))
+        return report_lines(rows, window, self._colors(), self._formatters(), line_length)
 
     def _schedule_report(self) -> None:
         """Replace the report timer: it repeats every ``show`` seconds, and is off at 0."""

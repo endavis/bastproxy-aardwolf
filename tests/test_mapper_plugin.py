@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Callable, Coroutine, Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +12,9 @@ import pytest
 import aardwolf
 from aardwolf.mapper.libs import (
     CEXIT_COLUMNS,
+    CEXIT_MAX_TIMEOUT,
+    CEXIT_MIN_TIMEOUT,
+    CEXIT_TIMEOUT,
     NOPORTAL_REGEX,
     NORECALL_REGEX,
     PLACE_COLUMNS,
@@ -59,6 +62,8 @@ class FakeApi:
         self.routes: dict[str, tuple[Callable[..., Any], str, list[dict[str, str]]]] = {}
         self.route_result: str | None = "/aardwolf/mapper"
         self.removed: list[str] = []
+        self.settings: dict[str, Any] = {}
+        self.validators: dict[str, Callable[..., Any]] = {}
 
     def _route_add(
         self,
@@ -90,6 +95,8 @@ class FakeApi:
             f"{MAPPER}:exit.add": lambda *args: True,
             "libs.asynch:task.add": lambda coro, name: self.tasks.append(coro),
             "plugins.core.commands:command.current.args.get": lambda: self.args,
+            "plugins.core.settings:setting.add": self._setting_add,
+            "plugins.core.settings:setting.get": lambda pid, name: self.settings[name],
             f"{MAPPER}:area.add": lambda **kwargs: True,
             f"{MAPPER}:area.get": lambda uid: self.areas.get(uid),
             f"{MAPPER}:requirement.register": self._register("requirement"),
@@ -109,6 +116,11 @@ class FakeApi:
             ),
         }
         return record if name in table else table[name]
+
+    def _setting_add(self, pid: str, name: str, default: object, *a: object, **kw: object) -> None:
+        self.settings.setdefault(name, default)
+        if "validator" in kw:
+            self.validators[name] = cast("Callable[..., Any]", kw["validator"])
 
     def _set_current(self, uid: str) -> None:
         self.current = uid
@@ -415,6 +427,30 @@ def test_cexit_timeout(env: Env, delays: list[float]) -> None:
     assert env.plugin._pending_cexit is None
     assert "no new room" in env.sent[-1][0]
     assert not env.fake.called(f"{MAPPER}:exit.add")
+
+
+def test_cexit_timeout_setting_is_the_default_wait(env: Env, delays: list[float]) -> None:
+    """The cexittimeout setting replaces the 5 second default; an explicit -T wins."""
+    assert env.fake.settings["cexittimeout"] == CEXIT_TIMEOUT
+    env.fake.settings["cexittimeout"] = 9
+    start_cexit(env)
+    env.run_tasks()
+    assert delays == [2.0, 11.0]
+    env.plugin._pending_cexit = None
+    delays.clear()
+    start_cexit(env, timeout=3)
+    env.run_tasks()
+    assert delays == [2.0, 5.0]
+
+
+def test_cexit_timeout_setting_is_validated(env: Env) -> None:
+    """The setting stays inside the minimum and maximum of the command."""
+    check = env.fake.validators["cexittimeout"]
+    assert check(CEXIT_MIN_TIMEOUT) is None
+    assert check(CEXIT_MAX_TIMEOUT) is None
+    assert check(CEXIT_MIN_TIMEOUT - 1) is not None
+    assert check(CEXIT_MAX_TIMEOUT + 1) is not None
+    assert check("5") is not None
 
 
 def test_cexit_same_room_is_ignored(env: Env) -> None:

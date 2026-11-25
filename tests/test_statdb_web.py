@@ -490,6 +490,29 @@ def test_day_charts_keep_the_newest_30_days_oldest_first(tmp_path: Path) -> None
     assert bars[-1] == ("1970-02-05", 35.0)
 
 
+def test_chart_limit_sets_the_number_of_bars(tmp_path: Path) -> None:
+    """An explicit limit replaces the default number of bars."""
+    from aardwolf.statdb.libs import CHARTS, read_chart
+
+    path = build_old_database(tmp_path / "limit.sqlite", rows=False)
+    with sqlite3.connect(path) as connection:
+        for day in range(1, 36):
+            connection.execute(
+                "INSERT INTO quests (finishtime, totqp) VALUES (?, ?)", (day * 86400 + 5, day)
+            )
+    bars = read_chart(path, "qp-per-day", 5)
+    assert [label for label, _ in bars] == [
+        "1970-02-01",
+        "1970-02-02",
+        "1970-02-03",
+        "1970-02-04",
+        "1970-02-05",
+    ]
+    assert len(read_chart(path, "qp-per-day", 40)) == 35
+    spec = CHARTS["qp-per-day"]
+    assert spec.heading(7) == "Quest points per day (newest 7 days)"
+
+
 def test_level_chart_keeps_the_last_50_levels(tmp_path: Path) -> None:
     """With more than 50 timed levels only the last 50 show, oldest first."""
     from aardwolf.statdb.libs import read_chart

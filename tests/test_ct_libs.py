@@ -192,3 +192,14 @@ def test_total_row_is_always_100_percent(total: int) -> None:
     """The total row is 100% whatever the damage."""
     data = kill(damage={"hit": {"hits": 1, "misses": 0, "damage": total}})
     assert "(100%)" in format_kill(data, STAT, INFO, HELPERS).split("\n")[-2]
+
+
+def test_line_length_parameter_sets_the_width() -> None:
+    """The dividers and the title are as wide as the line length given."""
+    text = format_kill(kill(), "@W", "@x033", HELPERS, 30)
+    assert text.startswith("@x033" + "-" * 30 + "\n")
+    assert "-" * 31 not in text.splitlines()[0]
+    assert text == format_kill(kill(), "@W", "@x033", HELPERS, 30)
+    assert format_kill(kill(), "@W", "@x033", HELPERS) == format_kill(
+        kill(), "@W", "@x033", HELPERS, LINE_LENGTH
+    )

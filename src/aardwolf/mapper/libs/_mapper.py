@@ -36,6 +36,8 @@ WAIT_PREFIX_REGEX = r"^wait\(.*\)$"
 CEXIT_TIMEOUT = 5
 CEXIT_MIN_TIMEOUT = 2
 CEXIT_MAX_TIMEOUT = 40
+# the name of the setting that defaults to CEXIT_TIMEOUT
+SETTING_CEXIT_TIMEOUT = "cexittimeout"
 MAX_WAIT = 40
 RECALL_COMMANDS = ("recall", "home", "hom")
 IMPORT_SLICE = 0.05

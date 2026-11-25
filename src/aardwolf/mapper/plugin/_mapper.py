@@ -19,6 +19,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.validate import int_validator
+
 from ..libs import (
     ANYWHERE,
     CEXIT_COLUMNS,
@@ -45,6 +47,7 @@ from ..libs import (
     PLACE_KINDS,
     PORTAL_COLUMNS,
     SEARCHES,
+    SETTING_CEXIT_TIMEOUT,
     WEB_ROUTE_ADD,
     WEB_ROUTE_REMOVE,
     MushDbError,
@@ -113,7 +116,15 @@ class MapperPlugin(BasePlugin):
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
-        """Add the triggers, register the callbacks and seed the room from the GMCP cache."""
+        """Add the setting and triggers, register the callbacks and seed the room."""
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            SETTING_CEXIT_TIMEOUT,
+            CEXIT_TIMEOUT,
+            int,
+            "seconds a cexit waits for the new room when no timeout is given",
+            validator=int_validator(CEXIT_MIN_TIMEOUT, CEXIT_MAX_TIMEOUT),
+        )
         self._add_trigger("noportal", NOPORTAL_REGEX, self._trigger_noportal)
         self._add_trigger("norecall", NORECALL_REGEX, self._trigger_norecall)
         self._mapper_api("requirement.register")(self.plugin_id, self._requirement)
@@ -122,6 +133,10 @@ class MapperPlugin(BasePlugin):
         if room_uid(info) is not None:
             self._process_room(info)
         self._add_routes()
+
+    def _setting(self, name: str) -> object:
+        """Return the value of a setting of this plugin."""
+        return self.api("plugins.core.settings:setting.get")(self.plugin_id, name)
 
     @RegisterPluginHook("uninitialize")
     def _phook_uninitialize(self) -> None:
@@ -562,7 +577,13 @@ class MapperPlugin(BasePlugin):
     @AddParser(description="record or add a custom exit from the current room")
     @AddArgument("command", help="the command; use ; and wait(N) between parts", nargs="+")
     @AddArgument("-l", "--level", help="the level needed", type=int, default=0)
-    @AddArgument("-T", "--timeout", help="seconds to wait for the new room", type=int, default=0)
+    @AddArgument(
+        "-T",
+        "--timeout",
+        help="seconds to wait for the new room, default the cexittimeout setting",
+        type=int,
+        default=0,
+    )
     @AddArgument("-t", "--touid", help="add the exit to this room without walking", default=None)
     @AddArgument("-f", "--fromuid", help="the room the exit leaves from", default=None)
     def _command_cexit(self) -> CommandResult:
@@ -589,7 +610,7 @@ class MapperPlugin(BasePlugin):
             return CommandResult(False, ["Mapper: the current room is not known"])
         if self._pending_cexit is not None:
             return CommandResult(False, ["Mapper: a custom exit is already being recorded"])
-        timeout = to_int(args.get("timeout")) or CEXIT_TIMEOUT
+        timeout = to_int(args.get("timeout")) or int(str(self._setting(SETTING_CEXIT_TIMEOUT)))
         if not CEXIT_MIN_TIMEOUT <= timeout <= CEXIT_MAX_TIMEOUT:
             return CommandResult(
                 False,

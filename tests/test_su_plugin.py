@@ -22,6 +22,7 @@ from aardwolf.su.libs import (
     API_SKILL_SEND,
     API_SPELLUPS_GET,
     API_UP_TO_DATE,
+    PRACTICED_ABOVE,
     SPELLUP_FILE,
     TIMER_NAME,
     WAIT_TIMEOUT,
@@ -49,6 +50,7 @@ class FakeApi:
     def __init__(self) -> None:
         self.settings: dict[str, Any] = {}
         self.settings_added: list[tuple[Any, ...]] = []
+        self.validators: dict[str, Callable[..., Any]] = {}
         self.gmcp: dict[str, Any] = {
             "char.status.state": 3,
             "char.vitals.mana": 100,
@@ -84,8 +86,21 @@ class FakeApi:
         self.sent.append(sn)
         return self.send_ok
 
-    def _setting_set(self, pid: str, name: str, value: object) -> None:
+    def _setting_add(
+        self, pid: str, name: str, default: object, *rest: object, **kwargs: object
+    ) -> None:
+        self.settings_added.append((pid, name, default, *rest))
+        self.settings.setdefault(name, default)
+        validator = kwargs.get("validator")
+        if callable(validator):
+            self.validators[name] = validator
+
+    def _setting_set(self, pid: str, name: str, value: object) -> bool:
+        validator = self.validators.get(name)
+        if validator is not None and validator(value) is not None:
+            return False
         self.settings[name] = value
+        return True
 
     def _timer_add(self, name: str, func: Callable[[], None], seconds: float, **kw: object) -> None:
         assert name not in self.timers
@@ -94,7 +109,7 @@ class FakeApi:
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
         table: dict[str, Callable[..., Any]] = {
-            "plugins.core.settings:setting.add": lambda *a, **k: self.settings_added.append(a),
+            "plugins.core.settings:setting.add": self._setting_add,
             "plugins.core.settings:setting.get": lambda pid, key: self.settings[key],
             "plugins.core.settings:setting.set": self._setting_set,
             "plugins.core.events:event.current.record.get": lambda: self.record,
@@ -212,9 +227,11 @@ def test_plugin_imports_no_other_plugin() -> None:
 
 def test_after_load(env: Env) -> None:
     added = {a[1]: a for a in env.fake.settings_added}
-    assert set(added) == {"enabled", "nocastrooms"}
+    assert set(added) == {"enabled", "nocastrooms", "practicedabove", "waittimeout"}
     assert added["enabled"][2] is True
     assert added["nocastrooms"][3] is dict
+    assert added["practicedabove"][2:4] == (PRACTICED_ABOVE, int)
+    assert added["waittimeout"][2:4] == (WAIT_TIMEOUT, int)
 
 
 def test_registered_events_of_its_own_setting(env: Env) -> None:
@@ -680,3 +697,25 @@ def test_uninitialize_removes_the_timer(ready: Env) -> None:
     ready.plugin._phook_uninitialize()
     assert TIMER_NAME not in ready.fake.timers
     ready.plugin._phook_uninitialize()
+
+
+def test_new_settings_refuse_out_of_range_values(env: Env) -> None:
+    for name, bad in (("practicedabove", 101), ("practicedabove", -1), ("waittimeout", 0)):
+        assert env.fake.validators[name](bad) is not None
+    assert env.fake.validators["practicedabove"](0) is None
+    assert env.fake.validators["waittimeout"](15) is None
+
+
+def test_waittimeout_setting_sets_the_timer(ready: Env) -> None:
+    ready.fake.settings["waittimeout"] = 42
+    ready.plugin._phook_character_active()
+    assert ready.fake.timers[TIMER_NAME][1] == 42
+
+
+def test_practicedabove_setting_changes_the_np_column(ready: Env) -> None:
+    ready.fake.skills[BLESS]["percent"] = 50
+    rows = ready.command(ready.plugin._command_list, match="bless").message[2:]
+    assert "NP" not in rows[0].split()
+    ready.fake.settings["practicedabove"] = 60
+    rows = ready.command(ready.plugin._command_list, match="bless").message[2:]
+    assert "NP" in rows[0].split()

@@ -27,6 +27,8 @@ ACTIVE_STATE = 3
 # the wait after receiving a blessing, from the old plugin (not verified against the mud)
 BLESSING_WAIT = 23 * 60 * 60
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S"
+# the name of the setting that defaults to TIME_FORMAT
+SETTING_TIME_FORMAT = "timeformat"
 TIMER_NAME = "dailyblessing"
 
 _UNIT_SECONDS = {"hour": 3600, "minute": 60, "second": 1}
@@ -72,10 +74,10 @@ def is_active_state(state: object) -> bool:
     return not isinstance(state, bool) and state == ACTIVE_STATE
 
 
-def next_message(next_time: float | None, available: bool) -> str:
-    """Return the line the ``next`` command shows."""
+def next_message(next_time: float | None, available: bool, time_format: str = TIME_FORMAT) -> str:
+    """Return the line the ``next`` command shows, with the time in ``time_format``."""
     if available:
         return "Your daily blessing is ready"
     if next_time is None:
         return "Please type daily to update plugin"
-    return "Your next daily is at: " + time.strftime(TIME_FORMAT, time.localtime(next_time))
+    return "Your next daily is at: " + time.strftime(time_format, time.localtime(next_time))

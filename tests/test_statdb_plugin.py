@@ -6,7 +6,7 @@ import sqlite3
 from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,8 +32,9 @@ class FakeApi:
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self.db_error: Exception | None = None
-        self.settings_added: list[tuple[str, str, object, str]] = []
+        self.settings_added: list[tuple[str, str, object, object]] = []
         self.setting_values: dict[str, object] = {"backupstart": "0300", "backupinterval": 14400}
+        self.validators: dict[str, Callable[..., Any]] = {}
         self.trigger_adds: list[tuple[str, str]] = []
         self.trigger_regs: list[tuple[str, Callable[..., Any]]] = []
         self.trigger_ok = True
@@ -95,9 +96,18 @@ class FakeApi:
         return self.mapper_rooms is not None or not name.startswith("plugins.client.mapper:")
 
     def _setting_add(
-        self, plugin_id: str, name: str, default: object, stype: str, help: str
+        self,
+        plugin_id: str,
+        name: str,
+        default: object,
+        stype: object,
+        help: str,
+        **kwargs: object,
     ) -> None:
         self.settings_added.append((plugin_id, name, default, stype))
+        self.setting_values.setdefault(name, default)
+        if "validator" in kwargs:
+            self.validators[name] = cast("Callable[..., Any]", kwargs["validator"])
 
     def _database_add(self, owner_id: str, name: str, tables: object, **kwargs: object) -> object:
         if self.db_error is not None:
@@ -206,6 +216,11 @@ def test_after_load(env: Env) -> None:
     assert env.fake.settings_added == [
         (PLUGIN_ID, "backupstart", "0000", "miltime"),
         (PLUGIN_ID, "backupinterval", "4h", "timelength"),
+        (PLUGIN_ID, "mobkillcount", 10, int),
+        (PLUGIN_ID, "chartdays", 30, int),
+        (PLUGIN_ID, "chartlevels", 50, int),
+        (PLUGIN_ID, "chartareas", 20, int),
+        (PLUGIN_ID, "timeformat", "%a, %d %b %Y %H:%M:%S", str),
     ]
     assert env.fake.trigger_adds == [("dead", r"^You die\.$")]
     assert env.fake.trigger_regs == [("tid", env.plugin._trigger_dead)]
@@ -570,12 +585,39 @@ def test_command_arguments_are_declared(env: Env) -> None:
 
 
 def test_mobkills_argument_is_declared(env: Env) -> None:
-    """The count is an optional whole number, 10 by default."""
+    """The count is an optional whole number; with none the mobkillcount setting applies."""
     data = env.plugin._command_mobkills.command_data
     assert [item["args"] for item in data.arguments] == [("-c", "--count")]
     assert data.arguments[0]["kwargs"]["type"] is int
-    assert data.arguments[0]["kwargs"]["default"] == 10
+    assert data.arguments[0]["kwargs"]["default"] is None
     assert data.command["kwargs"]["group"] == "Stats"
+
+
+def test_mobkills_count_defaults_to_the_setting(env: Env) -> None:
+    """With no -c the mobkillcount setting says how many kills are listed; -c wins."""
+    for number in range(1, 6):
+        env.store.save_mobkill({"name": f"mob {number}", "totalxp": 1, "time": number * 100})
+    assert env.fake.setting_values["mobkillcount"] == 10
+    env.fake.setting_values["mobkillcount"] = 2
+    assert len(_run(env, "mobkills", count=None)) == 4
+    assert len(_run(env, "mobkills", count=3)) == 5
+
+
+def test_new_settings_refuse_bad_values(env: Env) -> None:
+    """Counts must be whole numbers in range and the time format a usable pattern."""
+    for name in ("mobkillcount", "chartdays", "chartlevels", "chartareas"):
+        assert env.fake.validators[name](0) is not None
+        assert env.fake.validators[name](5) is None
+        assert env.fake.validators[name]("5") is not None
+    assert env.fake.validators["timeformat"]("%H:%M") is None
+    assert env.fake.validators["timeformat"]("no directive") is not None
+
+
+def test_timeformat_setting_reaches_the_report_formatters(env: Env) -> None:
+    """The formatters carry the timeformat setting, read each time."""
+    assert env.plugin._formatters().time_format == "%a, %d %b %Y %H:%M:%S"
+    env.fake.setting_values["timeformat"] = "%Y"
+    assert env.plugin._formatters().time_format == "%Y"
 
 
 # web pages
@@ -805,6 +847,21 @@ def test_chart_handlers_return_svg(env: Env) -> None:
         assert result["svg"].startswith("<svg")
         assert "No data" not in result["svg"]
     assert "Quest points per day" in _call(env, "chart/qp-per-day")["svg"]
+
+
+def test_chart_settings_set_the_bars_and_the_titles(env: Env) -> None:
+    """The chart settings are read for each request: bars and the SVG title follow them."""
+    _fill_web_data(env)
+    env.fake.setting_values["chartdays"] = 7
+    env.fake.setting_values["chartlevels"] = 9
+    env.fake.setting_values["chartareas"] = 3
+    assert "newest 7 days" in _call(env, "chart/qp-per-day")["svg"]
+    assert "newest 7 days" in _call(env, "chart/gold-per-day")["svg"]
+    assert "last 9 levels" in _call(env, "chart/level-time")["svg"]
+    assert "top 3" in _call(env, "chart/area-kills")["svg"]
+    titles = {subpath: title for _, subpath, _, title, _ in env.fake.routes}
+    assert titles["chart/qp-per-day"] == "Quest points per day"
+    assert titles["chart/area-kills"] == "Kills per area"
 
 
 def test_area_chart_without_the_mapper_counts_unknown(env: Env) -> None:

@@ -37,9 +37,14 @@ from ._report import (
 
 UNKNOWN_AREA = "Unknown"
 MOBKILL_DATE_FORMAT = "%Y-%m-%d %H:%M"
+# the defaults of the chart settings, and the names of those settings
 CHART_DAYS = 30
 CHART_LEVELS = 50
 CHART_AREAS = 20
+SETTING_CHART_DAYS = "chartdays"
+SETTING_CHART_LEVELS = "chartlevels"
+SETTING_CHART_AREAS = "chartareas"
+AREA_CHART_TITLE = "Kills per area"
 
 
 class TableParams(Protocol):
@@ -623,12 +628,29 @@ def read_milestone_rows(path: Path, names: Sequence[str]) -> list[dict[str, Any]
 
 @dataclass(frozen=True)
 class ChartSpec:
-    """A chart: its title, unit and the fixed SQL that gives ``(label, value)``, newest first."""
+    """A chart: its title, unit and the fixed SQL that gives ``(label, value)``, newest first.
+
+    Attributes:
+        title: The name of the chart, as its page is listed.
+        unit: What a bar counts.
+        sql: The fixed select; its one parameter is the number of bars.
+        setting: The name of the setting that holds the number of bars.
+        default_limit: The default of that setting.
+        detail: What the number of bars means, with a ``{limit}`` placeholder.
+        label: Turns the label column into the text under a bar.
+    """
 
     title: str
     unit: str
     sql: str
+    setting: str
+    default_limit: int
+    detail: str
     label: Callable[[object], str] = str
+
+    def heading(self, limit: int) -> str:
+        """Return the title of the chart drawn with ``limit`` bars."""
+        return f"{self.title} ({self.detail.format(limit=limit)})"
 
 
 def _level_label(value: object) -> str:
@@ -639,7 +661,7 @@ def _level_label(value: object) -> str:
 
 CHARTS: dict[str, ChartSpec] = {
     "qp-per-day": ChartSpec(
-        f"Quest points per day (newest {CHART_DAYS} days)",
+        "Quest points per day",
         "QP",
         """SELECT day, SUM(amount) FROM (
                SELECT date(finishtime, 'unixepoch') AS day, totqp AS amount
@@ -650,10 +672,13 @@ CHARTS: dict[str, ChartSpec] = {
                UNION ALL
                SELECT date(finishtime, 'unixepoch'), qp + qpmobs
                  FROM gquests WHERE finishtime > 0
-             ) GROUP BY day ORDER BY day DESC LIMIT 30""",
+             ) GROUP BY day ORDER BY day DESC LIMIT ?""",
+        SETTING_CHART_DAYS,
+        CHART_DAYS,
+        "newest {limit} days",
     ),
     "gold-per-day": ChartSpec(
-        f"Gold per day (newest {CHART_DAYS} days)",
+        "Gold per day",
         "gold",
         """SELECT day, SUM(amount) FROM (
                SELECT date(finishtime, 'unixepoch') AS day, gold AS amount
@@ -667,10 +692,13 @@ CHARTS: dict[str, ChartSpec] = {
                UNION ALL
                SELECT date(time, 'unixepoch'), gold
                  FROM mobkills WHERE time > 0
-             ) GROUP BY day ORDER BY day DESC LIMIT 30""",
+             ) GROUP BY day ORDER BY day DESC LIMIT ?""",
+        SETTING_CHART_DAYS,
+        CHART_DAYS,
+        "newest {limit} days",
     ),
     "level-time": ChartSpec(
-        f"Minutes per level (last {CHART_LEVELS} levels)",
+        "Minutes per level",
         "minutes",
         """SELECT level, mins FROM (
                SELECT level_id, level,
@@ -679,7 +707,10 @@ CHARTS: dict[str, ChartSpec] = {
                  FROM (SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart
                          FROM levels)
                 WHERE type = 'level'
-             ) WHERE mins IS NOT NULL ORDER BY level_id DESC LIMIT 50""",
+             ) WHERE mins IS NOT NULL ORDER BY level_id DESC LIMIT ?""",
+        SETTING_CHART_LEVELS,
+        CHART_LEVELS,
+        "last {limit} levels",
         _level_label,
     ),
 }
@@ -687,8 +718,10 @@ CHARTS: dict[str, ChartSpec] = {
 ROOM_KILLS_SQL = "SELECT room_id, COUNT(*) FROM mobkills GROUP BY room_id"
 
 
-def read_chart(path: Path, name: str) -> list[tuple[str, float]]:
-    """Read the bars of a chart, oldest first.
+def read_chart(path: Path, name: str, limit: int | None = None) -> list[tuple[str, float]]:
+    """Read the bars of a chart, oldest first, at most ``limit`` of them.
+
+    ``limit`` defaults to the chart's default number of bars.
 
     Raises:
         ValueError: The chart name is unknown.
@@ -699,7 +732,7 @@ def read_chart(path: Path, name: str) -> list[tuple[str, float]]:
         msg = f"unknown chart {name!r}"
         raise ValueError(msg)
     with closing(open_readonly(path)) as db:
-        rows = db.rows(spec.sql)
+        rows = db.rows(spec.sql, (spec.default_limit if limit is None else limit,))
     return [(spec.label(label), float(value or 0)) for label, value in reversed(rows)]
 
 

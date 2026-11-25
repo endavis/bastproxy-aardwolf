@@ -36,6 +36,7 @@ from aardwolf.su.libs import (
     EVENT_RECOFF,
     EVENT_UPTODATE,
     ORDER_KEY,
+    PRACTICED_ABOVE,
     SELF_KEY,
     SpellupList,
     cast_blockers,
@@ -292,3 +293,10 @@ def test_order_returns_a_copy() -> None:
     _, ups = make([1], {1: {"enabled": True}})
     ups.order().append(2)
     assert ups.order() == [1]
+
+
+def test_list_row_practiced_above_parameter() -> None:
+    kwargs = {"affected": False, "pending": False, "blocked": False, "disabled": False}
+    assert "NP" not in list_row(0, "bless", percent=50, **kwargs).split()
+    assert "NP" in list_row(0, "bless", percent=50, practiced_above=50, **kwargs).split()
+    assert "NP" in list_row(0, "bless", percent=PRACTICED_ABOVE, **kwargs).split()

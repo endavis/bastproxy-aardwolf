@@ -334,3 +334,12 @@ def test_level_window_and_kills_use_the_previous_level(db: "Sqldb") -> None:
     assert level_window(select, 100) is None
     assert level_kills(select, 400, 1000) == (2, 20.0)
     assert level_kills(select, 2000, 3000) == (0, 0.0)
+
+
+def test_report_lines_line_length_parameter() -> None:
+    rows = [StatRow("Quests", 1, 0, 12, 0, 2899)]
+    narrow = report_lines(rows, 3600, COLORS, FMT, 20)
+    assert narrow[3] == "@i" + "-" * 20
+    assert narrow[1].endswith("[20]")
+    assert narrow[2] == report_lines(rows, 3600, COLORS, FMT)[2]
+    assert report_lines(rows, 3600, COLORS, FMT)[3] == "@i" + "-" * 50

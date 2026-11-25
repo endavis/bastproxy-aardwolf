@@ -367,6 +367,7 @@ pytest_add_cli_args_test_selection = [
     "tests/test_statmn_plugin.py",
     "tests/test_su_libs.py",
     "tests/test_su_plugin.py",
+    "tests/test_validate.py",
     "tests/test_whois_parse.py",
     "tests/test_whois_plugin.py",
 ]

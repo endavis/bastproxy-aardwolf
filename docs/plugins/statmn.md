@@ -80,6 +80,7 @@ Total      |            72    12     0       4003
 | `show` | `0` | Show the report every this long; `0`, the default, turns it off. |
 | `reportminutes` | `60m` | The length of time the report covers. |
 | `exppermin` | `20` | The experience per minute that must be exceeded to show it on a level message. |
+| `linelength` | `50` | The width of the report, 1 to 500; read each time, a value out of range is refused. |
 
 ```text
 #bp.aardwolf.statmn.set show 10m

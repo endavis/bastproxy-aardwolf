@@ -30,7 +30,7 @@ is not required, so it does not load until asked. It has no commands and sends n
 
 ## Behaviour
 
-- **A table for each kill.** The table is 72 columns wide: a divider, a title with the mob name, the
+- **A table for each kill.** The table is `linelength` columns wide (72 by default): a divider, a title with the mob name, the
   fight time and the experience, a header, one row for each damage type, and a `Total` row.
 - **The time** is shown only when the kill has both a start and a finish time.
 - **The rows** are sorted by damage type. A `backstab` entry with an `incombat` key is labelled
@@ -65,6 +65,7 @@ Total                :     7         2623    (100%)     3         374
 | :--- | :--- | :--- |
 | `statcolor` | `@W` | the color of the stats |
 | `infocolor` | `@x033` | the color of the dividers and the labels |
+| `linelength` | `72` | the width of the table, 1 to 500; read for each kill, a value out of range is refused |
 
 ## Events
 

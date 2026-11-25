@@ -42,7 +42,7 @@ Casting is on by default once it is loaded (`enabled` is `True`, as in the old p
   state becomes active, when the character becomes active, when the character leaves a nocast room,
   and when `enabled` is turned on, and after a command that adds or enables a spell.
 - **Waiting.** After a cast the plugin waits for the answer. The affect starting for that spell ends
-  the wait and the next spell is cast. The wait also ends after 15 seconds with no answer (a debug
+  the wait and the next spell is cast. The wait also ends after `waittimeout` seconds (15 by default) with no answer (a debug
   log, and no cast at once: the next event casts). A cast that fails ends the wait too.
 - **Casts are not queued.** They do not go through the mudcmds queue. The reply of a cast differs
   per spell and you should see it, and the end of a cast is read from the `{affon}` and `{sfail}`
@@ -72,6 +72,10 @@ Casting is on by default once it is loaded (`enabled` is `True`, as in the old p
 | :--- | :--- | :--- |
 | `enabled` | `True` | Cast the spellups. |
 | `nocastrooms` | empty | The rooms where casting failed. Read only; kept by the plugin. |
+| `practicedabove` | `10` | A spell at this percent or less (0 to 100) is shown as not practiced (`NP`) by `list`. |
+| `waittimeout` | `15` | Seconds (1 to 3600) to wait for the result of a cast. |
+
+Both are read when used, so a change needs no reload; a value out of range is refused and the old one kept.
 
 ```text
 #bp.aardwolf.su.set enabled False
@@ -101,7 +105,7 @@ A spell is given by name or by sn. The columns of `list`:
 | `P` | the spell was cast and its answer is awaited |
 | `B` | a recovery blocks the spell |
 | `D` | the spell is disabled |
-| `NP` | the spell is not practiced (10 percent or less) |
+| `NP` | the spell is not practiced (the `practicedabove` percent or less, 10 by default) |
 | `NL` | the spell is not learned (0 percent) |
 
 ## Storage
@@ -193,5 +197,5 @@ is the room number.
 
 - The MUD texts still listed as unconfirmed above need a check on a real character.
 - Casts are not queued, so a cast typed by a client at the same time as the plugin's may confuse the
-  wait; the 15 second timer frees it.
+  wait; the `waittimeout` timer (15 seconds by default) frees it.
 - The spell lists for other characters (the old `other` list) were never used and are not ported.

@@ -119,7 +119,7 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 | `cps [count] [-n number]` | Campaign totals and averages, the last `count` campaigns, or one campaign with its mobs. |
 | `gqs [count] [-n number]` | Global quest totals and averages, the last `count`, or one global quest with its mobs. |
 | `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
-| `mobkills [-c count]` | List the last `count` kills (default 10), newest first, with time (UTC), name, level, total XP, gold, room and special-kill flags (B, V, A, S, D, I). An empty table says "No kills recorded". |
+| `mobkills [-c count]` | List the last `count` kills (default the `mobkillcount` setting, 10), newest first, with time (UTC), name, level, total XP, gold, room and special-kill flags (B, V, A, S, D, I). An empty table says "No kills recorded". |
 
 The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
 failing. The `db*` commands that bastproxy's sqldb plugin adds work on this database too.
@@ -146,10 +146,10 @@ because it needs a query; `/aardwolf/statdb/` still lists it.
 | `mobs` | `mobs` | lvl, mob, txp, xp, rxp, oxp, tp, s, gold |
 | `mobkills` | `mobkills` | time (UTC), name, lvl, txp, gold, room, flags |
 | `comp?first=&second=` | `comp` | the comparison text; both names are required (400), an unknown one is 404 |
-| `chart/qp-per-day` | | quest points per day, the newest 30 days |
-| `chart/gold-per-day` | | gold per day, the newest 30 days |
-| `chart/level-time` | | minutes per level, the last 50 timed levels |
-| `chart/area-kills` | | kills per area, the top 20 |
+| `chart/qp-per-day` | | quest points per day, the newest `chartdays` days (30) |
+| `chart/gold-per-day` | | gold per day, the newest `chartdays` days (30) |
+| `chart/level-time` | | minutes per level, the last `chartlevels` timed levels (50) |
+| `chart/area-kills` | | kills per area, the top `chartareas` areas (20) |
 
 **Tables.** `quests`, `levels`, `cps`, `gqs` and `mobs` show the summary of their text command above
 the table. Without a sort a table lists the newest row first, so page 1 with `count=N` is the rows
@@ -195,6 +195,13 @@ open, and "The stats database could not be read" when a read fails (the error is
 | :--- | :--- | :--- |
 | `backupstart` | `0000` | The time of day (HHMM, UTC) of the first backup each day. |
 | `backupinterval` | `4h` | The time between backups after the first. |
+| `mobkillcount` | `10` | The number of kills `mobkills` lists when `-c` is not given (1 to 1000). |
+| `chartdays` | `30` | The number of days the two day charts show (1 to 3650). |
+| `chartlevels` | `50` | The number of levels the level chart shows (1 to 1000). |
+| `chartareas` | `20` | The number of areas the area chart shows (1 to 500). |
+| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the start and finish times the `levels` report shows, in the proxy's local time. It must contain a valid directive. |
+
+The chart titles show the number in use. All of these are read when used, so a change needs no reload; a value that is not valid is refused and the old one kept. The report used to end its times with a fixed `+0000` although they are local time; the default format has no zone.
 
 ## Events consumed
 
