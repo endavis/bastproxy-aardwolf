@@ -5,7 +5,7 @@ import sqlite3
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -39,6 +39,7 @@ class FakeApi:
     def __init__(self, db: "Sqldb") -> None:
         self.db = db
         self.settings: dict[str, Any] = {}
+        self.validators: dict[str, Callable[..., Any]] = {}
         self.setting_defs: dict[str, tuple[Any, ...]] = {}
         self.triggers: dict[str, list[Callable[[], None]]] = {}
         self.register_calls = 0
@@ -75,9 +76,11 @@ class FakeApi:
         return table[name]
 
     def _setting_add(
-        self, pid: str, name: str, default: object, stype: object, *rest: object
+        self, pid: str, name: str, default: object, stype: object, *rest: object, **kw: object
     ) -> None:
         self.setting_defs[name] = (default, stype)
+        if "validator" in kw:
+            self.validators[name] = cast("Callable[..., Any]", kw["validator"])
         self.settings[name] = (
             _verify(str(default), "timelength") if stype == "timelength" else default
         )
@@ -213,6 +216,7 @@ def test_after_load_adds_the_settings_and_no_timer(env: Env) -> None:
     assert fake.setting_defs["show"] == ("0", "timelength")
     assert fake.setting_defs["reportminutes"] == ("60m", "timelength")
     assert fake.setting_defs["exppermin"] == (20, int)
+    assert fake.setting_defs["linelength"] == (50, int)
     assert TIMER not in fake.timers
 
 
@@ -221,7 +225,7 @@ def test_a_saved_show_starts_the_timer_at_load(monkeypatch: pytest.MonkeyPatch) 
 
     fake = FakeApi(None)  # type: ignore[arg-type]
     # a value the user saved; setting.add keeps it instead of the default
-    fake._setting_add = lambda pid, name, default, stype, *rest: fake.settings.update(  # type: ignore[method-assign]
+    fake._setting_add = lambda pid, name, default, stype, *rest, **kw: fake.settings.update(  # type: ignore[method-assign]
         {name: 600 if name == "show" else default}
     )
     plugin = _statmn.StatmnPlugin.__new__(_statmn.StatmnPlugin)
@@ -286,6 +290,15 @@ def test_rep_uses_the_reportminutes_setting(env: Env) -> None:
     assert any("Stats for" in line for line in result.message)
     start = env.fake.selects[0][1][0]
     assert before - 3600 - 5 < start < time.time() - 3600 + 5
+
+
+def test_linelength_setting_sets_the_report_width(env: Env) -> None:
+    check = env.fake.validators["linelength"]
+    assert check(0) is not None
+    assert check(60) is None
+    assert env.plugin._command_rep().message[3] == "@x33" + "-" * 50
+    env.fake.settings["linelength"] = 30
+    assert env.plugin._command_rep().message[3] == "@x33" + "-" * 30
 
 
 def test_rep_with_a_length(env: Env) -> None:

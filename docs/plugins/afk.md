@@ -73,6 +73,7 @@ event names. It is not required, so it does not load until asked.
 | `afktitle` | `is AFK.` | The title set while AFK is on. |
 | `lasttitle` | empty | The title restored when AFK ends. Set by a typed title and by the read when AFK turns on. Empty restores with `title clear`. |
 | `isafk` | `False` | The AFK flag. Read only. |
+| `timeformat` | `%a %b %d %Y %H:%M:%S` | The `strftime` pattern of the time of each tell `show` lists. It must contain a valid directive; it is read each time, so a change needs no reload. |
 
 ```text
 #bp.aardwolf.afk.set afktitle gone for a while

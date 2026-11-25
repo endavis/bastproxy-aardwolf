@@ -271,6 +271,10 @@ def test_after_load(env: Env) -> None:
     assert fake.setting_defs["lasttitle"][0] == ""
     assert fake.setting_defs["isafk"][2] == {"readonly": True}
     assert "queue" not in fake.setting_defs
+    assert fake.setting_defs["timeformat"][0] == "%a %b %d %Y %H:%M:%S"
+    assert fake.setting_defs["timeformat"][1] is str
+    assert fake.setting_defs["timeformat"][2]["validator"]("%H") is None
+    assert fake.setting_defs["timeformat"][2]["validator"]("plain") is not None
     title = fake.types[TYPE_TITLE]
     assert (title["cmd"], title["hide_output"]) == ("title", True)
     assert re.match(title["hide_start"], REPLY)
@@ -503,6 +507,17 @@ def test_show_lists_the_tells(env: Env) -> None:
     assert result.success
     assert result.message[0] == "Tells received while afk"
     assert result.message[1].endswith("Zed: hello there")
+
+
+def test_show_uses_the_timeformat_setting(env: Env) -> None:
+    env.leave("c0")
+    env.tell({"chan": "tell", "msg": "hello there", "player": "Zed"})
+    before = env.plugin._command_show().message[1]
+    env.fake.settings["timeformat"] = "AT %Y"
+    after = env.plugin._command_show().message[1]
+    assert " - Zed: hello there" in after
+    assert after.lstrip().startswith("AT 20")
+    assert after != before
 
 
 def test_show_of_nothing(env: Env) -> None:

@@ -6,7 +6,17 @@ from bastproxy.libs.records import NetworkData, NetworkDataLine, SendDataDirectl
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
-from ..libs import EMPTYLINE_ID, EVENT_MOBK_KILL, SETTINGS, TableHelpers, format_kill
+from aardwolf._libs.validate import int_validator
+
+from ..libs import (
+    EMPTYLINE_ID,
+    EVENT_MOBK_KILL,
+    LINE_LENGTH,
+    SETTING_LINE_LENGTH,
+    SETTINGS,
+    TableHelpers,
+    format_kill,
+)
 
 
 class CtPlugin(BasePlugin):
@@ -21,11 +31,19 @@ class CtPlugin(BasePlugin):
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
-        """Add the color settings."""
+        """Add the color settings and the line length setting."""
         for name, (default, help_text) in SETTINGS.items():
             self.api("plugins.core.settings:setting.add")(
                 self.plugin_id, name, default, "color", help_text
             )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            SETTING_LINE_LENGTH,
+            LINE_LENGTH,
+            int,
+            "the width of the damage table",
+            validator=int_validator(1, 500),
+        )
 
     def _setting(self, name: str) -> str:
         """Return a setting of the plugin."""
@@ -59,7 +77,11 @@ class CtPlugin(BasePlugin):
             return
         self._tables.append(
             format_kill(
-                kill, self._setting("statcolor"), self._setting("infocolor"), self._helpers()
+                kill,
+                self._setting("statcolor"),
+                self._setting("infocolor"),
+                self._helpers(),
+                int(self._setting(SETTING_LINE_LENGTH)),
             )
         )
         if not self._waiting:

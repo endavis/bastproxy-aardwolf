@@ -8,7 +8,9 @@ from typing import Any
 EVENT_MOBK_KILL = "ev_plugins.aardwolf.mobk_kill"
 EMPTYLINE_ID = "t_plugins.core.triggers_emptyline"
 
+# the default of the linelength setting, and the name of that setting
 LINE_LENGTH = 72
+SETTING_LINE_LENGTH = "linelength"
 LABEL_WIDTH = 20
 
 # name: (default, help)
@@ -97,14 +99,20 @@ def _row(
     )
 
 
-def format_kill(kill: Mapping[str, Any], stat: str, info: str, helpers: TableHelpers) -> str:
-    """Return the damage table of a kill, as lines joined with newlines."""
+def format_kill(
+    kill: Mapping[str, Any],
+    stat: str,
+    info: str,
+    helpers: TableHelpers,
+    line_length: int = LINE_LENGTH,
+) -> str:
+    """Return the damage table of a kill, ``line_length`` wide, as lines joined with newlines."""
     damage: Mapping[str, Mapping[str, Any]] = kill["damage"]
     total = sum(entry["damage"] for entry in damage.values())
-    divider = info + "-" * LINE_LENGTH
+    divider = info + "-" * line_length
     lines = [
         divider,
-        info + helpers.center(title_text(kill, stat, info, helpers), "-", LINE_LENGTH),
+        info + helpers.center(title_text(kill, stat, info, helpers), "-", line_length),
         divider,
         _row(
             info,

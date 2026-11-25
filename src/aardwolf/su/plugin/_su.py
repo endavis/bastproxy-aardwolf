@@ -10,6 +10,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.validate import int_validator
+
 from ..libs import (
     ACTION_BLOCK,
     ACTION_CLEAR,
@@ -45,7 +47,10 @@ from ..libs import (
     GMCP_ROOM_NUM,
     GMCP_STATE,
     GROUP,
+    PRACTICED_ABOVE,
     SETTING_INIT,
+    SETTING_PRACTICED_ABOVE,
+    SETTING_WAIT_TIMEOUT,
     SPELLUP_FILE,
     TIMER_NAME,
     WAIT_TIMEOUT,
@@ -98,6 +103,22 @@ class SuPlugin(BasePlugin):
             dict,
             "the rooms where casting is not allowed",
             readonly=True,
+        )
+        add(
+            self.plugin_id,
+            SETTING_PRACTICED_ABOVE,
+            PRACTICED_ABOVE,
+            int,
+            "a spell at this percent or less is shown as not practiced (NP)",
+            validator=int_validator(0, 100),
+        )
+        add(
+            self.plugin_id,
+            SETTING_WAIT_TIMEOUT,
+            WAIT_TIMEOUT,
+            int,
+            "seconds to wait for the result of a cast",
+            validator=int_validator(1, 3600),
         )
         self._nocast = self._room_is_nocast(self._gmcp_room())
 
@@ -184,16 +205,23 @@ class SuPlugin(BasePlugin):
         self._remove_timer()
 
     def _start_waiting(self, sn: int) -> None:
-        """Wait for the answer to a cast, for at most WAIT_TIMEOUT seconds."""
+        """Wait for the answer to a cast, for at most the waittimeout setting."""
         self._waiting = sn
         self._remove_timer()
         self.api("plugins.core.timers:timer.add")(
-            TIMER_NAME, self._timer_waiting, WAIT_TIMEOUT, onetime=True
+            TIMER_NAME,
+            self._timer_waiting,
+            int(str(self._setting(SETTING_WAIT_TIMEOUT))),
+            onetime=True,
         )
 
     def _timer_waiting(self) -> None:
         """The cast got no answer in time: stop waiting, without casting again at once."""
-        self._debug("no answer to the cast of %s in %d seconds", self._waiting, WAIT_TIMEOUT)
+        self._debug(
+            "no answer to the cast of %s in %s seconds",
+            self._waiting,
+            self._setting(SETTING_WAIT_TIMEOUT),
+        )
         self._waiting = None
 
     # casting
@@ -433,6 +461,7 @@ class SuPlugin(BasePlugin):
         order = self.ups.order()
         if not order:
             return CommandResult(True, ["There are no spellups"])
+        practiced_above = int(str(self._setting(SETTING_PRACTICED_ABOVE)))
         lines = list_header()
         for index, sn in enumerate(order):
             skill = self.api(API_SKILL_GET)(sn)
@@ -448,6 +477,7 @@ class SuPlugin(BasePlugin):
                         blocked=bool(self.api(API_SKILL_IS_BLOCKED)(sn)),
                         disabled=not self.ups.is_enabled(sn),
                         percent=int(skill["percent"]),
+                        practiced_above=practiced_above,
                     )
                 )
         return CommandResult(True, lines)

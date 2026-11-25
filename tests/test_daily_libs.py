@@ -109,3 +109,12 @@ def test_event_is_declared() -> None:
     assert set(EVENTS) == {SUFFIX_AVAILABLE}
     assert SUFFIX_AVAILABLE == "available"
     assert EVENTS[SUFFIX_AVAILABLE]["description"]
+
+
+def test_next_message_time_format_parameter() -> None:
+    """The time is shown in the format given, the module constant by default."""
+    when = 86400.0
+    assert next_message(when, False, "%Y") == "Your next daily is at: " + time.strftime(
+        "%Y", time.localtime(when)
+    )
+    assert next_message(when, False) == next_message(when, False, TIME_FORMAT)

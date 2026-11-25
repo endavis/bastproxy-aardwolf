@@ -11,6 +11,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.validate import time_format_error
+
 from ..libs import (
     DEFAULT_AFK_TITLE,
     EVENT_CLIENT_DISCONNECTED,
@@ -21,6 +23,8 @@ from ..libs import (
     GROUP_REPLY,
     HIDE_MAX,
     QUEUE_KEY,
+    SETTING_TIME_FORMAT,
+    TIME_FORMAT,
     TIMEOUT_EVENT,
     TITLE_CMD,
     TITLE_IS_REGEX,
@@ -75,6 +79,15 @@ class AfkPlugin(BasePlugin):
         add(self.plugin_id, "afktitle", DEFAULT_AFK_TITLE, str, "the title when afk mode is on")
         add(self.plugin_id, "lasttitle", "", str, "the title before afk mode was turned on")
         add(self.plugin_id, "isafk", False, bool, "AFK flag", readonly=True)
+        add(
+            self.plugin_id,
+            SETTING_TIME_FORMAT,
+            TIME_FORMAT,
+            str,
+            "the strftime pattern of the time of each tell the show command lists",
+            nocolor=True,
+            validator=time_format_error,
+        )
         self.api("libs.net.protocols:gmcp.modules.add")(GMCP_MODULES)
         self._add_type()
         for trigger in TRIGGERS:
@@ -348,7 +361,9 @@ class AfkPlugin(BasePlugin):
     @AddParser(description="show the tells received while afk")
     def _command_show(self) -> CommandResult:
         """Show the kept tells."""
-        return CommandResult(True, format_tells(self._entries()))
+        return CommandResult(
+            True, format_tells(self._entries(), str(self._setting(SETTING_TIME_FORMAT)))
+        )
 
     @AddCommand()
     @AddParser(description="clear the tells received while afk")

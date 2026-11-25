@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -49,7 +49,11 @@ class FakeApi:
         self.state: object = 3
         self.timers: dict[str, tuple[Callable[..., Any], float, dict[str, object]]] = {}
         self.removed: list[str] = []
+        self.settings: dict[str, Any] = {}
+        self.validators: dict[str, Callable[..., Any]] = {}
         self.table: dict[str, Callable[..., Any]] = {
+            "plugins.core.settings:setting.add": self._setting_add,
+            "plugins.core.settings:setting.get": lambda pid, name: self.settings[name],
             "plugins.core.events:event.add": self._event_add,
             "plugins.core.events:event.raise": self._event_raise,
             "plugins.core.events:event.current.record.get": lambda: self.record,
@@ -65,6 +69,11 @@ class FakeApi:
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name; an unknown name is a KeyError."""
         return self.table[name]
+
+    def _setting_add(self, pid: str, name: str, default: object, *a: object, **kw: object) -> None:
+        self.settings.setdefault(name, default)
+        if "validator" in kw:
+            self.validators[name] = cast("Callable[..., Any]", kw["validator"])
 
     def _event_add(self, name: str, created_by: str, **kwargs: object) -> None:
         self.events_added[name] = kwargs
@@ -331,3 +340,24 @@ def test_load_with_inactive_character_sends_nothing(
     """A plugin loaded before the character is active sends nothing."""
     fake = FakeApi()
     assert build(monkeypatch, tmp_path, fake).mud == []
+
+
+def test_timeformat_setting_is_added_with_the_default(env: Env) -> None:
+    """The timeformat setting defaults to the old format and refuses a bad pattern."""
+    from aardwolf.daily.libs import TIME_FORMAT
+
+    assert env.fake.settings["timeformat"] == TIME_FORMAT
+    assert env.fake.validators["timeformat"]("%H") is None
+    assert env.fake.validators["timeformat"]("plain") is not None
+
+
+def test_timeformat_setting_changes_the_next_output(env: Env) -> None:
+    """The next command reads the setting each time, so a change needs no reload."""
+    import time
+
+    env.plugin._next_time = 86400.0
+    default = env.next_text()
+    env.fake.settings["timeformat"] = "AT %H %d"
+    changed = env.next_text()
+    assert changed == "Your next daily is at: " + time.strftime("AT %H %d", time.localtime(86400.0))
+    assert changed != default

@@ -41,6 +41,8 @@ HIDE_MAX = 5
 DEFAULT_AFK_TITLE = "is AFK."
 TELL_CHANNEL = "tell"
 TIME_FORMAT = "%a %b %d %Y %H:%M:%S"
+# the name of the setting that defaults to TIME_FORMAT
+SETTING_TIME_FORMAT = "timeformat"
 QUEUE_KEY = "queue"
 
 
@@ -117,22 +119,25 @@ def remember_title(typed: str | None, afk_title: str) -> str | None:
     return typed
 
 
-def _row(entry: object) -> str | None:
+def _row(entry: object, time_format: str = TIME_FORMAT) -> str | None:
     """Return the display row of a stored tell, or None when the entry is bad."""
     if not isinstance(entry, Mapping):
         return None
     stamp = entry.get("timestamp")
     if isinstance(stamp, bool) or not isinstance(stamp, int | float):
         return None
-    when = time.strftime(TIME_FORMAT, time.localtime(stamp))
+    when = time.strftime(time_format, time.localtime(stamp))
     player = str(entry.get("player") or "")
     msg = str(entry.get("msg") or "")
     return f"{when:>25} - {player}: {msg}" if player else f"{when:>25} - {msg}"
 
 
-def format_tells(entries: Iterable[object]) -> list[str]:
-    """Return the lines that show the kept tells; a bad entry is skipped."""
-    rows = [row for row in (_row(entry) for entry in entries) if row is not None]
+def format_tells(entries: Iterable[object], time_format: str = TIME_FORMAT) -> list[str]:
+    """Return the lines that show the kept tells, timed in ``time_format``.
+
+    A bad entry is skipped.
+    """
+    rows = [row for row in (_row(entry, time_format) for entry in entries) if row is not None]
     if not rows:
         return ["The queue is empty"]
     return ["Tells received while afk", *rows]

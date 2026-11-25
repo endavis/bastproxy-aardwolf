@@ -11,12 +11,15 @@ from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs.eventu import own_event, own_events
+from aardwolf._libs.validate import time_format_error
 
 from ..libs import (
     BLESSING_WAIT,
     DAILY_CMD,
     EVENTS,
+    SETTING_TIME_FORMAT,
     SUFFIX_AVAILABLE,
+    TIME_FORMAT,
     TIMER_NAME,
     TRIGGER_READY,
     TRIGGER_TOOK,
@@ -42,7 +45,16 @@ class DailyPlugin(BasePlugin):
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
-        """Add the event and the triggers, and check the daily when the character is active."""
+        """Add the setting, event and triggers, and check the daily when the character is active."""
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            SETTING_TIME_FORMAT,
+            TIME_FORMAT,
+            str,
+            "the strftime pattern of the time the next command shows",
+            nocolor=True,
+            validator=time_format_error,
+        )
         add_event = self.api("plugins.core.events:event.add")
         for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
@@ -144,4 +156,7 @@ class DailyPlugin(BasePlugin):
     @AddParser(description="show when the next daily is")
     def _command_next(self) -> CommandResult:
         """Show when the next daily is."""
-        return CommandResult(True, [next_message(self._next_time, self._available)])
+        time_format = str(
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, SETTING_TIME_FORMAT)
+        )
+        return CommandResult(True, [next_message(self._next_time, self._available, time_format)])

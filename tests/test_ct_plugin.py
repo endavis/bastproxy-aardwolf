@@ -3,7 +3,7 @@
 import ast
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,6 +22,7 @@ class FakeApi:
 
     def __init__(self) -> None:
         self.settings: dict[str, Any] = {}
+        self.validators: dict[str, Any] = {}
         self.setting_defs: dict[str, tuple[Any, ...]] = {}
         self.callbacks: dict[str, list[Callable[[], None]]] = {}
         self.register_calls = 0
@@ -43,9 +44,11 @@ class FakeApi:
         return table[name]
 
     def _setting_add(
-        self, pid: str, name: str, default: object, stype: object, help_text: str
+        self, pid: str, name: str, default: object, stype: object, help_text: str, **kw: object
     ) -> None:
         self.setting_defs[name] = (default, stype, help_text)
+        if "validator" in kw:
+            self.validators[name] = cast("Callable[..., Any]", kw["validator"])
         self.settings[name] = default
 
     def _register(self, trigger_id: str, func: Callable[[], None]) -> bool:
@@ -149,9 +152,21 @@ def test_plugin_depends_on_mobk() -> None:
 
 def test_settings_added(env: Env) -> None:
     """The two color settings are added with the color type."""
-    assert set(env.fake.setting_defs) == set(SETTINGS)
+    assert set(env.fake.setting_defs) == set(SETTINGS) | {"linelength"}
     assert env.fake.setting_defs["statcolor"][:2] == ("@W", "color")
     assert env.fake.setting_defs["infocolor"][:2] == ("@x033", "color")
+    assert env.fake.setting_defs["linelength"][:2] == (72, int)
+
+
+def test_linelength_setting_sets_the_table_width(env: Env) -> None:
+    """The width is read for each kill; 0 is refused."""
+    assert env.fake.validators["linelength"](0) is not None
+    assert env.fake.validators["linelength"](80) is None
+    env.fake.settings["linelength"] = 40
+    env.kill()
+    env.empty_line()
+    assert env.sent[0].startswith("@x033" + "-" * 40 + "\n")
+    assert "CENTER[-40]" in env.sent[0]
 
 
 def test_event_is_registered() -> None:

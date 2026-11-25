@@ -16,16 +16,27 @@ from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, 
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs.aardu import actual_level_from_gmcp
+from aardwolf._libs.validate import int_validator, time_format_error
 
 from ..libs import (
+    AREA_CHART_TITLE,
+    CHART_AREAS,
+    CHART_DAYS,
+    CHART_LEVELS,
     CHARTS,
     DB_NAME,
     DB_VERSION,
     DEFAULT_MOBKILL_COUNT,
     MAPPER_ROOM_PATH,
     MIGRATIONS,
+    SETTING_CHART_AREAS,
+    SETTING_CHART_DAYS,
+    SETTING_CHART_LEVELS,
+    SETTING_MOBKILL_COUNT,
+    SETTING_TIME_FORMAT,
     TABLE_PAGES,
     TABLES,
+    TIME_FORMAT,
     Formatters,
     StatStore,
     TablePage,
@@ -92,7 +103,6 @@ DB_UNREADABLE = "The stats database could not be read"
 MAPPER = "plugins.client.mapper"
 MAX_MILESTONE_NAME = 200
 LOOKUPS_PER_YIELD = 50
-AREA_CHART_TITLE = "Kills per area (top 20)"
 
 
 class StatdbPlugin(BasePlugin):
@@ -132,6 +142,41 @@ class StatdbPlugin(BasePlugin):
             "4h",
             "timelength",
             "the interval to backup the db, default every 4 hours",
+        )
+        add_setting(
+            self.plugin_id,
+            SETTING_MOBKILL_COUNT,
+            DEFAULT_MOBKILL_COUNT,
+            int,
+            "the number of kills the mobkills command lists when it is given no count",
+            validator=int_validator(1, 1000),
+        )
+        for name, default, text, maximum in (
+            (SETTING_CHART_DAYS, CHART_DAYS, "the number of days the day charts show", 3650),
+            (
+                SETTING_CHART_LEVELS,
+                CHART_LEVELS,
+                "the number of levels the level chart shows",
+                1000,
+            ),
+            (SETTING_CHART_AREAS, CHART_AREAS, "the number of areas the area chart shows", 500),
+        ):
+            add_setting(
+                self.plugin_id,
+                name,
+                default,
+                int,
+                text,
+                validator=int_validator(1, maximum),
+            )
+        add_setting(
+            self.plugin_id,
+            SETTING_TIME_FORMAT,
+            TIME_FORMAT,
+            str,
+            "the strftime pattern of the dates the reports show",
+            nocolor=True,
+            validator=time_format_error,
         )
 
         try:
@@ -306,7 +351,12 @@ class StatdbPlugin(BasePlugin):
             format_time=self.api("plugins.core.utils:timelength.format"),
             readable=self.api("plugins.core.utils:number.to.readable"),
             line_length=int(self.api("plugins.core.proxy:line.length.get")()),
+            time_format=str(self._setting(SETTING_TIME_FORMAT)),
         )
+
+    def _chart_limit(self, setting: str) -> int:
+        """Return the number of bars a chart setting asks for."""
+        return int(str(self._setting(setting)))
 
     def _args(self) -> dict[str, Any]:
         """Return the arguments of the running command."""
@@ -412,16 +462,18 @@ class StatdbPlugin(BasePlugin):
     @AddArgument(
         "-c",
         "--count",
-        help="the number of mobkills to list",
+        help="the number of mobkills to list, default the mobkillcount setting",
         type=int,
-        default=DEFAULT_MOBKILL_COUNT,
+        default=None,
     )
     def _command_mobkills(self) -> CommandResult:
         """List the most recent mob kills."""
         if self.statdb is None:
             return CommandResult(True, [NO_DB])
-        args = self._args()
-        return CommandResult(True, mobkill_list(self.statdb, args["count"], self._formatters()))
+        count = self._args()["count"]
+        if count is None:
+            count = int(str(self._setting(SETTING_MOBKILL_COUNT)))
+        return CommandResult(True, mobkill_list(self.statdb, count, self._formatters()))
 
     # web pages
 
@@ -550,12 +602,13 @@ class StatdbPlugin(BasePlugin):
             path = self._db_path()
             if path is None:
                 return {"kind": "svg", "svg": bar_chart_svg(NO_DB, [], "")}
+            limit = self._chart_limit(spec.setting)
             try:
-                bars = await asyncio.to_thread(read_chart, path, name)
+                bars = await asyncio.to_thread(read_chart, path, name, limit)
             except sqlite3.Error:
                 log_to(self.plugin_id, logging.ERROR, "could not read the chart", exc_info=True)
                 return {"kind": "svg", "svg": bar_chart_svg(DB_UNREADABLE, [], "")}
-            return {"kind": "svg", "svg": bar_chart_svg(spec.title, bars, spec.unit)}
+            return {"kind": "svg", "svg": bar_chart_svg(spec.heading(limit), bars, spec.unit)}
 
         return handler
 
@@ -597,7 +650,12 @@ class StatdbPlugin(BasePlugin):
             log_to(self.plugin_id, logging.ERROR, "could not read the chart", exc_info=True)
             return {"kind": "svg", "svg": bar_chart_svg(DB_UNREADABLE, [], "")}
         areas = await self._room_areas(list(counts))
+        limit = self._chart_limit(SETTING_CHART_AREAS)
         return {
             "kind": "svg",
-            "svg": bar_chart_svg(AREA_CHART_TITLE, aggregate_areas(counts, areas), "kills"),
+            "svg": bar_chart_svg(
+                f"{AREA_CHART_TITLE} (top {limit})",
+                aggregate_areas(counts, areas, limit),
+                "kills",
+            ),
         }

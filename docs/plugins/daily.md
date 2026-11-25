@@ -65,7 +65,11 @@ took lines have not been seen live yet; they come from the old plugin.
 
 ## Settings, commands and events
 
-The plugin has no settings. It adds one command and raises one event.
+The plugin has one setting, one command and one event.
+
+| Setting | Default | Meaning |
+| :--- | :--- | :--- |
+| `timeformat` | `%a, %d %b %Y %H:%M:%S` | The `strftime` pattern of the time `next` shows. It must contain a valid directive; it is read each time, so a change needs no reload. |
 
 | Command | Does |
 | :--- | :--- |

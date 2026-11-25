@@ -239,6 +239,20 @@ def test_show_level(full: "StatStore") -> None:
     assert level_report(full, 0, 99, formatters()) == ["No such level: 99"]
 
 
+def test_show_level_uses_the_time_format_of_the_formatters(full: "StatStore") -> None:
+    """The start and finish times follow the format, with no +0000 in the default."""
+    import dataclasses
+
+    from aardwolf.statdb.libs import TIME_FORMAT, level_report
+
+    default = level_report(full, 0, 3, formatters())
+    assert "+0000" not in TIME_FORMAT
+    assert all("+0000" not in line for line in default)
+    year = dataclasses.replace(formatters(), time_format="Y%Y")
+    started = next(x for x in level_report(full, 0, 3, year) if x.startswith("Started  : "))
+    assert started == "Started  : Y1970"
+
+
 def test_show_level_with_kills_in_its_time(full: "StatStore") -> None:
     """A finished level shows how long it took and the mobs killed in it."""
     from aardwolf.statdb.libs import level_report

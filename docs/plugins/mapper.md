@@ -136,7 +136,7 @@ reports "No shops found in aylor".
   anything is sent. The command is sent the way a walk sends it. The next room that differs from the
   one it left stores the exit, at cost 1, with the requirement of `-l`, and the client gets
   `Mapper: custom exit <from> (<command>) -> <to>`. With no new room after the timeout
-  (`-T`, 2 to 40 seconds, default 5, plus the waits) the client is told and nothing is stored. An
+  (`-T`, 2 to 40 seconds, default the `cexittimeout` setting, which is 5, plus the waits) the client is told and nothing is stored. An
   exit that leads back to the same room therefore times out.
 - **Direct.** With `-t` the exit is stored from `-f` (default the current room) to that room and
   nothing is sent. Both rooms must be known and differ.
@@ -209,6 +209,14 @@ and its rows are the rows of the matching text command, built by the same code.
   text.
 - **Routes.** The plugin adds the routes when it loads, only if the web plugin is loaded, and removes
   them when it unloads.
+
+## Settings
+
+| Setting | Default | Meaning |
+| :--- | :--- | :--- |
+| `cexittimeout` | `5` | Seconds `cexit` waits for the new room when `-T` is not given. It must be 2 to 40, the range `-T` accepts; any other value is refused and the old one kept. |
+
+The setting is read each time `cexit` runs, so a change needs no reload.
 
 ## Events used
 
