@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795592164342,
+  "lastUpdate": 1795593326836,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2469,6 +2469,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.855147072000732e-7",
             "extra": "mean: 3.7132111618598236 usec\nrounds: 143390"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a6d9f6a16532dd8c182d8cdc20a00975e5604ca",
+          "message": "feat: add web pages for the Aardwolf mapper: portals, custom exits and places (merges PR #130, addresses #127)\n\nfeat: add web pages for the Aardwolf mapper\n\nServe the mapper's portals, custom exits (with locked exits) and\nshop, train, quest and note places as sortable, filterable tables\nunder /aardwolf/mapper/, through plugins.core.web:web.route.add.\nEach page builds its rows with the same code as its text command.\nRoom and area cells are link cells to the core mapper pages.\nMove the shared test fakes to tests/mapper_support.py and move\nbastproxy to the core web link-cell release.\n\nAddresses #127\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T07:54:46Z",
+          "tree_id": "9fcf4799bbd228c72d6b0c6a65ef7f0d71cab54d",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/3a6d9f6a16532dd8c182d8cdc20a00975e5604ca"
+        },
+        "date": 1795593326465,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3098942.6301878477,
+            "unit": "iter/sec",
+            "range": "stddev: 3.606040747884322e-8",
+            "extra": "mean: 322.6907107794323 nsec\nrounds: 189790"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 174229.95608306368,
+            "unit": "iter/sec",
+            "range": "stddev: 7.183117884949317e-7",
+            "extra": "mean: 5.739541135642901 usec\nrounds: 184366"
           }
         ]
       }
