@@ -27,7 +27,8 @@ ROOMS = """CREATE TABLE rooms(
     y INTEGER,
     z INTEGER,
     norecall INTEGER NOT NULL DEFAULT 0,
-    noportal INTEGER NOT NULL DEFAULT 0
+    noportal INTEGER NOT NULL DEFAULT 0,
+    ignore_exits_mismatch INTEGER NOT NULL DEFAULT 0
 )"""
 ROOMS_OLD = """CREATE TABLE rooms(
     uid TEXT NOT NULL PRIMARY KEY,
@@ -60,14 +61,14 @@ BOOKMARKS = """CREATE TABLE bookmarks(
 )"""
 STORAGE = "CREATE TABLE storage(name TEXT NOT NULL PRIMARY KEY, data TEXT)"
 
-# uid, name, area, terrain, info, notes, x, y, z, norecall, noportal
-ROOM_ROWS: list[tuple[str, str, str, str, str, str, int, int, int, int, int]] = [
-    ("100", "The Test Bank", "testarea", "city", "bank,shop", "", 10, 20, 0, 0, 0),
-    ("101", "Training Hall", "testarea", "city", "trainer", "", 11, 20, 0, 1, 0),
-    ("102", "Quest Office", "testarea", "city", "questor", "old room note", 12, 20, 0, 0, 1),
-    ("103", "Plain Road", "testarea", "city", "", "", 13, 20, 0, 0, 0),
-    ("200", "Far Hut", "otherarea", "forest", "Shop, Safe", "", 5, 5, 1, 0, 0),
-    ("nomap_x", "Nowhere", "testarea", "city", "", "", 0, 0, 0, 0, 0),
+# uid, name, area, terrain, info, notes, x, y, z, norecall, noportal, ignore_exits_mismatch
+ROOM_ROWS: list[tuple[str, str, str, str, str, str, int, int, int, int, int, int]] = [
+    ("100", "The Test Bank", "testarea", "city", "bank,shop", "", 10, 20, 0, 0, 0, 0),
+    ("101", "Training Hall", "testarea", "city", "trainer", "", 11, 20, 0, 1, 0, 0),
+    ("102", "Quest Office", "testarea", "city", "questor", "old room note", 12, 20, 0, 0, 1, 0),
+    ("103", "Plain Road", "testarea", "city", "", "", 13, 20, 0, 0, 0, 1),
+    ("200", "Far Hut", "otherarea", "forest", "Shop, Safe", "", 5, 5, 1, 0, 0, 0),
+    ("nomap_x", "Nowhere", "testarea", "city", "", "", 0, 0, 0, 0, 0, 0),
 ]
 # dir, fromuid, touid, level
 EXIT_ROWS: list[tuple[str, str, str, int]] = [
@@ -114,7 +115,7 @@ def build_mush_db(path: Path, *, version: str = "current") -> Path:
                 )
             else:
                 conn.execute(
-                    "INSERT INTO rooms VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO rooms VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (row[0], row[1], row[2], "", row[3], row[4], row[5], *row[6:]),
                 )
         for direction, fromuid, touid, level in EXIT_ROWS:

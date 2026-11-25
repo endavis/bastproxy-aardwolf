@@ -129,6 +129,7 @@ def test_read_current_schema(tmp_path: Path) -> None:
     assert rooms["100"]["x"] == 10
     assert rooms["101"]["flags"] == ["norecall"]
     assert rooms["102"]["flags"] == ["noportal"]
+    assert rooms["103"]["flags"] == ["ignoreexits"]
     assert data.skipped_rooms == 1
     assert data.skipped_exits == 3
     assert data.exits["101"] == [("n", "102", {"level": 50}), ("s", "100", None)]
@@ -184,6 +185,7 @@ def test_check_schema_reports_optional_columns(tmp_path: Path) -> None:
         finally:
             conn.close()
         assert ("rooms.noportal" in present) is expected
+        assert ("rooms.ignore_exits_mismatch" in present) is expected
         assert ("exits.level" in present) is expected
         assert ("bookmarks" in present) is expected
         assert "rooms.notes" in present

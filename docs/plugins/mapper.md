@@ -48,7 +48,7 @@ core `plugins.client.mapper`, so loading it loads them too.
   flag list and the other keys go to `details`.
 - **Room flags.** `Magic walls bounce you back.` marks the current room `noportal`, and
   `You cannot recall from this room.` or `You cannot return home from this room.` marks it
-  `norecall`. The stored flags are kept when the room is added again. The client gets a line.
+  `norecall`; text after the period does not matter. The stored flags are kept when the room is added again. The client gets a line.
 - **Requirement.** An exit requirement is `{"level": n, "tier": t}`, each key optional. The exit is
   allowed when the character tier, from GMCP `char.base.tier`, is at least `tier` and the level, from
   `char.status.level`, is at least `level`. For an exit from `*` or `**` (a portal or an
@@ -73,8 +73,11 @@ core `plugins.client.mapper`, so loading it loads them too.
 - **Bounce.** From a `noportal` room the cheapest recall is chained into a portal, and from a
   `norecall` room the cheapest portal into a recall, with no setting. A room that is both walks out
   first.
-- **Mismatch.** On `ev_plugins.client.mapper_room_mismatch` the client gets the area and exit
-  differences with the `#bp.client.mapper.purge` commands that clear them.
+- **Mismatch.** On `ev_plugins.client.mapper_room_mismatch` the client gets each difference
+  (name, terrain, coordinates, details, area, exits). The core mapper holds a different area and
+  changed exit targets until `#bp.client.mapper.accept <uid>`. A replaced area can still be dropped
+  with `#bp.client.mapper.purge -a <old>`, and a room whose exits vary can be set with
+  `#bp.client.mapper.ignoreexits <uid>`.
 - **Disconnect.** Clears the current room and the pending area requests.
 
 ### Limitations
@@ -159,10 +162,10 @@ reports "No shops found in aylor".
 - **Read-only and checked first.** The file is opened read-only and validated before anything is
   written: a file that is not SQLite, or lacks the `rooms`, `exits` or `areas` tables and their
   columns, is refused and nothing is written. Older databases without `noportal`, `norecall`,
-  `exits.level` or `bookmarks` import too.
+  `ignore_exits_mismatch`, `exits.level` or `bookmarks` import too.
 - **Captured data wins.** The import only fills gaps, so importing again is safe and writes nothing.
   An area is added only when unknown. A room is added only when unknown; a stored room only gains the
-  `norecall` and `noportal` flags it lacks. A stored exit keeps its target (unless unexplored), its
+  `norecall`, `noportal` and `ignoreexits` flags it lacks. A stored exit keeps its target (unless unexplored), its
   requirement (unless it has none) and its cost. A note is set only when the room has none.
 - **Progress.** The client gets `Mapper import: <phase> <done>/<total>` at the start of the areas,
   rooms and exits phases and after every batch, then a summary. Only one import runs at a time.
@@ -172,6 +175,7 @@ reports "No shops found in aylor".
 | `rooms` name, area, terrain, x, y, z | the same room fields |
 | `rooms.info` | `details["details"]`, the shape of a captured room |
 | `rooms.noportal`, `rooms.norecall` | the `noportal` and `norecall` flags |
+| `rooms.ignore_exits_mismatch` | the `ignoreexits` flag |
 | `exits` dir, fromuid, touid | an exit; `*` and `**` portals and recall carry over |
 | `exits.level` above 0 | the requirement `{"level": n}` |
 | `bookmarks.notes`, else `rooms.notes` | the room note |
@@ -181,7 +185,7 @@ A room whose uid is not a positive integer (such as `nomap_...`), and its exits 
 and counted, as are exits to or from a room that is not imported.
 
 **Not imported:** `storage` (the bounce portal and bounce recall, which are serialised Lua; the core
-path search chains recall and portals itself, so no setting is needed), `environments`, `rooms.building` and `ignore_exits_mismatch`.
+path search chains recall and portals itself, so no setting is needed), `environments` and `rooms.building`.
 
 ## Web pages
 
@@ -228,3 +232,13 @@ The setting is read each time `cexit` runs, so a change needs no reload.
 | `ev_plugins.client.mapper_room_mismatch` | tell the client about a contradicting room |
 | `ev_libs.net.mud_muddisconnect` | forget the room, the pending areas and waiting commands |
 | `ev_plugins.client.mapper_walk_failed` | drop the commands still waiting after a wait |
+
+## Changes from the old plugin
+
+- **No room request after an area.** The old plugin sent `request room` after each `room.area`.
+  This one does not. An area is requested only after its room is stored and current, and the reply
+  for the same room would be ignored, so the request would have no effect. After a connect, the
+  connect plugin already requests the room.
+- **Mismatch hints.** The old `purge -r` hint, which deletes the room with its note, custom exits
+  and every exit into it, is replaced by `#bp.client.mapper.accept <uid>` for the changes the core
+  mapper holds.
