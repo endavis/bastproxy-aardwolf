@@ -111,6 +111,7 @@ class FakeApi:
             "libs.net.protocols:gmcp.send": lambda message: None,
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
+            "plugins.core.colors:colorcode.escape": lambda text: text,
             "plugins.core.colors:colorcode.strip": lambda text: text.replace("@R", "").replace(
                 "@w", ""
             ),
@@ -363,6 +364,29 @@ def test_room_mismatch_event(env: Env) -> None:
     assert "1234" in text
     assert "old -> new" in text
     assert "purge -a old" in text
+
+
+def test_room_mismatch_name_only(env: Env) -> None:
+    """A name-only mismatch is shown, and its text goes through colorcode.escape."""
+    env.fake.record = {"uid": "1234", "differences": {"name": ("Old", "New")}}
+    env.plugin._eventcb_room_mismatch()
+    assert "  name: Old -> New" in env.sent[0]
+    assert env.fake.called("plugins.core.colors:colorcode.escape")
+
+
+def test_area_reply_sends_no_room_request(env: Env) -> None:
+    """The area reply stores the area; no room is requested again (#157)."""
+    env.move(ROOM_A)
+    env.area_info({"id": "aylor", "name": "Aylor"})
+    assert env.fake.called("libs.net.protocols:gmcp.send") == [("request area",)]
+    assert env.fake.called(f"{MAPPER}:area.add")
+
+
+def test_area_reply_without_room_sends_nothing(env: Env) -> None:
+    """An area reply before any room is stored and requests nothing."""
+    env.area_info({"id": "aylor", "name": "Aylor"})
+    assert not env.fake.called("libs.net.protocols:gmcp.send")
+    assert env.fake.called(f"{MAPPER}:area.add")
 
 
 def test_uninitialize(env: Env) -> None:

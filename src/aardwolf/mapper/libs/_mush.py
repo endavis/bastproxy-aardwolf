@@ -9,7 +9,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ._mapper import ANYWHERE, FLAG_NOPORTAL, FLAG_NORECALL, UNKNOWN_UID, to_int
+from ._mapper import (
+    ANYWHERE,
+    FLAG_IGNORE_EXITS,
+    FLAG_NOPORTAL,
+    FLAG_NORECALL,
+    UNKNOWN_UID,
+    to_int,
+)
 
 REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "rooms": ("uid", "name", "area", "terrain", "info", "x", "y", "z"),
@@ -17,7 +24,7 @@ REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "areas": ("uid", "name"),
 }
 OPTIONAL_COLUMNS: dict[str, tuple[str, ...]] = {
-    "rooms": ("noportal", "norecall", "notes"),
+    "rooms": ("noportal", "norecall", "ignore_exits_mismatch", "notes"),
     "exits": ("level",),
     "areas": ("texture", "color", "flags"),
     "bookmarks": ("uid", "notes"),
@@ -177,6 +184,7 @@ def _read_rooms(
 ) -> tuple[dict[str, dict[str, Any]], int]:
     has_noportal = "rooms.noportal" in present
     has_norecall = "rooms.norecall" in present
+    has_ignore = "rooms.ignore_exits_mismatch" in present
     rooms: dict[str, dict[str, Any]] = {}
     skipped = 0
     for row in _dict_rows(conn, "SELECT * FROM rooms ORDER BY CAST(uid AS INTEGER)"):
@@ -184,6 +192,7 @@ def _read_rooms(
         info, x, y, z = row["info"], row["x"], row["y"], row["z"]
         no_portal = row.get("noportal") if has_noportal else 0
         no_recall = row.get("norecall") if has_norecall else 0
+        ignore_exits = row.get("ignore_exits_mismatch") if has_ignore else 0
         key = _room_uid(uid)
         if key is None:
             skipped += 1
@@ -193,6 +202,8 @@ def _read_rooms(
             flags.append(FLAG_NOPORTAL)
         if to_int(no_recall) == 1:
             flags.append(FLAG_NORECALL)
+        if to_int(ignore_exits) == 1:
+            flags.append(FLAG_IGNORE_EXITS)
         rooms[key] = {
             "uid": key,
             "name": _text(name),

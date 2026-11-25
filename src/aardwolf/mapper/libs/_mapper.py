@@ -1,7 +1,7 @@
 """Constants and helpers of the mapper plugin. No bastproxy imports."""
 
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Protocol
 from urllib.parse import urlencode
 
@@ -16,9 +16,11 @@ GMCP_ROOM = "room.info"
 GMCP_LEVEL = "char.status.level"
 GMCP_TIER = "char.base.tier"
 NOPORTAL_REGEX = r"^Magic walls bounce you back\.$"
-NORECALL_REGEX = r"^You cannot (recall|return home) from this room\.$"
+NORECALL_REGEX = r"^You cannot (recall|return home) from this room\."
 FLAG_NOPORTAL = "noportal"
 FLAG_NORECALL = "norecall"
+# mirrors the core mapper's IGNORE_EXITS_FLAG, which a plugin cannot import
+FLAG_IGNORE_EXITS = "ignoreexits"
 PLAIN_DIRECTIONS = ("n", "s", "e", "w", "u", "d")
 ANYWHERE = ("*", "**")
 UNKNOWN_UID = "-1"
@@ -323,23 +325,60 @@ def resolve_portal(portals: Sequence[Mapping[str, Any]], ref: str) -> Mapping[st
     return None
 
 
-def mismatch_lines(uid: str, differences: Mapping[str, Any]) -> list[str]:
-    """Return the client lines that report a room mismatch."""
+def _pair(value: object) -> tuple[object, object] | None:
+    """Return an (old, new) pair, or None when the value is not one."""
+    if isinstance(value, (tuple, list)) and len(value) == 2:
+        return value[0], value[1]
+    return None
+
+
+def _shown(value: object, escape: Callable[[str], str]) -> str:
+    """Return a value as client text: None is ``none``, anything else is escaped."""
+    return "none" if value is None else escape(str(value))
+
+
+def mismatch_lines(
+    uid: str, differences: Mapping[str, Any], escape: Callable[[str], str] = str
+) -> list[str]:
+    """Return the client lines that report a room mismatch.
+
+    ``differences`` is the core mapper's ``room_mismatch`` payload. A malformed entry is
+    ignored, since the payload comes from another plugin. ``escape`` makes a value safe to show.
+    """
     lines = [f"Mapper: room {uid} differs from the map"]
-    purge_room = f"#bp.client.mapper.purge -r {uid}"
-    area = differences.get("area")
+    for key in ("name", "terrain", "x", "y", "z"):
+        pair = _pair(differences.get(key))
+        if pair:
+            lines.append(f"  {key}: {_shown(pair[0], escape)} -> {_shown(pair[1], escape)}")
+    details = differences.get("details")
+    if isinstance(details, Mapping):
+        for key, value in details.items():
+            pair = _pair(value)
+            if pair:
+                lines.append(
+                    f"  details {escape(str(key))}: "
+                    f"{_shown(pair[0], escape)} -> {_shown(pair[1], escape)}"
+                )
+    area = _pair(differences.get("area"))
     if area:
-        old, new = area
-        lines.append(f"  area {old} -> {new}")
-        lines.append(f"  to drop the old area: #bp.client.mapper.purge -a {old}")
-        lines.append(f"  to drop this room: {purge_room}")
+        lines.append(f"  area {_shown(area[0], escape)} -> {_shown(area[1], escape)}")
+    held_exit = False
     exits = differences.get("exits")
-    if exits:
-        for direction, (old, new) in exits.items():
-            before = "none" if old is None else old
-            after = "none" if new is None else new
-            lines.append(f"  {direction}: {before} -> {after}")
-        lines.append(f"  to drop this room: {purge_room}")
+    if isinstance(exits, Mapping):
+        for direction, value in exits.items():
+            pair = _pair(value)
+            if pair:
+                held_exit = held_exit or pair[0] is not None
+                lines.append(
+                    f"  exit {escape(str(direction))}: "
+                    f"{_shown(pair[0], escape)} -> {_shown(pair[1], escape)}"
+                )
+    if area or held_exit:
+        lines.append(f"  to accept the held changes: #bp.client.mapper.accept {uid}")
+    if area:
+        lines.append(f"  to drop the old area: #bp.client.mapper.purge -a {area[0]}")
+    if held_exit:
+        lines.append(f"  if this room's exits vary: #bp.client.mapper.ignoreexits {uid}")
     return lines
 
 

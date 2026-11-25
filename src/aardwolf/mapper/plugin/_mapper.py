@@ -225,7 +225,13 @@ class MapperPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=EVENT_GMCP_AREA)
     def _eventcb_room_area(self) -> None:
-        """Store the area the MUD sent."""
+        """Store the area the MUD sent.
+
+        No ``request room`` follows, unlike the old plugin: ``_check_area`` asks for an area
+        only from ``_process_room``, after the room is stored and current, and a reply for
+        the same room would be ignored (same number in ``move_payload``, ``_current`` set in
+        ``_eventcb_room_info``, early return in ``_process_room``).
+        """
         kwargs = area_from_gmcp(self._record().get("data"))
         if kwargs is None:
             return
@@ -250,7 +256,7 @@ class MapperPlugin(BasePlugin):
         record = self._record()
         differences = record.get("differences")
         if isinstance(differences, dict):
-            self._client(mismatch_lines(str(record.get("uid")), differences))
+            self._client(mismatch_lines(str(record.get("uid")), differences, self._escape))
 
     # room flags
 

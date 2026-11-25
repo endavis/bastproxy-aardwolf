@@ -1,11 +1,13 @@
 """Tests for the pure helpers of the mapper plugin."""
 
+import re
 from typing import Any
 
 import pytest
 
 from aardwolf.mapper.libs import (
     MAX_AREA_ARG,
+    NORECALL_REGEX,
     PLACE_KINDS,
     SEARCHES,
     area_arg,
@@ -183,7 +185,8 @@ def test_mismatch_lines_area() -> None:
     lines = mismatch_lines("12", {"area": ("old", "new")})
     assert any("area old -> new" in line for line in lines)
     assert any("purge -a old" in line for line in lines)
-    assert any("purge -r 12" in line for line in lines)
+    assert not any("purge -r" in line for line in lines)
+    assert any("#bp.client.mapper.accept 12" in line for line in lines)
 
 
 def test_mismatch_lines_exits_and_both() -> None:
@@ -196,6 +199,68 @@ def test_mismatch_lines_exits_and_both() -> None:
     both = mismatch_lines("12", {"area": ("a", "b"), "exits": exits})
     assert any("area a -> b" in line for line in both)
     assert any("n: none -> 5" in line for line in both)
+    # a retargeted or removed exit is held by the core, so it gets the accept and ignore hints
+    assert any("mapper.accept 12" in line for line in lines)
+    assert any("mapper.ignoreexits 12" in line for line in lines)
+    # a new direction is written at once and needs no hint
+    fresh = mismatch_lines("12", {"exits": {"n": (None, "5")}})
+    assert any("exit n: none -> 5" in line for line in fresh)
+    assert not any("mapper." in line for line in fresh)
+
+
+@pytest.mark.parametrize("key", ["name", "terrain"])
+def test_mismatch_lines_single_change(key: str) -> None:
+    """A name or terrain change alone is shown, with no hint."""
+    lines = mismatch_lines("12", {key: ("Old", "New")})
+    assert lines == ["Mapper: room 12 differs from the map", f"  {key}: Old -> New"]
+
+
+def test_mismatch_lines_coordinates_and_details() -> None:
+    """Coordinates and detail changes are shown; a missing side is none."""
+    lines = mismatch_lines(
+        "12",
+        {"x": (None, 4), "y": (1, 2), "z": (0, -1), "details": {"details": ("bank", "bank,shop")}},
+    )
+    assert "  x: none -> 4" in lines
+    assert "  y: 1 -> 2" in lines
+    assert "  z: 0 -> -1" in lines
+    assert "  details details: bank -> bank,shop" in lines
+
+
+def test_mismatch_lines_escape() -> None:
+    """Every shown value goes through the escape callable."""
+    lines = mismatch_lines(
+        "12", {"name": ("a", "b"), "exits": {"n": ("c", None)}}, escape=lambda s: s.upper()
+    )
+    assert "  name: A -> B" in lines
+    assert "  exit N: C -> none" in lines
+
+
+@pytest.mark.parametrize(
+    "differences",
+    [{"area": "x"}, {"exits": [1]}, {"details": "y"}, {"exits": {"n": 5}}, {"name": ("a",)}],
+)
+def test_mismatch_lines_malformed(differences: dict[str, Any]) -> None:
+    """A malformed payload entry is ignored."""
+    assert mismatch_lines("12", differences) == ["Mapper: room 12 differs from the map"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("You cannot recall from this room.", True),
+        ("You cannot return home from this room.", True),
+        ("You cannot recall from this room. You feel trapped.", True),
+        ("You cannot return home from this room. Try later.", True),
+        ("You cannot recall.", False),
+        ("You can recall from this room.", False),
+        ("Bob says 'You cannot recall from this room.'", False),
+        ("You cannot portal from this room.", False),
+    ],
+)
+def test_norecall_regex(text: str, expected: bool) -> None:
+    """The norecall message matches with text after the period, like the trigger engine."""
+    assert bool(re.match(NORECALL_REGEX, text)) is expected
 
 
 @pytest.mark.parametrize(

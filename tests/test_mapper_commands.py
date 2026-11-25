@@ -41,6 +41,8 @@ def test_import_end_to_end(env: Env, db: Path) -> None:
     assert set(fake.rooms) == {"100", "101", "102", "103", "200"}
     assert fake.rooms["100"]["details"] == {"details": "bank,shop", "coord_id": None, "cont": None}
     assert fake.rooms["101"]["flags"] == ["norecall"]
+    assert fake.rooms["103"]["flags"] == ["ignoreexits"]
+    assert fake.rooms["100"]["flags"] == []
     assert fake.exits[("101", "n")]["requirement"] == {"level": 50}
     assert fake.exits[("101", "n")]["touid"] == "102"
     assert fake.exits[("100", "e")]["touid"] == "-1"
