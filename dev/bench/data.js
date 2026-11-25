@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795599674173,
+  "lastUpdate": 1795602100409,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2583,6 +2583,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000001404618734036012",
             "extra": "mean: 5.85412848726395 usec\nrounds: 176679"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05aa7aab93095ff7f5f54e3c43246875c6d0626c",
+          "message": "chore: bump virtualenv in the lock to clear the pip-audit finding (merges PR #141, addresses #140)\n\nuv lock --upgrade-package virtualenv moves the transitive dev dependency\nfrom 21.14.12 (PYSEC-2026-4402, fixed in 21.14.13) to 21.15.13.\npyproject.toml is unchanged; doit audit now finds no known\nvulnerabilities.\n\nAddresses #140\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T10:20:57Z",
+          "tree_id": "27a6aa9e77a8baa9e7e2376f28bd289623ecc319",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/05aa7aab93095ff7f5f54e3c43246875c6d0626c"
+        },
+        "date": 1795602099528,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3096730.1591002136,
+            "unit": "iter/sec",
+            "range": "stddev: 4.2417729334508345e-8",
+            "extra": "mean: 322.9212584316872 nsec\nrounds: 186916"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 167915.75505213224,
+            "unit": "iter/sec",
+            "range": "stddev: 9.06672291508866e-7",
+            "extra": "mean: 5.955367319103162 usec\nrounds: 173612"
           }
         ]
       }
