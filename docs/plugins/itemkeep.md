@@ -29,15 +29,21 @@ so it does not load until asked.
 
 ## Behaviour
 
-- It listens to three eq events, `eq_inventory_added`, `eq_taken` and `eq_removed`, each carrying
-  the item as a dict. An item that is not a dict (eq did not know it) is skipped.
+- It listens to four eq events, `eq_inventory_added`, `eq_taken`, `eq_removed` and
+  `eq_inventory_removed`, each carrying the item as a dict. The first three queue a keep;
+  `eq_inventory_removed` only makes the plugin forget the serial. An item that is not a dict (eq
+  did not know it) is skipped.
 - The item's `itype` names its type. When the setting for that type is on and the item's
   `shortflags` has no `K`, the plugin queues `keep <serial>`.
 - **The `K` guard.** An item already kept is skipped. Aardwolf follows a keep with an
   `{invitem}` line carrying the `K` flag, and eq updates its cached item from it. The plugin also
   remembers the serials it sent `keep` for and skips them, so a second item event before that
   line arrives sends no second `keep`. A second `keep` would do no harm: Aardwolf's `keep` does not
-  toggle, it answers that the item is already kept. The memory is cleared on disconnect.
+  toggle, it answers that the item is already kept. An entry is forgotten when eq raises
+  `eq_inventory_removed` for its serial (invmon 3 or 7: dropped, given, sold or consumed), and the
+  whole memory is cleared on disconnect. So an item you unkeep, drop and pick up again is kept
+  again. An unkept item that stays with the character (worn, or moved through a bag, the keyring
+  or the vault) stays unkept.
 - **The `keep` is a hidden queued command.** It goes through the mudcmds queue as the type
   `itemkeep_keep`, so the client does not see the command's reply. The hide window opens at the
   reply line and closes at the prompt after the command finishes, so that prompt is hidden too,
@@ -99,11 +105,16 @@ None beyond the settings commands `set` and `list`.
 6. Only `eq_inventory_added` was handled. Items taken from a bag, the vault or the keyring, and
    worn items taken off, are now covered too.
 7. The class docstring said "handle aardwolf cp events".
+8. The old plugin sent `keep` on every `eq_inventory_added` without `K`. The port remembers its
+   keeps, forgets one when the item leaves the inventory, and so re-keeps only an item that left
+   and came back.
 
 The old `AUTOLOAD = False` is now `PLUGIN_REQUIRED = False`.
 
 ## Known gaps
 
+- An item that leaves while eq did not have it in the inventory raises no `eq_inventory_removed`,
+  so its entry stays until disconnect.
 - An item whose serial eq has not cached when invmon 4 arrives is missed: eq raises only `eq_put`
   with no item and refreshes, and the refreshed read raises nothing.
 - A `keep` reply other than the three recorded ones is shown, and the command waits for the

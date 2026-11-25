@@ -9,6 +9,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from ..libs import (
     EVENT_DISCONNECT,
     EVENT_EQ_INVENTORY_ADDED,
+    EVENT_EQ_INVENTORY_REMOVED,
     EVENT_EQ_REMOVED,
     EVENT_EQ_TAKEN,
     GROUP_REPLY,
@@ -21,6 +22,7 @@ from ..libs import (
     TRIGGERS,
     TYPE_KEEP,
     TriggerSpec,
+    keep_serial,
     should_keep,
 )
 
@@ -32,7 +34,8 @@ class ItemKeepPlugin(BasePlugin):
     def _phook_init_plugin(self) -> None:
         """Create the empty state."""
         # the serials a keep was sent for; eq never updates shortflags, so a cached item can
-        # come back without its K and a second keep might unkeep it. Cleared on disconnect.
+        # come back without its K and a second keep might unkeep it. Cleared on disconnect, and
+        # per serial when the item leaves the inventory.
         self._kept: set[int] = set()
         self._groups_ready = False
 
@@ -127,6 +130,16 @@ class ItemKeepPlugin(BasePlugin):
     def _eventcb_inventory_added(self) -> None:
         """An item was added to the inventory."""
         self._check(self._record().get("item"))
+
+    @RegisterToEvent(event_name=EVENT_EQ_INVENTORY_REMOVED)
+    def _eventcb_inventory_removed(self) -> None:
+        """An item left the inventory (dropped, given, sold or used): keep it again next time."""
+        item = self._record().get("item")
+        if not isinstance(item, dict):
+            return
+        serial = keep_serial(item)
+        if serial is not None:
+            self._kept.discard(serial)
 
     @RegisterToEvent(event_name=EVENT_EQ_TAKEN)
     def _eventcb_taken(self) -> None:

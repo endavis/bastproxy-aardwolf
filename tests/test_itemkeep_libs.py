@@ -5,9 +5,15 @@ import re
 import pytest
 
 from aardwolf._libs.itemu import OBJECTTYPES
-from aardwolf.eq.libs import SUFFIX_INVENTORY_ADDED, SUFFIX_REMOVED, SUFFIX_TAKEN
+from aardwolf.eq.libs import (
+    SUFFIX_INVENTORY_ADDED,
+    SUFFIX_INVENTORY_REMOVED,
+    SUFFIX_REMOVED,
+    SUFFIX_TAKEN,
+)
 from aardwolf.itemkeep.libs import (
     EVENT_EQ_INVENTORY_ADDED,
+    EVENT_EQ_INVENTORY_REMOVED,
     EVENT_EQ_REMOVED,
     EVENT_EQ_TAKEN,
     KEEP_HIDE_START,
@@ -106,6 +112,7 @@ def test_event_names_equal_eqs() -> None:
     assert f"ev_plugins.aardwolf.eq_{SUFFIX_INVENTORY_ADDED}" == EVENT_EQ_INVENTORY_ADDED
     assert f"ev_plugins.aardwolf.eq_{SUFFIX_TAKEN}" == EVENT_EQ_TAKEN
     assert f"ev_plugins.aardwolf.eq_{SUFFIX_REMOVED}" == EVENT_EQ_REMOVED
+    assert f"ev_plugins.aardwolf.eq_{SUFFIX_INVENTORY_REMOVED}" == EVENT_EQ_INVENTORY_REMOVED
 
 
 def test_the_reply_patterns_match_the_sample_lines() -> None:

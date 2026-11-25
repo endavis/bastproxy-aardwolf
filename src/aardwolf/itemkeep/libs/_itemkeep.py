@@ -9,6 +9,7 @@ from aardwolf._libs.itemu import OBJECTTYPES
 EVENT_EQ_INVENTORY_ADDED = "ev_plugins.aardwolf.eq_inventory_added"
 EVENT_EQ_TAKEN = "ev_plugins.aardwolf.eq_taken"
 EVENT_EQ_REMOVED = "ev_plugins.aardwolf.eq_removed"
+EVENT_EQ_INVENTORY_REMOVED = "ev_plugins.aardwolf.eq_inventory_removed"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 
 # the most lines hidden after the opening line; mudcmds counts the opening line too
