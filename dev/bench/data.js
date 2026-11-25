@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795604706875,
+  "lastUpdate": 1795605496869,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2735,6 +2735,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 7.799431263649532e-7",
             "extra": "mean: 4.792205496600219 usec\nrounds: 108649"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f70bdbe825391945824dad2f273970522ba1b7b5",
+          "message": "fix: turn the SCAN tag on so scanh sees the scan output (merges PR #145, addresses #143)\n\nscanh only reads scan lines between {scan} and {/scan}, which Aardwolf\nsends only while the character's SCAN tag is on, and nothing turned it\non. SCAN is set with the MUD's tags command, not option 102.\n\n- a102: new counted tag.toggle API for \"tags <name> on|off\". The first\n  request sends \"on\" and the last release sends \"off\", only while the\n  character is active and only for tags turned on during this\n  connection. Counted tags are sent once when the character becomes\n  active, and the sent set is cleared on disconnect. A reload sends\n  nothing.\n- scanh: requests SCAN at load and releases it on a real unload. The\n  {scan} and {/scan} lines are omitted, so the client does not see raw\n  tags.\n- Docs for a102 and scanh, including the note that tags names differ\n  from option 102 names.\n\nAddresses #143\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T11:17:41Z",
+          "tree_id": "164c0dd3f6dc70ceb8065a33ab5534be7b04a44f",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/f70bdbe825391945824dad2f273970522ba1b7b5"
+        },
+        "date": 1795605496482,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5316645.9824354695,
+            "unit": "iter/sec",
+            "range": "stddev: 1.4317174422600537e-8",
+            "extra": "mean: 188.08850604378895 nsec\nrounds: 55015"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 271107.1612596253,
+            "unit": "iter/sec",
+            "range": "stddev: 8.452839920676499e-7",
+            "extra": "mean: 3.6885783295202286 usec\nrounds: 145922"
           }
         ]
       }
