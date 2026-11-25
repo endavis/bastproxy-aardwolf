@@ -131,7 +131,8 @@ of this plugin). A browser needs a login session first: run the web plugin's log
 client and open the link it prints. The web plugin enforces this and allows GET only, so the pages
 change nothing. The routes are removed when this plugin unloads.
 
-The pages are under `/aardwolf/statdb/`, and `/aardwolf/statdb/` itself lists them as text.
+The pages are under `/aardwolf/statdb/`, and `/aardwolf/statdb/` itself lists them as text. `comp` is the one page the core `/` index leaves out,
+because it needs a query; `/aardwolf/statdb/` still lists it.
 
 | Route | Mirrors | Columns |
 | :--- | :--- | :--- |
@@ -144,7 +145,7 @@ The pages are under `/aardwolf/statdb/`, and `/aardwolf/statdb/` itself lists th
 | `gqmobs` | `gqs -n` | gq_id, num, name, location |
 | `mobs` | `mobs` | lvl, mob, txp, xp, rxp, oxp, tp, s, gold |
 | `mobkills` | `mobkills` | time (UTC), name, lvl, txp, gold, room, flags |
-| `comp?first=&second=` | `comp` | the comparison text; a name that does not exist is said so |
+| `comp?first=&second=` | `comp` | the comparison text; both names are required (400), an unknown one is 404 |
 | `chart/qp-per-day` | | quest points per day, the newest 30 days |
 | `chart/gold-per-day` | | gold per day, the newest 30 days |
 | `chart/level-time` | | minutes per level, the last 50 timed levels |
@@ -162,9 +163,21 @@ exact.
 the text commands show a formatted length. Dates are UTC. `result` is `Done` or `Failed`; the
 `levels` gap is the same one the `levels` command shows.
 
-**Detail views.** Table cells hold no links. The `-n` detail views are filters instead:
-`quests?f_id=3`, `levels?f_id=3`, `cpmobs?f_cp_id=3` and `gqmobs?f_gq_id=3`. The per-level kill
-summary of `levels -n` has no web page.
+**Links and detail views.** Some cells are links, each a path on this site:
+
+- `quests` and `levels` `id` link to `?f_id=<id>` on the same page.
+- `cps` `id` links to `cpmobs?f_cp_id=<id>` and `gqs` `id` to `gqmobs?f_gq_id=<id>`.
+- `mobkills` `room` links to the core mapper's `/client/mapper/room?uid=<room>`. The cell is plain
+  and empty when no room is set.
+
+A link cell keeps its column's name and type, so sorting, filtering and paging work as before. A
+page the web plugin refused to add has no link to it, and the cell stays a plain value. The `-n`
+detail views are filters: `quests?f_id=3`, `levels?f_id=3`, `cpmobs?f_cp_id=3` and
+`gqmobs?f_gq_id=3`. The per-level kill summary of `levels -n` has no web page.
+
+**The comparison.** `comp` needs `first` and `second`. A missing or empty name is answered with 400.
+A name that does not exist is answered with 404 and the text "milestone X does not exist", the same
+text as the command. Two names that exist give the comparison.
 
 **Charts.** Each chart is an SVG bar chart with every label escaped; it holds no script and no
 link. With no rows it says "No data". `chart/area-kills` has to map each room to an area: it asks

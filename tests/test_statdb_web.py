@@ -6,6 +6,7 @@ bastproxy is imported only inside functions: the library itself never imports it
 import sqlite3
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator
+from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -517,3 +518,86 @@ def test_room_kills_and_area_totals(db_path: Path) -> None:
     assert aggregate_areas(counts, areas, limit=1) == [("Sewer", 8.0)]
     assert aggregate_areas({1: 1, 2: 1}, {1: "B", 2: "A"}) == [("A", 1.0), ("B", 1.0)]
     assert aggregate_areas({}, {}) == []
+
+
+# link cells
+
+LINK_PATHS = {
+    "quests": "/aardwolf/statdb/quests",
+    "levels": "/aardwolf/statdb/levels",
+    "cpmobs": "/aardwolf/statdb/cpmobs",
+    "gqmobs": "/aardwolf/statdb/gqmobs",
+}
+
+
+def _linked(db_path: Path, route: str) -> list[list[Any]]:
+    from aardwolf.statdb.libs import MAPPER_ROOM_PATH, TABLE_PAGES, link_rows
+
+    paths = {**LINK_PATHS, "mapper-room": MAPPER_ROOM_PATH}
+    return link_rows(TABLE_PAGES[route], _rows(db_path, route), paths)
+
+
+def _link(path: str, key: str, value: int) -> dict[str, str]:
+    return {"text": str(value), "href": f"{path}?{key}={value}"}
+
+
+def test_link_cell_encodes_the_query_value() -> None:
+    """The query value is URL-encoded and the text is kept as given."""
+    from aardwolf.statdb.libs import link_cell
+
+    assert link_cell("a b", "/p", "k", "a b&c") == {"text": "a b", "href": "/p?k=a+b%26c"}
+
+
+def test_link_rows_links_each_listed_cell(db_path: Path) -> None:
+    """Each linked column's cells are link cells with the target's path and query key."""
+    quests = _linked(db_path, "quests")
+    assert [row[0] for row in quests] == [
+        _link("/aardwolf/statdb/quests", "f_id", 2),
+        _link("/aardwolf/statdb/quests", "f_id", 1),
+    ]
+    assert [row[0] for row in _linked(db_path, "levels")] == [
+        _link("/aardwolf/statdb/levels", "f_id", level_id) for level_id in (3, 2, 1)
+    ]
+    assert [row[0] for row in _linked(db_path, "cps")] == [
+        _link("/aardwolf/statdb/cpmobs", "f_cp_id", cp_id) for cp_id in (2, 1)
+    ]
+    assert [row[0] for row in _linked(db_path, "gqs")] == [
+        _link("/aardwolf/statdb/gqmobs", "f_gq_id", gq_id) for gq_id in (2, 1)
+    ]
+
+
+def test_link_rows_links_the_mobkill_room(db_path: Path) -> None:
+    """A mob kill's room links to the mapper room page."""
+    with closing(sqlite3.connect(db_path)) as db, db:
+        db.execute("UPDATE mobkills SET room_id = ? WHERE name = ?", (7, "a bat"))
+    rooms = [row[5] for row in _linked(db_path, "mobkills")]
+    assert rooms == [_link("/client/mapper/room", "uid", 7), None, None]
+
+
+def test_link_rows_leaves_an_unset_room_plain(db_path: Path) -> None:
+    """A mob kill without a room has a None cell, and the link keeps it None."""
+    assert [row[5] for row in _linked(db_path, "mobkills")] == [None, None, None]
+
+
+def test_link_rows_without_a_target_path_keeps_plain_values(db_path: Path) -> None:
+    """A target the web plugin refused has no path, so its cells stay raw values."""
+    from aardwolf.statdb.libs import TABLE_PAGES, link_rows
+
+    for route in ("quests", "levels", "cps", "gqs", "mobkills"):
+        assert link_rows(TABLE_PAGES[route], _rows(db_path, route), {}) == _rows(db_path, route)
+
+
+def test_linked_columns_keep_names_and_types() -> None:
+    """The column declarations the web plugin gets do not mention links."""
+    from aardwolf.statdb.libs import TABLE_PAGES
+
+    for route, name in (
+        ("quests", "id"),
+        ("levels", "id"),
+        ("cps", "id"),
+        ("gqs", "id"),
+        ("mobkills", "room"),
+    ):
+        columns = {column["name"]: column for column in TABLE_PAGES[route].route_columns()}
+        assert set(columns[name]) == {"name", "label", "type"}
+        assert columns[name]["type"] == "int"

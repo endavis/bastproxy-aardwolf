@@ -22,6 +22,7 @@ from ..libs import (
     DB_NAME,
     DB_VERSION,
     DEFAULT_MOBKILL_COUNT,
+    MAPPER_ROOM_PATH,
     MIGRATIONS,
     TABLE_PAGES,
     TABLES,
@@ -36,8 +37,8 @@ from ..libs import (
     cp_report,
     gq_report,
     level_report,
+    link_rows,
     list_milestones,
-    milestone_names,
     mob_report,
     mobkill_list,
     page_lines,
@@ -102,6 +103,7 @@ class StatdbPlugin(BasePlugin):
         """Initialize the instance."""
         self.statdb: StatStore | None = None
         self._web_pages: list[tuple[str, str]] = []
+        self._web_paths: dict[str, str] = {}
 
     @property
     def _backup_start_timer(self) -> str:
@@ -434,21 +436,30 @@ class StatdbPlugin(BasePlugin):
         """Serve the tables, the milestone comparison and the charts under the plugin's path."""
         add = self.api("plugins.core.web:web.route.add")
         self._web_pages = []
+        self._web_paths = {"mapper-room": MAPPER_ROOM_PATH}
 
         def register(
             subpath: str,
             handler: Callable[[WebRequest], Any],
             title: str,
             columns: list[dict[str, str]] | None = None,
+            *,
+            listed: bool = True,
         ) -> None:
-            path = add(self.plugin_id, subpath, handler, title, columns)
+            path = add(self.plugin_id, subpath, handler, title, columns, listed=listed)
             if path:
                 self._web_pages.append((path, title))
+                self._web_paths[subpath] = path
 
         add(self.plugin_id, "", self._web_index, "Stats pages", None)
         for page in TABLE_PAGES.values():
             register(page.route, self._table_handler(page), page.title, page.route_columns())
-        register("comp", self._web_comp, "Compare two milestones (?first=&second=)")
+        register(
+            "comp",
+            self._web_comp,
+            "Compare two milestones (?first=&second=)",
+            listed=False,
+        )
         for name, spec in CHARTS.items():
             register(f"chart/{name}", self._chart_handler(name), spec.title)
         register("chart/area-kills", self._web_area_chart, AREA_CHART_TITLE)
@@ -494,7 +505,7 @@ class StatdbPlugin(BasePlugin):
         return {
             "kind": "table",
             "title": page.title,
-            "rows": result.rows or [],
+            "rows": link_rows(page, result.rows or [], self._web_paths),
             "total": result.total,
             "lines": page_lines(page, result, self._formatters()),
         }
@@ -502,17 +513,29 @@ class StatdbPlugin(BasePlugin):
     async def _web_comp(self, request: WebRequest) -> dict[str, Any]:
         """Compare two milestones; a name that does not exist is said so."""
         title = "Compare milestones"
-        path = self._db_path()
-        if path is None:
-            return self._message_page(title, NO_DB)
-        names = milestone_names(
+        names = (
             request.query.get("first", "")[:MAX_MILESTONE_NAME],
             request.query.get("second", "")[:MAX_MILESTONE_NAME],
         )
+        if not all(names):
+            return {
+                "kind": "error",
+                "status": 400,
+                "message": "first and second milestone names are required",
+            }
+        path = self._db_path()
+        if path is None:
+            return self._message_page(title, NO_DB)
         try:
             rows = await asyncio.to_thread(read_milestone_rows, path, names)
         except sqlite3.Error:
             return self._unreadable(title)
+        if any(not row for row in rows):
+            return {
+                "kind": "error",
+                "status": 404,
+                "message": "; ".join(comparison_lines(names, rows, self._formatters())),
+            }
         return {
             "kind": "html",
             "title": title,

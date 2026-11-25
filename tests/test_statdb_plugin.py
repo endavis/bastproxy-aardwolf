@@ -46,6 +46,7 @@ class FakeApi:
             tuple[str, str, Callable[..., Any], str, list[dict[str, str]] | None]
         ] = []
         self.route_paths: bool = True
+        self.unlisted: set[str] = set()
         self.mapper_rooms: dict[str, dict[str, Any]] | None = None
         self.mapper_areas: dict[str, dict[str, Any]] = {}
 
@@ -80,8 +81,12 @@ class FakeApi:
         handler: Callable[..., Any],
         title: str,
         columns: list[dict[str, str]] | None = None,
+        *,
+        listed: bool = True,
     ) -> str | None:
         self.routes.append((owner, subpath, handler, title, columns))
+        if not listed:
+            self.unlisted.add(subpath)
         if not self.route_paths:
             return None
         return f"/aardwolf/statdb/{subpath}".rstrip("/")
@@ -644,6 +649,7 @@ def test_web_routes_are_registered_under_the_plugin(env: Env) -> None:
     for subpath, (_handler, _title, columns) in routes.items():
         assert (columns is not None) == (subpath in TABLE_ROUTES)
     assert [column["name"] for column in routes["mobs"][2] or []][:3] == ["lvl", "mob", "txp"]
+    assert env.fake.unlisted == {"comp"}
 
 
 def test_web_routes_follow_the_unload_contract(env: Env) -> None:
@@ -652,7 +658,9 @@ def test_web_routes_follow_the_unload_contract(env: Env) -> None:
 
     table = RouteTable()
     for owner, subpath, handler, title, columns in env.fake.routes:
-        path = table.add(owner, subpath, handler, title, columns)
+        path = table.add(
+            owner, subpath, handler, title, columns, listed=subpath not in env.fake.unlisted
+        )
         assert path == f"/aardwolf/statdb/{subpath}".rstrip("/")
         assert table.match(path) is not None
     assert table.count() == 15
@@ -678,7 +686,8 @@ def test_table_handler_returns_a_page_with_the_summary(env: Env) -> None:
     result = _call(env, "quests")
     assert result["kind"] == "table"
     assert result["total"] == 1
-    assert result["rows"][0][:2] == [1, 20]
+    assert result["rows"][0][1] == 20
+    assert result["rows"][0][0] == {"text": "1", "href": "/aardwolf/statdb/quests?f_id=1"}
     assert any(line.startswith("@GDB Stats") for line in result["lines"])
     paged = _call(env, "mobkills", {"count": "1", "page": "2"})
     assert paged["total"] == 2
@@ -700,15 +709,91 @@ def test_table_handler_says_when_there_is_nothing_to_show(env: Env) -> None:
     assert _call(env, "cps")["lines"] == ["No campaign stats available"]
 
 
-def test_comp_handler_compares_milestones(env: Env) -> None:
-    """The comp page compares two milestones, and names one that does not exist."""
+def test_comp_handler_statuses(env: Env) -> None:
+    """The comp page is 400 without both names, 404 for an unknown one, else the comparison."""
     _fill_web_data(env)
+    for query in ({}, {"first": "start"}, {"first": "", "second": "current"}):
+        result = _call(env, "comp", query)
+        assert result == {
+            "kind": "error",
+            "status": 400,
+            "message": "first and second milestone names are required",
+        }
+    missing = _call(env, "comp", {"first": "nope' OR 1=1 --", "second": "current"})
+    assert missing == {
+        "kind": "error",
+        "status": 404,
+        "message": "milestone nope' OR 1=1 -- does not exist",
+    }
+    both = _call(env, "comp", {"first": "nope", "second": "nada"})
+    assert both["status"] == 404
+    assert both["message"] == "milestone nope does not exist; milestone nada does not exist"
     result = _call(env, "comp", {"first": "start", "second": "current"})
     assert result["kind"] == "html"
     assert result["lines"][0].split()[:3] == ["Milestone", "start", "current"]
-    assert _call(env, "comp")["lines"][0].split()[:3] == ["Milestone", "start", "current"]
-    missing = _call(env, "comp", {"first": "nope' OR 1=1 --"})
-    assert missing["lines"] == ["milestone nope' OR 1=1 -- does not exist"]
+
+
+def test_table_handler_links_cells(env: Env) -> None:
+    """The listed cells are link cells; a mob kill's room links to the core mapper."""
+    _fill_web_data(env)
+
+    def link(path: str, key: str, value: int) -> dict[str, str]:
+        return {"text": str(value), "href": f"{path}?{key}={value}"}
+
+    base = "/aardwolf/statdb"
+    assert _call(env, "quests")["rows"][0][0] == link(f"{base}/quests", "f_id", 1)
+    assert _call(env, "levels")["rows"][0][0] == link(f"{base}/levels", "f_id", 2)
+    assert _call(env, "cps")["rows"][0][0] == link(f"{base}/cpmobs", "f_cp_id", 1)
+    assert _call(env, "gqs")["rows"][0][0] == link(f"{base}/gqmobs", "f_gq_id", 1)
+    cells = [
+        cell for row in _call(env, "mobkills")["rows"] for cell in row if isinstance(cell, dict)
+    ]
+    assert cells == [
+        link("/client/mapper/room", "uid", 8),
+        link("/client/mapper/room", "uid", 7),
+    ]
+
+
+def test_linked_columns_still_sort_filter_and_page(env: Env) -> None:
+    """Sorting, filtering and paging work on the linked columns."""
+    _fill_web_data(env)
+    link = {"text": "8", "href": "/client/mapper/room?uid=8"}
+    desc = _call(env, "mobkills", {"sort": "room", "dir": "desc"})
+    assert desc["total"] == 2
+    assert link in desc["rows"][0]
+    filtered = _call(env, "mobkills", {"f_room": "7"})
+    assert filtered["total"] == 1
+    assert {"text": "7", "href": "/client/mapper/room?uid=7"} in filtered["rows"][0]
+    paged = _call(env, "cps", {"f_id": "1", "count": "1"})
+    assert paged["total"] == 1
+    assert paged["rows"][0][0] == {"text": "1", "href": "/aardwolf/statdb/cpmobs?f_cp_id=1"}
+
+
+def test_links_fall_back_to_plain_values_when_a_route_is_refused(env: Env) -> None:
+    """A refused route gives plain cells; the mapper room path is a constant."""
+    _fill_web_data(env)
+    env.fake.routes.clear()
+    env.fake.route_paths = False
+    env.plugin._add_web_routes()
+    assert _call(env, "quests")["rows"][0][0] == 1
+    assert _call(env, "cps")["rows"][0][0] == 1
+    cells = [cell for row in _call(env, "mobkills")["rows"] for cell in row]
+    assert {"text": "7", "href": "/client/mapper/room?uid=7"} in cells
+
+
+def test_core_index_omits_comp(env: Env) -> None:
+    """The route table lists the tables and leaves the comp page out of the core index."""
+    from bastproxy.plugins.core.web.libs._store import RouteTable
+
+    table = RouteTable()
+    for owner, subpath, handler, title, columns in env.fake.routes:
+        table.add(owner, subpath, handler, title, columns, listed=subpath not in env.fake.unlisted)
+    comp = table.match("/aardwolf/statdb/comp")
+    quests = table.match("/aardwolf/statdb/quests")
+    assert comp is not None
+    assert quests is not None
+    assert comp.listed is False
+    assert quests.listed is True
 
 
 def test_chart_handlers_return_svg(env: Env) -> None:
@@ -756,7 +841,8 @@ def test_pages_say_so_when_there_is_no_database(env: Env) -> None:
     env.plugin.statdb = None
     for subpath in TABLE_ROUTES:
         assert _call(env, subpath)["lines"] == ["The stats database is not available"]
-    assert _call(env, "comp")["lines"] == ["The stats database is not available"]
+    both = {"first": "start", "second": "current"}
+    assert _call(env, "comp", both)["lines"] == ["The stats database is not available"]
     for subpath in CHART_ROUTES:
         result = _call(env, subpath)
         assert "The stats database is not available" in result["svg"]
@@ -775,7 +861,8 @@ def test_pages_say_so_when_the_database_cannot_be_read(
     for name in ("read_table", "read_milestone_rows", "read_chart", "read_room_kills"):
         monkeypatch.setattr(_statdb, name, fail)
     assert _call(env, "quests")["lines"] == ["The stats database could not be read"]
-    assert _call(env, "comp")["lines"] == ["The stats database could not be read"]
+    both = {"first": "start", "second": "current"}
+    assert _call(env, "comp", both)["lines"] == ["The stats database could not be read"]
     assert "The stats database could not be read" in _call(env, "chart/qp-per-day")["svg"]
     assert "The stats database could not be read" in _call(env, "chart/area-kills")["svg"]
 
@@ -802,7 +889,7 @@ def test_real_web_app_gates_and_serves_the_routes(
     _fill_web_data(env)
     routes = RouteTable()
     for owner, subpath, handler, title, columns in env.fake.routes:
-        routes.add(owner, subpath, handler, title, columns)
+        routes.add(owner, subpath, handler, title, columns, listed=subpath not in env.fake.unlisted)
     sessions = SessionStore()
     app = WebApp(PageStore(), routes=routes, sessions=sessions)
     cookies = {SESSION_COOKIE: sessions.create(60)}
@@ -838,4 +925,46 @@ def test_real_web_app_gates_and_serves_the_routes(
     assert response.status == 200
     assert b"a rat" in response.body
     assert len(opened) == 1
+    assert b"<a href='/aardwolf/statdb/quests?f_id=1'>1</a>" in response.body
+    comp = "/aardwolf/statdb/comp"
+    assert get(Request("GET", comp, {}, cookies)).status == 400
+    assert get(Request("GET", comp, {"first": "nope", "second": "current"}, cookies)).status == 404
+    assert get(Request("GET", comp, {"first": "start", "second": "current"}, cookies)).status == 200
+    kills = get(Request("GET", "/aardwolf/statdb/mobkills", {}, cookies))
+    assert kills.status == 200
+    assert b"<a href='/client/mapper/room?uid=7'>7</a>" in kills.body
     assert get(Request("GET", "/aardwolf/statdb/chart/qp-per-day", {}, cookies)).status == 200
+
+
+def test_mud_text_in_link_text_stays_escaped(env: Env) -> None:
+    """Through the web app, MUD text and the text of a link cell are both HTML-escaped."""
+    import asyncio
+
+    from bastproxy.plugins.core.web.libs._http import Request
+    from bastproxy.plugins.core.web.libs._server import SESSION_COOKIE, WebApp
+    from bastproxy.plugins.core.web.libs._store import PageStore, RouteTable, SessionStore
+
+    from aardwolf.statdb.libs import link_cell
+
+    _start(env)
+    env.store.save_mobkill(
+        {"name": "<b>x&</b>", "totalxp": 4, "time": 2600, "level": 5, "room_id": 7}
+    )
+    routes = RouteTable()
+    for owner, subpath, handler, title, columns in env.fake.routes:
+        routes.add(owner, subpath, handler, title, columns, listed=subpath not in env.fake.unlisted)
+    routes.add("test", "evil", lambda _request: {
+        "kind": "table",
+        "title": "Evil",
+        "rows": [[link_cell("<i>", "/aardwolf/statdb/quests", "f_id", 1)]],
+        "total": 1,
+        "lines": [],
+    }, "Evil", [{"name": "id", "label": "ID", "type": "text"}])  # fmt: skip
+    sessions = SessionStore()
+    app = WebApp(PageStore(), routes=routes, sessions=sessions)
+    cookies = {SESSION_COOKIE: sessions.create(60)}
+    body = asyncio.run(app.dispatch(Request("GET", "/aardwolf/statdb/mobkills", {}, cookies))).body
+    assert b"&lt;b&gt;x&amp;&lt;/b&gt;" in body
+    assert b"<b>" not in body
+    evil = asyncio.run(app.dispatch(Request("GET", "/test/evil", {}, cookies))).body
+    assert b"<a href='/aardwolf/statdb/quests?f_id=1'>&lt;i&gt;</a>" in evil
