@@ -167,12 +167,7 @@ class EqState:
                 self.move(serial, WORN, slot)
             else:
                 self.move(serial, cid)
-            holds_bags = cid == INVENTORY or cid in self.bag_cids()
-            if (
-                item["itype"] == CONTAINER_ITYPE
-                and holds_bags
-                and self.ensure_container(str(serial))
-            ):
+            if item["itype"] == CONTAINER_ITYPE and self.ensure_container(str(serial)):
                 new_bags.append(str(serial))
         if cid == INVENTORY:
             self._drop_stale_bags()

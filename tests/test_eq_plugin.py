@@ -970,3 +970,25 @@ def test_inv_grouping_and_nogroup(env: Env) -> None:
     assert any(line.startswith("(  2) ") for line in grouped)
     ungrouped = run_inv(env, nogroup=True)
     assert len([line for line in ungrouped if "a test potion" in line]) == 2
+
+
+# bags seen in any block (#146)
+
+WORN_BAG = "5001,,a test worn bag,1,11,0,24,-1"
+VAULT_BAG = "5002,,a test vault bag,1,11,0,-1,-1"
+
+
+def test_a_worn_bag_gets_a_container_and_is_read(env: Env) -> None:
+    env.fake.feed(["{eqdata}", WORN_BAG, "{/eqdata}"])
+    assert "eq_container_5001" in env.fake.types
+    assert "eq_container_5001" in env.fake.queued
+    env.fake.args = {"container": "5001"}
+    assert "does not exist" not in " ".join(env.plugin._command_inv().message)
+
+
+def test_a_vault_bag_gets_a_container_and_is_read(env: Env) -> None:
+    env.fake.feed(["{vault}", VAULT_BAG, "{/vault}"])
+    assert "eq_container_5002" in env.fake.types
+    assert "eq_container_5002" in env.fake.queued
+    env.fake.args = {"container": "5002"}
+    assert "does not exist" not in " ".join(env.plugin._command_inv().message)

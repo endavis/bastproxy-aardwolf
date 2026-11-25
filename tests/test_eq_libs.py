@@ -601,3 +601,25 @@ def test_vault_read_follows_the_vault_commit() -> None:
     assert vault_read(state) is False
     state.commit(VAULT, [])
     assert vault_read(state) is True
+
+
+# bags seen in any block (#146)
+
+
+@pytest.mark.parametrize("cid", [WORN, INVENTORY, KEYRING, VAULT])
+def test_commit_creates_a_container_for_a_bag_in_any_block(cid: str) -> None:
+    state = EqState()
+    bag = item(5001, "a test bag", itype=CONTAINER_ITYPE, wearslot=24 if cid == WORN else -1)
+    assert state.commit(cid, [bag]) == ["5001"]
+    assert state.container_copy(5001) == {"cid": "5001", "items": []}
+
+
+def test_a_worn_or_vault_bag_survives_an_inventory_commit() -> None:
+    state = EqState()
+    state.commit(WORN, [item(5001, "a worn bag", itype=CONTAINER_ITYPE, wearslot=24)])
+    state.commit(VAULT, [item(5002, "a vault bag", itype=CONTAINER_ITYPE)])
+    state.commit(INVENTORY, [item(1)])
+    assert sorted(state.bag_cids()) == ["5001", "5002"]
+    state.commit(WORN, [])
+    state.commit(INVENTORY, [item(1)])
+    assert state.bag_cids() == ["5002"]

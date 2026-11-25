@@ -64,8 +64,9 @@ kept from the client: the plugin still reads them, and other lines are shown as 
   refresh leaves no stray prompts. For the vault this also hides
   `{vaultcounts}...{/vaultcounts}`, which comes after `{/vault}`. Without prompt marking
   (promptfix not loaded) a window closes at the end tag and the prompt is shown.
-- **Bags.** A bag (item type 11) gets a container and a type the first time it is seen, and its
-  contents are queued. Both go when the bag leaves the inventory.
+- **Bags.** A bag (item type 11) gets a container and a type the first time it is seen in any
+  read (worn, inventory, keyring, vault or another bag), and its contents are queued. Both go when
+  the bag leaves the inventory.
 - **Reading.** When the character becomes active, and for `refresh`, the plugin queues worn,
   inventory and keyring, then the vault when GMCP `room.info.details` contains `bank`, then the
   bags. A missing value is not a bank. A mismatch that `invmon` shows queues the containers
@@ -253,7 +254,10 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 - **Changed: typed data commands.** A typed `eqdata` or `invdata` also updates the state, and is
   shown in full, because mudcmds never hides a typed command.
 - **Changed: a new bag is read when first seen,** and each bag has its own command type, so a typed
-  `invdata` cannot open the hide window of a queued `invdata <serial>`.
+  `invdata` cannot open the hide window of a queued `invdata <serial>`. As in the old plugin this
+  covers bags in Worn, on the keyring and in the vault. Nobody has checked whether Aardwolf
+  answers `invdata <serial>` for a bag in the vault or on the keyring; a refusal is shown and the
+  mudcmds timeout frees the queue.
 - **Known issue of `itemu`, not fixed here.** `itemu.parse_item_data` splits the comma `eqdata`
   layout on every comma, so a name with a comma is misparsed. The eq plugin does not use it for
   item lines.
