@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795593326836,
+  "lastUpdate": 1795596841593,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2507,6 +2507,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 7.183117884949317e-7",
             "extra": "mean: 5.739541135642901 usec\nrounds: 184366"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ae3b33a7943791ceef063685f58d5d64b66088de",
+          "message": "feat: link statdb web cells and return 404 and 400 from the comp page (merges PR #132, addresses #131)\n\nTable pages now return link cells: quests and levels ids link to the\nsingle-row view, cps and gqs ids to their mob lists, and a mob kill's\nroom to the core mapper's room page. Links are added after the query, so\nsorting, filtering and paging on those columns are unchanged.\n\nThe comp page needs both milestone names (400 otherwise) and returns 404\nfor a name that does not exist. It is registered with listed=False, so\nit stays off the core index; the lock moves core to d055c2a5 for that.\n\nAddresses #131\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T08:53:23Z",
+          "tree_id": "6283561bae5d1bc52eb85cd4ccf70d163bcf95b3",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/ae3b33a7943791ceef063685f58d5d64b66088de"
+        },
+        "date": 1795596841201,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3037271.328743362,
+            "unit": "iter/sec",
+            "range": "stddev: 8.252079709849145e-8",
+            "extra": "mean: 329.24289329585156 nsec\nrounds: 198413"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 158817.5940838293,
+            "unit": "iter/sec",
+            "range": "stddev: 9.479462668934754e-7",
+            "extra": "mean: 6.296531601354988 usec\nrounds: 167477"
           }
         ]
       }
