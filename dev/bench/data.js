@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795596841593,
+  "lastUpdate": 1795599674173,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2545,6 +2545,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.479462668934754e-7",
             "extra": "mean: 6.296531601354988 usec\nrounds: 167477"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1a8820f1706002327999839ee46d86ebb7784fc",
+          "message": "fix: leave NOEXP kills out of XP totals, averages and bonus flags (merges PR #135, addresses #133)\n\nmobk stores a NOEXP kill's would-have XP with noexp=1, but several\nreaders ignored the flag and reported that XP as gained:\n\n- statdb mobs report: XP sums and averages, and the Bonus and Blessing\n  Mobs counts and averages, now count only noexp = 0 kills\n- statdb level report and statmn level message: the kill count and\n  xp/mob average leave NOEXP kills out\n- statmn report: the Mobs XP total leaves NOEXP kills out\n- the text mob list and the web mobs page show no D/E flags on NOEXP rows\n\nKill counts other than those, gold, TP and special kills are unchanged.\nmobk and the schema are unchanged.\n\nAddresses #133\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T09:40:37Z",
+          "tree_id": "251c5ebb53595ce029cd4bbab5a23ae0be1902ed",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a1a8820f1706002327999839ee46d86ebb7784fc"
+        },
+        "date": 1795599673468,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2983964.6261628056,
+            "unit": "iter/sec",
+            "range": "stddev: 4.176929410428085e-8",
+            "extra": "mean: 335.12461616743036 nsec\nrounds: 190840"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170819.61938067593,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000001404618734036012",
+            "extra": "mean: 5.85412848726395 usec\nrounds: 176679"
           }
         ]
       }
