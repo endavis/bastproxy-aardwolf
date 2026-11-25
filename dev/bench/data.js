@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795602100409,
+  "lastUpdate": 1795602416681,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2621,6 +2621,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.06672291508866e-7",
             "extra": "mean: 5.955367319103162 usec\nrounds: 173612"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f91535d4167f003fd25b8d982edbdac36bdca815",
+          "message": "feat: make the idle command and glaze regex settings (merges PR #137, addresses #136)\n\nThe idle plugin now has two settings:\n- command (default look): sent when the glaze line fires, read at fire\n  time\n- regex (default ^Your eyes glaze over\\.$): an empty or invalid value is\n  refused by a validator; a change updates the trigger through\n  trigger.update, and a failed update is logged and leaves the trigger\n  on its last working regex\n\nTRIGGER_GLAZE stays a constant (the internal trigger name). The unused\nPLUGIN_ID is removed from the idle libs.\n\nAddresses #136\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T10:26:18Z",
+          "tree_id": "7ae96d66b6f901703cfe7dd3f5c72dbb140d0ef9",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/f91535d4167f003fd25b8d982edbdac36bdca815"
+        },
+        "date": 1795602415585,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3104973.3779376415,
+            "unit": "iter/sec",
+            "range": "stddev: 4.539800066958858e-8",
+            "extra": "mean: 322.0639529812044 nsec\nrounds: 191976"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 166092.8876332926,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010669265128325967",
+            "extra": "mean: 6.020727402896658 usec\nrounds: 173883"
           }
         ]
       }
