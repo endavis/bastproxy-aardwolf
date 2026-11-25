@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795565934658,
+  "lastUpdate": 1795592164342,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2431,6 +2431,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.140313331069639e-7",
             "extra": "mean: 3.519230062001212 usec\nrounds: 145752"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1779738f303962dbfa9b66673100451c901e436",
+          "message": "feat: add web pages for statdb: tables and charts (merges PR #129, addresses #128)\n\nfeat: add web pages for statdb tables and charts\n\nstatdb registers 15 routes under /aardwolf/statdb/ through the core web\nserver: a table page for each listing command (milestones, quests,\nlevels, cps, cpmobs, gqs, gqmobs, mobs, mobkills), a comp page, and four\nstatic SVG charts (quest points and gold per day, time per level, kills\nper area). The core server supplies GET-only routing, the session login\nand the 400 for bad table parameters.\n\nQueries are fixed fragments chosen by column name, with values bound,\nand run in asyncio.to_thread on a read-only connection. The text reports\nare split into a stats part and a summary part so the pages reuse them.\nCharts escape every label and contain no script. The core is moved to\nthe web-server commit in uv.lock.\n\nAddresses #128\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T07:35:25Z",
+          "tree_id": "e2021e05be7186dda1c86ed3afa494213034b3b9",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a1779738f303962dbfa9b66673100451c901e436"
+        },
+        "date": 1795592163949,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5123895.007556592,
+            "unit": "iter/sec",
+            "range": "stddev: 1.6453548497398315e-8",
+            "extra": "mean: 195.16403020070183 nsec\nrounds: 53377"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 269308.6809259545,
+            "unit": "iter/sec",
+            "range": "stddev: 4.855147072000732e-7",
+            "extra": "mean: 3.7132111618598236 usec\nrounds: 143390"
           }
         ]
       }
