@@ -13,6 +13,7 @@ from ._options import (
     parse_toggle,
     state_payloads,
 )
+from ._tags import tag_command, tag_name
 
 __all__ = [
     "A102_OPTION",
@@ -26,4 +27,6 @@ __all__ = [
     "parse_pair",
     "parse_toggle",
     "state_payloads",
+    "tag_command",
+    "tag_name",
 ]

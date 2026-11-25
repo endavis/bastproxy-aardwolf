@@ -45,7 +45,7 @@ def option_number(name: object) -> int | None:
     return OPTIONS.get(name.strip().upper())
 
 
-def apply_toggle(counts: dict[int, int], number: int, enable: bool) -> int | None:
+def apply_toggle[K](counts: dict[K, int], number: K, enable: bool) -> int | None:
     """Count one on or off request for ``number`` in ``counts``.
 
     Returns ``ON`` when the count went from 0 to 1, ``OFF`` when it went back to 0 and

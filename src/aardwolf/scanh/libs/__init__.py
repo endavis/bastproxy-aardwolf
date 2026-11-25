@@ -1,6 +1,7 @@
 """Pure helpers for the scan highlight plugin."""
 
 from ._scanh import (
+    API_A102_TAG_TOGGLE,
     CP_MOBS_API,
     EVENT_CP_COMP,
     EVENT_CP_FAILED,
@@ -20,6 +21,7 @@ from ._scanh import (
     SCAN_END_REGEX,
     SCAN_LINE_REGEX,
     SCAN_START_REGEX,
+    SCAN_TAG,
     SETTINGS,
     SOURCES,
     TRIGGER_END,
@@ -33,6 +35,7 @@ from ._scanh import (
 )
 
 __all__ = [
+    "API_A102_TAG_TOGGLE",
     "CP_MOBS_API",
     "EVENT_CP_COMP",
     "EVENT_CP_FAILED",
@@ -52,6 +55,7 @@ __all__ = [
     "SCAN_END_REGEX",
     "SCAN_LINE_REGEX",
     "SCAN_START_REGEX",
+    "SCAN_TAG",
     "SETTINGS",
     "SOURCES",
     "TRIGGER_END",

@@ -14,6 +14,8 @@ from aardwolf.a102.libs import (
     parse_pair,
     parse_toggle,
     state_payloads,
+    tag_command,
+    tag_name,
 )
 
 
@@ -102,3 +104,29 @@ def test_off_payloads_only_counted_options() -> None:
     """Only options with a count above 0 get an off payload, sorted by number."""
     assert off_payloads({52: 1, 7: 0, 5: 3}) == [bytes([5, OFF]), bytes([52, OFF])]
     assert off_payloads({}) == []
+
+
+def test_tag_name_normalizes() -> None:
+    """Case and surrounding whitespace are normalized."""
+    assert tag_name(" scan ") == "SCAN"
+    assert tag_name("SpellUps") == "SPELLUPS"
+
+
+@pytest.mark.parametrize("bad", [None, 5, "", "  ", "two words", "scan1", "sc-an"])
+def test_tag_name_rejects(bad: object) -> None:
+    """Non-str, empty, multi-word and non-alphabetic input give None."""
+    assert tag_name(bad) is None
+
+
+def test_tag_command() -> None:
+    """The command carries the lower-cased name and the state."""
+    assert tag_command("SCAN", True) == "tags scan on"
+    assert tag_command("SCAN", False) == "tags scan off"
+
+
+def test_apply_toggle_with_str_keys() -> None:
+    """Counting works the same with str keys."""
+    counts: dict[str, int] = {}
+    flags = [apply_toggle(counts, "SCAN", enable) for enable in (True, True, False, False, False)]
+    assert flags == [ON, None, None, OFF, None]
+    assert counts == {"SCAN": 0}

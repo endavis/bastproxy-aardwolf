@@ -28,6 +28,8 @@ EVENT_QUEST_FAILED = "ev_plugins.aardwolf.quest_failed"
 EVENT_QUEST_RESET = "ev_plugins.aardwolf.quest_reset"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 
+API_A102_TAG_TOGGLE = "plugins.aardwolf.a102:tag.toggle"
+SCAN_TAG = "SCAN"
 CP_MOBS_API = "plugins.aardwolf.cp:mobs.left.get"
 
 

@@ -23,12 +23,15 @@ The plugin id is `plugins.aardwolf.scanh`:
 #bp.core.pluginm.load plugins.aardwolf.scanh
 ```
 
-It loads with `aardwolf` too. It depends only on the events, triggers, settings and colors core
-plugins. It needs none of the [cp](cp.md), [gq](gq.md) or [quest](quest.md) plugins: it learns the
+It loads with `aardwolf` too. It depends on the events, triggers, settings and colors core plugins and on
+[a102](a102.md), which turns the MUD's `SCAN` tag on. It needs none of the [cp](cp.md), [gq](gq.md) or [quest](quest.md) plugins: it learns the
 targets from their events, so it works with any subset of them loaded.
 
 ## Behaviour
 
+- **Scan tag.** After load the plugin asks a102 for the `SCAN` tag (`tags scan on`, sent once the
+  character is active), so Aardwolf sends the `{scan}` and `{/scan}` lines. A real unload releases
+  it, which turns it off, so a user who had it on before loses it; a reload leaves it on.
 - **Scan lines.** The trigger `scanh_start` matches `{scan}` and turns on the trigger group
   `plugins.aardwolf.scanh.scan`. Its triggers match each line that starts with a space and the
   closing `{/scan}`, which turns the group off. Outside a scan the group is off and costs nothing.
@@ -38,7 +41,8 @@ targets from their events, so it works with any subset of them loaded.
 - **Output.** The line becomes `<text><back><line> - (CP) (Quest)@x`: the plain text of the line in
   the colours of the first source that matched, then one tag for each source that matched, in the
   order CP, GQ, Quest. A literal `@` in a mob name stays literal.
-- **Left alone.** A line with MXP mode set, and the `{scan}` and `{/scan}` lines themselves.
+- **Left alone.** A line with MXP mode set. The `{scan}` and `{/scan}` lines are omitted: the
+  triggers hide them from the client.
 - **Debug output.** It goes to the plugin's log at DEBUG, never to the client.
 
 ## Targets
@@ -79,6 +83,7 @@ The plugin raises no events. It listens to the events in the table above.
 
 ## Changes from the old plugin
 
+- **Scan tag.** The plugin turns the `SCAN` tag on itself and hides the tag lines.
 - **Name match.** The old plugin compared the tail of the line by length, so `rat` matched `pirat`.
   The character before the name must now not be a letter.
 - **More than one tag.** The old plugin replaced the line for each source, so only the last tag

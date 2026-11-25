@@ -11,6 +11,8 @@ import pytest
 from event_keys import assert_raised_described
 
 if TYPE_CHECKING:
+    from bastproxy.libs.records import NetworkData
+
     from aardwolf.a102.plugin._a102 import A102Plugin
 
 PLUGIN_ID = "plugins.aardwolf.a102"
@@ -28,6 +30,7 @@ class FakeApi:
         self.raised: list[tuple[str, dict[str, Any]]] = []
         self.record: dict[str, Any] = {}
         self.mud_enabled = False
+        self.active = False
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the stub for an API name."""
@@ -38,6 +41,7 @@ class FakeApi:
             "plugins.core.events:event.add": self._add,
             "plugins.core.events:event.raise": self._raise,
             "plugins.core.events:event.current.record.get": lambda: self.record,
+            "libs.api:character.is.active": lambda: self.active,
         }
         return stubs[name]
 
@@ -118,7 +122,7 @@ def test_after_load_when_link_already_up(plugin: A102Plugin, api: FakeApi) -> No
 
 def test_reload_caches_option_counts(plugin: A102Plugin) -> None:
     """The counts survive a reload."""
-    assert plugin.attributes_to_save_on_reload == ["option_counts"]
+    assert plugin.attributes_to_save_on_reload == ["option_counts", "tag_counts", "tags_sent"]
 
 
 def test_registrations() -> None:
@@ -135,6 +139,7 @@ def test_registrations() -> None:
         "ev_libs.net.mud_telopt_102_disabled",
         "ev_libs.net.client_telopt_102",
         "ev_libs.net.mud_telopt_102",
+        "ev_libs.net.mud_muddisconnect",
     }
     apis = {attr.api["name"] for attr in vars(Plugin).values() if hasattr(attr, "api")}
     assert {"option.toggle", "payload.send"} <= apis
@@ -325,6 +330,7 @@ def test_unload_sends_before_the_option_is_unregistered(enabled: A102Plugin, api
         return True
 
     stubs["libs.net.protocols:telopt.send"] = send
+    stubs["libs.api:character.is.active"] = lambda: False
     enabled.api = lambda name: stubs[name]  # type: ignore[assignment]
     enabled.option_counts = {7: 1, 52: 1}
     enabled.is_reloading_f = False
@@ -343,3 +349,134 @@ def test_raised_keys_are_all_described(plugin: A102Plugin, api: FakeApi) -> None
     plugin._eventcb_mud_data()
     assert len(api.raised) == 2
     assert_raised_described(api.raised, api.declared)
+
+
+@pytest.fixture
+def mud(make_plugin: Callable[[], A102Plugin], monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record the lines the plugin sends straight to the MUD."""
+    from aardwolf.a102.plugin import _a102
+
+    lines: list[str] = []
+
+    class FakeSend:
+        def __init__(self, message: NetworkData) -> None:
+            self.message = message
+
+        def __call__(self) -> None:
+            lines.extend(str(item.line) for item in self.message)
+
+    monkeypatch.setattr(_a102, "SendDataDirectlyToMud", FakeSend)
+    return lines
+
+
+def test_tag_toggle_active_counts(plugin: A102Plugin, api: FakeApi, mud: list[str]) -> None:
+    """While active, the first on and the last off send; the others only count."""
+    api.active = True
+    assert plugin._api_tag_toggle("scan", True) is True
+    assert mud == ["tags scan on"]
+    assert plugin.tags_sent == {"SCAN"}
+    plugin._api_tag_toggle("SCAN", True)
+    plugin._api_tag_toggle("SCAN", False)
+    assert mud == ["tags scan on"]
+    plugin._api_tag_toggle("SCAN", False)
+    assert mud == ["tags scan on", "tags scan off"]
+    assert plugin.tags_sent == set()
+    assert plugin.tag_counts == {"SCAN": 0}
+
+
+def test_tag_toggle_inactive_waits_for_character_active(
+    plugin: A102Plugin, api: FakeApi, mud: list[str]
+) -> None:
+    """While inactive a toggle only counts; the hook sends once, and not again on a reload."""
+    plugin._api_tag_toggle("SCAN", True)
+    assert mud == []
+    api.active = True
+    plugin._phook_character_active()
+    assert mud == ["tags scan on"]
+    plugin._phook_character_active()
+    assert mud == ["tags scan on"]
+
+
+def test_tag_hook_skips_released_tags(plugin: A102Plugin, api: FakeApi, mud: list[str]) -> None:
+    """A tag released before the character became active is not sent."""
+    plugin._api_tag_toggle("SCAN", True)
+    plugin._api_tag_toggle("SCAN", False)
+    api.active = True
+    plugin._phook_character_active()
+    assert mud == []
+
+
+def test_disconnect_resends_once(plugin: A102Plugin, api: FakeApi, mud: list[str]) -> None:
+    """A disconnect clears what was sent; the next character_active resends exactly once."""
+    api.active = True
+    plugin._api_tag_toggle("SCAN", True)
+    plugin._eventcb_mud_disconnected()
+    assert plugin.tags_sent == set()
+    plugin._phook_character_active()
+    plugin._phook_character_active()
+    assert mud == ["tags scan on", "tags scan on"]
+
+
+def test_invalid_tag_name(
+    plugin: A102Plugin, api: FakeApi, mud: list[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    """An invalid name returns False, warns and changes nothing."""
+    api.active = True
+    with caplog.at_level(logging.WARNING):
+        assert plugin._api_tag_toggle("two words", True) is False
+        assert plugin._api_tag_toggle(5, True) is False
+    assert mud == []
+    assert plugin.tag_counts == {}
+    assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+def test_unload_turns_off_sent_tags(plugin: A102Plugin, api: FakeApi, mud: list[str]) -> None:
+    """A real unload while active sends off for the tags sent, sorted; a reload sends nothing."""
+    api.active = True
+    plugin.tags_sent = {"SPELLUPS", "SCAN"}
+    plugin.is_reloading_f = True
+    plugin._phook_turn_tags_off()
+    assert mud == []
+    plugin.is_reloading_f = False
+    plugin._phook_turn_tags_off()
+    assert mud == ["tags scan off", "tags spellups off"]
+    assert plugin.tags_sent == set()
+
+
+def test_unload_inactive_sends_nothing(plugin: A102Plugin, api: FakeApi, mud: list[str]) -> None:
+    """A real unload while inactive sends nothing."""
+    plugin.tags_sent = {"SCAN"}
+    plugin.is_reloading_f = False
+    plugin._phook_turn_tags_off()
+    assert mud == []
+
+
+def test_unload_sends_tag_offs_before_unregister(
+    enabled: A102Plugin, api: FakeApi, mud: list[str]
+) -> None:
+    """The full uninitialize run sends the tag offs before api.toplevel.remove."""
+    events: list[str] = []
+    stubs: dict[str, Callable[..., Any]] = {}
+
+    def record(name: str) -> Callable[..., Any]:
+        def stub(*args: object, **kwargs: object) -> None:
+            events.append(name)
+
+        return stub
+
+    for name in (
+        f"{PLUGIN_ID}:plugin.state.save",
+        "plugins.core.events:event.raise",
+        "libs.api:api.toplevel.remove",
+        "libs.net.protocols:gmcp.modules.remove.for.owner",
+        "libs.net.protocols:telopt.unregister.for.owner",
+    ):
+        stubs[name] = record(name)
+    stubs["libs.api:character.is.active"] = lambda: True
+    stubs["libs.net.protocols:telopt.send"] = lambda option, payload: True
+    enabled.api = lambda name: stubs[name]  # type: ignore[assignment]
+    enabled.tags_sent = {"SCAN"}
+    enabled.is_reloading_f = False
+    enabled._send_to_mud = lambda line: events.append(line)  # type: ignore[method-assign]
+    enabled.uninitialize()
+    assert events.index("tags scan off") < events.index("libs.api:api.toplevel.remove")
