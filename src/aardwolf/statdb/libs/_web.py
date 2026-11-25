@@ -13,6 +13,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlencode
 
 from aardwolf._libs.aardu import LEVELS_PER_REMORT, LEVELS_PER_TIER, MAX_TIER, convert_level
 
@@ -95,6 +96,7 @@ class WebColumn:
     label: str
     type: str
     expr: str
+    link: str = ""
 
 
 @dataclass(frozen=True)
@@ -171,9 +173,12 @@ def _utc(column: str) -> str:
     return f"strftime('{MOBKILL_DATE_FORMAT}', {column}, 'unixepoch')"
 
 
-def _col(name: str, label: str, kind: str, expr: str = "") -> WebColumn:
-    """Return a column; a plain column is its own SQL expression."""
-    return WebColumn(name, label, kind, expr or name)
+def _col(name: str, label: str, kind: str, expr: str = "", link: str = "") -> WebColumn:
+    """Return a column; a plain column is its own SQL expression.
+
+    ``link`` names the target the column's cells link to, a key of ``LINK_QUERY_KEYS``.
+    """
+    return WebColumn(name, label, kind, expr or name, link)
 
 
 _RESULT = "CASE WHEN failed = 1 THEN 'Failed' ELSE 'Done' END"
@@ -208,7 +213,7 @@ TABLE_PAGES: dict[str, TablePage] = {
             "quests",
             "quest_id",
             (
-                _col("id", "ID", "int", "quest_id"),
+                _col("id", "ID", "int", "quest_id", "quests"),
                 _col("qp", "QP", "int"),
                 _col("mc", "MC", "int", "mccp"),
                 _col("tr", "TR", "int", "tierqp"),
@@ -242,7 +247,7 @@ TABLE_PAGES: dict[str, TablePage] = {
             "(SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart FROM levels)",
             "level_id",
             (
-                _col("id", "ID", "int", "level_id"),
+                _col("id", "ID", "int", "level_id", "levels"),
                 _col("lvl", "Lvl", "int", _level_of("level")),
                 _col("type", "T", "text", "CASE WHEN type = 'level' THEN 'L' ELSE 'P' END"),
                 _col("tr", "TR", "int", "trains"),
@@ -268,7 +273,7 @@ TABLE_PAGES: dict[str, TablePage] = {
             "campaigns",
             "cp_id",
             (
-                _col("id", "ID", "int", "cp_id"),
+                _col("id", "ID", "int", "cp_id", "cpmobs"),
                 _col("lvl", "Lvl", "text", _level_text("level")),
                 _col("qp", "QP", "int"),
                 _col("bn", "BN", "int", "bonusqp"),
@@ -305,7 +310,7 @@ TABLE_PAGES: dict[str, TablePage] = {
             "gquests",
             "gq_id",
             (
-                _col("id", "ID", "int", "gq_id"),
+                _col("id", "ID", "int", "gq_id", "gqmobs"),
                 _col("lvl", "Lvl", "text", _level_text("level")),
                 _col("qp", "QP", "int"),
                 _col("qm", "QM", "int", "qpmobs"),
@@ -375,7 +380,9 @@ TABLE_PAGES: dict[str, TablePage] = {
                 ),
                 _col("txp", "TXP", "int", "totalxp"),
                 _col("gold", "Gold", "int"),
-                _col("room", "Room", "int", "CASE WHEN room_id != 0 THEN room_id END"),
+                _col(
+                    "room", "Room", "int", "CASE WHEN room_id != 0 THEN room_id END", "mapper-room"
+                ),
                 _col("flags", "Flags", "text", _letters(SPECIAL_FLAGS)),
             ),
         ),
@@ -561,6 +568,46 @@ def page_lines(page: TablePage, result: TableResult, fmt: Formatters) -> list[st
     if page.summary:
         return SUMMARIES[page.summary](result.stats, fmt)
     return []
+
+
+MAPPER_ROOM_PATH = "/client/mapper/room"
+LINK_QUERY_KEYS: dict[str, str] = {
+    "quests": "f_id",
+    "levels": "f_id",
+    "cpmobs": "f_cp_id",
+    "gqmobs": "f_gq_id",
+    "mapper-room": "uid",
+}
+
+
+def link_cell(text: str, path: str, key: str, value: object) -> dict[str, str]:
+    """Return a link cell: the text and a same-origin path with one query value."""
+    return {"text": text, "href": f"{path}?{urlencode({key: str(value)})}"}
+
+
+def link_rows(
+    page: TablePage, rows: Sequence[Sequence[Any]], paths: Mapping[str, str]
+) -> list[list[Any]]:
+    """Return the rows with the cells of the page's linked columns as link cells.
+
+    ``paths`` maps a link target to its page path. A cell stays a plain value when its target
+    has no path or the value is None.
+    """
+    linked = [
+        (index, column.link, paths[column.link])
+        for index, column in enumerate(page.columns)
+        if column.link in paths and column.link in LINK_QUERY_KEYS
+    ]
+    result: list[list[Any]] = []
+    for row in rows:
+        cells = list(row)
+        for index, target, path in linked:
+            if cells[index] is not None:
+                cells[index] = link_cell(
+                    str(cells[index]), path, LINK_QUERY_KEYS[target], cells[index]
+                )
+        result.append(cells)
+    return result
 
 
 def read_milestone_rows(path: Path, names: Sequence[str]) -> list[dict[str, Any] | None]:
