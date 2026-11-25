@@ -21,6 +21,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 
 from ..libs import (
     ANYWHERE,
+    CEXIT_COLUMNS,
     CEXIT_MAX_TIMEOUT,
     CEXIT_MIN_TIMEOUT,
     CEXIT_TIMEOUT,
@@ -40,10 +41,18 @@ from ..libs import (
     MAPPER,
     NOPORTAL_REGEX,
     NORECALL_REGEX,
+    PLACE_COLUMNS,
+    PLACE_KINDS,
+    PORTAL_COLUMNS,
     SEARCHES,
+    WEB_ROUTE_ADD,
+    WEB_ROUTE_REMOVE,
     MushDbError,
     MushMap,
+    WebRequest,
+    area_arg,
     area_from_gmcp,
+    area_link,
     command_chunks,
     detail_matches,
     is_cexit,
@@ -59,9 +68,11 @@ from ..libs import (
     resolve_import_path,
     resolve_portal,
     room_from_gmcp,
+    room_link,
     room_uid,
     search_lines,
     table_lines,
+    table_view,
     to_int,
     total_wait,
 )
@@ -110,6 +121,7 @@ class MapperPlugin(BasePlugin):
         info = self._gmcp(GMCP_ROOM)
         if room_uid(info) is not None:
             self._process_room(info)
+        self._add_routes()
 
     @RegisterPluginHook("uninitialize")
     def _phook_uninitialize(self) -> None:
@@ -118,6 +130,8 @@ class MapperPlugin(BasePlugin):
         self._cancel_walk()
         self._mapper_api("requirement.unregister")(self.plugin_id)
         self._mapper_api("movement.unregister")(self.plugin_id)
+        if self.api("libs.api:api.exists")(WEB_ROUTE_REMOVE):
+            self.api(WEB_ROUTE_REMOVE)(self.plugin_id)
 
     # helpers
 
@@ -436,22 +450,27 @@ class MapperPlugin(BasePlugin):
 
     # searches
 
-    def _search(self, kind: str) -> CommandResult:
-        """List the rooms of an area that match a search, in room uid order."""
-        where = str(self._args().get("area") or "here").strip().lower()
-        if where == "here":
-            current = self._mapper_api("room.current.get")()
-            room = self._mapper_api("room.get")(current) if current else None
-            area = room.get("area") if room else None
-            if not area:
-                return CommandResult(False, ["Mapper: the current room is not known"])
-            where = str(area)
+    def _search_area(self, where: str) -> tuple[str, str | None]:
+        """Return the area id a search names (`here` is the current room's area) and, when it
+        cannot be told, a failure line."""
+        if where != "here":
+            return where, None
+        current = self._mapper_api("room.current.get")()
+        room = self._mapper_api("room.get")(current) if current else None
+        area = room.get("area") if room else None
+        if not area:
+            return where, "Mapper: the current room is not known"
+        return str(area), None
+
+    def _search_rows(self, kind: str, where: str) -> list[tuple[str, str, str, str]] | None:
+        """Return the (uid, name, area, found) rows of a search in an area id, in room uid
+        order; None when the area has no mapped rooms."""
         rooms = sorted(
             self._mapper_api("room.list")(area=where),
             key=lambda r: (to_int(r["uid"]), str(r["uid"])),
         )
         if not rooms:
-            return CommandResult(False, [f"Mapper: area {where} has no mapped rooms"])
+            return None
         rows: list[tuple[str, str, str, str]] = []
         for found in rooms:
             if kind == "notes":
@@ -463,6 +482,16 @@ class MapperPlugin(BasePlugin):
                 rows.append(
                     (str(found["uid"]), self._escape(str(found["name"])), str(found["area"]), match)
                 )
+        return rows
+
+    def _search(self, kind: str) -> CommandResult:
+        """List the rooms of an area that match a search, in room uid order."""
+        where, failure = self._search_area(str(self._args().get("area") or "here").strip().lower())
+        if failure:
+            return CommandResult(False, [failure])
+        rows = self._search_rows(kind, where)
+        if rows is None:
+            return CommandResult(False, [f"Mapper: area {where} has no mapped rooms"])
         if not rows:
             return CommandResult(True, [f"No {kind} found in {where}"])
         title = f"Mapper {kind} in {where}: {len(rows)} rooms"
@@ -579,6 +608,42 @@ class MapperPlugin(BasePlugin):
         )
         return CommandResult(True, [f"Mapper: recording custom exit ({text}) from {current}"])
 
+    def _exit_rows(
+        self, rooms: list[dict[str, Any]], exits_of: Callable[[str], list[dict[str, Any]]]
+    ) -> list[tuple[str, ...]]:
+        """Return the (uid, name, area, command, to, level) rows of the exits that `exits_of`
+        picks in each room, rooms in numeric uid order."""
+        rows: list[tuple[str, ...]] = []
+        for found in sorted(rooms, key=lambda r: (to_int(r["uid"]), str(r["uid"]))):
+            for item in exits_of(found["uid"]):
+                rows.append(
+                    (
+                        str(found["uid"]),
+                        self._escape(str(found["name"])),
+                        str(found["area"]),
+                        self._escape(str(item["dir"])),
+                        str(item["touid"]),
+                        str(requirement_level(item["requirement"])),
+                    )
+                )
+        return rows
+
+    def _cexit_rows(self, rooms: list[dict[str, Any]]) -> list[tuple[str, ...]]:
+        """Return the custom exit rows of rooms."""
+        return self._exit_rows(rooms, self._cexits_of)
+
+    def _lock_rows(self, rooms: list[dict[str, Any]]) -> list[tuple[str, ...]]:
+        """Return the rows of the exits of rooms that need a level above 0."""
+
+        def locked(uid: str) -> list[dict[str, Any]]:
+            return [
+                e
+                for e in self._mapper_api("exit.list")(uid)
+                if requirement_level(e["requirement"]) > 0
+            ]
+
+        return self._exit_rows(rooms, locked)
+
     @AddCommand()
     @AddParser(description="list the custom exits of an area or the current room")
     @AddArgument("where", help="here, thisroom or an area id", nargs="?", default="here")
@@ -597,20 +662,7 @@ class MapperPlugin(BasePlugin):
             )
         else:
             rooms = self._mapper_api("room.list")(area=where)
-        rooms = sorted(rooms, key=lambda r: (to_int(r["uid"]), str(r["uid"])))
-        rows: list[tuple[str, ...]] = []
-        for found in rooms:
-            for item in self._cexits_of(found["uid"]):
-                rows.append(
-                    (
-                        str(found["uid"]),
-                        self._escape(str(found["name"])),
-                        str(found["area"]),
-                        self._escape(str(item["dir"])),
-                        str(item["touid"]),
-                        str(requirement_level(item["requirement"])),
-                    )
-                )
+        rows = self._cexit_rows(rooms)
         if not rows:
             return CommandResult(True, [f"No custom exits found in {where}"])
         title = f"Mapper custom exits in {where}: {len(rows)}"
@@ -780,7 +832,16 @@ class MapperPlugin(BasePlugin):
     @AddArgument("filter", help="part of an area id", nargs="?", default="")
     def _command_portals(self) -> CommandResult:
         """List the portals and recalls, numbered, in area order."""
-        wanted = str(self._args().get("filter") or "").strip().lower()
+        rows = self._portal_rows(str(self._args().get("filter") or ""))
+        if not rows:
+            return CommandResult(True, ["No portals found"])
+        header = ("#", "kind", "area", "name", "to", "command", "level")
+        return CommandResult(True, table_lines(f"Mapper portals: {len(rows)}", header, rows))
+
+    def _portal_rows(self, wanted: str) -> list[tuple[str, ...]]:
+        """Return the (#, kind, area, name, to, command, level) rows of the portals whose room
+        area contains `wanted`; the numbers count all portals."""
+        wanted = wanted.strip().lower()
         rows: list[tuple[str, ...]] = []
         for number, portal in enumerate(self._portals(), start=1):
             room = self._known_room(portal["touid"])
@@ -798,10 +859,7 @@ class MapperPlugin(BasePlugin):
                     str(requirement_level(portal["requirement"])),
                 )
             )
-        if not rows:
-            return CommandResult(True, ["No portals found"])
-        header = ("#", "kind", "area", "name", "to", "command", "level")
-        return CommandResult(True, table_lines(f"Mapper portals: {len(rows)}", header, rows))
+        return rows
 
     @AddCommand()
     @AddParser(description="change the command of a portal")
@@ -873,3 +931,129 @@ class MapperPlugin(BasePlugin):
         for portal in portals:
             self._mapper_api("exit.remove")(portal["fromuid"], portal["dir"])
         return CommandResult(True, [f"Mapper: deleted {len(portals)} portals"])
+
+    # web pages
+
+    def _add_routes(self) -> None:
+        """Add the three table pages to the web server; nothing when the web plugin is absent."""
+        if not self.api("libs.api:api.exists")(WEB_ROUTE_ADD):
+            return
+        routes: tuple[
+            tuple[str, Callable[[WebRequest], dict[str, Any]], str, list[dict[str, str]]], ...
+        ] = (
+            ("portals", self._web_portals, "Mapper portals", PORTAL_COLUMNS),
+            ("cexits", self._web_cexits, "Mapper custom exits", CEXIT_COLUMNS),
+            (
+                "places",
+                self._web_places,
+                "Mapper shops, trainers, questors and notes",
+                PLACE_COLUMNS,
+            ),
+        )
+        for subpath, handler, title, columns in routes:
+            path = self.api(WEB_ROUTE_ADD)(self.plugin_id, subpath, handler, title, columns)
+            if path is None:
+                log_to(
+                    self.plugin_id, logging.WARNING, "the web server refused the %s page", subpath
+                )
+
+    @staticmethod
+    def _error(status: int, message: str) -> dict[str, Any]:
+        """Return the error response of a page."""
+        return {"kind": "error", "status": status, "message": message}
+
+    def _table(
+        self,
+        request: WebRequest,
+        title: str,
+        rows: list[list[Any]],
+        columns: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        """Return the table response: the page of rows the request asks for."""
+        query = request.table
+        if query is None:
+            return self._error(400, "this page needs a table request")
+        page, total = table_view(
+            rows,
+            columns,
+            sort=query.sort,
+            descending=query.descending,
+            filters=query.filters,
+            offset=query.offset,
+            count=query.count,
+        )
+        return {"kind": "table", "title": title, "rows": page, "total": total}
+
+    def _area_cell(self, area: str) -> str | dict[str, str]:
+        """Return the cell of an area id: a link to its page, or empty text."""
+        return area_link(area, self._escape(area)) if area else ""
+
+    def _web_portals(self, request: WebRequest) -> dict[str, Any]:
+        """Serve the portals and recalls, the rows of the portals command."""
+        rows: list[list[Any]] = []
+        for number, kind, area, name, touid, command, level in self._portal_rows(""):
+            rows.append(
+                [
+                    to_int(number.removeprefix("#")),
+                    kind,
+                    self._area_cell(area),
+                    room_link(touid, name) if area else name,
+                    touid,
+                    command,
+                    to_int(level),
+                ]
+            )
+        return self._table(request, "Mapper portals", rows, PORTAL_COLUMNS)
+
+    def _area_rooms(
+        self, request: WebRequest
+    ) -> tuple[str, list[dict[str, Any]], dict[str, Any] | None]:
+        """Return the area the `area` query names with its rooms, or an error response."""
+        area = area_arg(request.query.get("area", ""))
+        if area is None:
+            return "", [], self._error(400, "the area is too long")
+        where, failure = self._search_area(area)
+        if failure:
+            return where, [], self._error(404, failure)
+        rooms: list[dict[str, Any]] = self._mapper_api("room.list")(area=where)
+        if not rooms:
+            return where, [], self._error(404, f"area {where} has no mapped rooms")
+        return where, rooms, None
+
+    def _web_cexits(self, request: WebRequest) -> dict[str, Any]:
+        """Serve the custom exits of one area, or its locked exits with `show=locks`."""
+        show = request.query.get("show", "").strip().lower()
+        if show not in ("", "cexits", "locks"):
+            return self._error(400, "show is cexits or locks")
+        where, rooms, failure = self._area_rooms(request)
+        if failure:
+            return failure
+        found = self._lock_rows(rooms) if show == "locks" else self._cexit_rows(rooms)
+        rows: list[list[Any]] = [
+            [
+                uid,
+                room_link(uid, name),
+                self._area_cell(area),
+                command,
+                touid,
+                to_int(level),
+            ]
+            for uid, name, area, command, touid, level in found
+        ]
+        label = "Locked exits" if show == "locks" else "Custom exits"
+        return self._table(request, f"{label} in {where}", rows, CEXIT_COLUMNS)
+
+    def _web_places(self, request: WebRequest) -> dict[str, Any]:
+        """Serve the shops, trainers, questors or noted rooms of one area."""
+        kind = request.query.get("kind", "").strip().lower() or PLACE_KINDS[0]
+        if kind not in PLACE_KINDS:
+            return self._error(400, f"kind is one of {', '.join(PLACE_KINDS)}")
+        where, _, failure = self._area_rooms(request)
+        if failure:
+            return failure
+        found = self._search_rows(kind, where) or []
+        rows: list[list[Any]] = [
+            [uid, room_link(uid, name), self._area_cell(area), match]
+            for uid, name, area, match in found
+        ]
+        return self._table(request, f"Mapper {kind} in {where}", rows, PLACE_COLUMNS)

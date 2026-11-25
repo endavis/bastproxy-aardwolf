@@ -15,6 +15,7 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.triggers",
     "plugins.core.colors",
     "plugins.core.commands",
+    "plugins.core.web",
     "plugins.aardwolf.move",
     "plugins.client.mapper",
 ]

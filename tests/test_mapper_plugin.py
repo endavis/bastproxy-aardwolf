@@ -10,7 +10,13 @@ from unittest.mock import MagicMock
 import pytest
 
 import aardwolf
-from aardwolf.mapper.libs import NOPORTAL_REGEX, NORECALL_REGEX
+from aardwolf.mapper.libs import (
+    CEXIT_COLUMNS,
+    NOPORTAL_REGEX,
+    NORECALL_REGEX,
+    PLACE_COLUMNS,
+    PORTAL_COLUMNS,
+)
 
 if TYPE_CHECKING:
     from bastproxy.plugins.core.commands import CommandResult
@@ -19,6 +25,7 @@ if TYPE_CHECKING:
 
 PLUGIN_ID = "plugins.aardwolf.mapper"
 MAPPER = "plugins.client.mapper"
+WEB = "plugins.core.web"
 ROOM_A: dict[str, Any] = {
     "num": 1234,
     "name": "@RA Room@w",
@@ -48,6 +55,21 @@ class FakeApi:
         self.args: dict[str, Any] = {}
         self.tasks: list[Coroutine[Any, Any, None]] = []
         self.mud: list[list[str]] = []
+        self.web = True
+        self.routes: dict[str, tuple[Callable[..., Any], str, list[dict[str, str]]]] = {}
+        self.route_result: str | None = "/aardwolf/mapper"
+        self.removed: list[str] = []
+
+    def _route_add(
+        self,
+        owner: str,
+        subpath: str,
+        handler: Callable[..., Any],
+        title: str,
+        columns: list[dict[str, str]],
+    ) -> str | None:
+        self.routes[subpath] = (handler, title, columns)
+        return self.route_result
 
     def called(self, name: str) -> list[tuple[Any, ...]]:
         """Return the arguments of each call of an API."""
@@ -74,6 +96,9 @@ class FakeApi:
             f"{MAPPER}:requirement.unregister": lambda owner: None,
             f"{MAPPER}:movement.register": self._register("movement"),
             f"{MAPPER}:movement.unregister": lambda owner: None,
+            "libs.api:api.exists": lambda name: self.web and name.startswith(WEB),
+            f"{WEB}:web.route.add": self._route_add,
+            f"{WEB}:web.route.remove": lambda owner: self.removed.append(owner),
             "plugins.core.events:event.current.record.get": lambda: self.record,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
             "libs.net.protocols:gmcp.send": lambda message: None,
@@ -471,3 +496,48 @@ def test_disconnect_drops_pending_cexit(env: Env, delays: list[float]) -> None:
     assert env.plugin._pending_cexit is None
     env.run_tasks()
     assert not any("no new room" in line for chunk in env.sent for line in chunk)
+
+
+def test_web_routes_are_added(env: Env) -> None:
+    """Loading adds the three table pages with their column specs."""
+    routes = env.fake.routes
+    assert set(routes) == {"portals", "cexits", "places"}
+    assert routes["portals"][2] == PORTAL_COLUMNS
+    assert routes["cexits"][2] == CEXIT_COLUMNS
+    assert routes["places"][2] == PLACE_COLUMNS
+    assert routes["portals"][0] == env.plugin._web_portals
+    assert len(env.fake.called("plugins.core.web:web.route.add")) == 3
+    assert all(call[0] == PLUGIN_ID for call in env.fake.called("plugins.core.web:web.route.add"))
+
+
+def test_no_routes_without_the_web_plugin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """With no web.route.add API nothing is added, and unloading removes nothing."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    fake = FakeApi()
+    fake.web = False
+    plugin = build(fake, [])
+    assert fake.routes == {}
+    plugin._phook_uninitialize()
+    assert fake.removed == []
+
+
+def test_a_refused_route_does_not_raise(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The web plugin returns None for a refused route; loading goes on."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    fake = FakeApi()
+    fake.route_result = None
+    build(fake, [])
+    assert len(fake.routes) == 3
+
+
+def test_unload_removes_the_routes(env: Env) -> None:
+    """Unloading takes the plugin's routes down."""
+    env.plugin._phook_uninitialize()
+    assert env.fake.removed == [PLUGIN_ID]
+
+
+def test_web_dependency() -> None:
+    """The plugin depends on the core web plugin."""
+    import aardwolf.mapper as package
+
+    assert "plugins.core.web" in package.PLUGIN_DEPENDENCIES
