@@ -9,6 +9,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from ..libs import (
+    API_A102_TAG_TOGGLE,
     CP_MOBS_API,
     EVENT_CP_COMP,
     EVENT_CP_FAILED,
@@ -28,6 +29,7 @@ from ..libs import (
     SCAN_END_REGEX,
     SCAN_LINE_REGEX,
     SCAN_START_REGEX,
+    SCAN_TAG,
     SETTINGS,
     TRIGGER_END,
     TRIGGER_LINE,
@@ -46,6 +48,8 @@ class ScanhPlugin(BasePlugin):
         """Start with no targets."""
         self.targets: dict[str, list[str]] = {}
         self._group_ready = False
+        self._scan_tag_on = False
+        self.attributes_to_save_on_reload = ["_scan_tag_on"]
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -54,18 +58,33 @@ class ScanhPlugin(BasePlugin):
             self.api("plugins.core.settings:setting.add")(
                 self.plugin_id, name, default, "color", help_text
             )
-        self._add_trigger(TRIGGER_START, SCAN_START_REGEX, self._trigger_start, False)
-        self._add_trigger(TRIGGER_END, SCAN_END_REGEX, self._trigger_end, True)
+        self._add_trigger(TRIGGER_START, SCAN_START_REGEX, self._trigger_start, False, omit=True)
+        self._add_trigger(TRIGGER_END, SCAN_END_REGEX, self._trigger_end, True, omit=True)
         self._add_trigger(TRIGGER_LINE, SCAN_LINE_REGEX, self._trigger_line, True)
         self._load_cp_targets()
+        if not self._scan_tag_on:
+            self._scan_tag_on = bool(self.api(API_A102_TAG_TOGGLE)(SCAN_TAG, True))
+
+    # Runs before the base uninitialize hook (priority 100).
+    @RegisterPluginHook("uninitialize", priority=10)
+    def _phook_uninitialize(self) -> None:
+        """On a real unload, release the SCAN tag; a reload keeps it, to not resend commands."""
+        if self.is_reloading_f or not self._scan_tag_on:
+            return
+        self._scan_tag_on = False
+        self.api(API_A102_TAG_TOGGLE)(SCAN_TAG, False)
 
     def _group(self) -> str:
         """Return the trigger group name; group names are global, so it carries the plugin id."""
         return f"{self.plugin_id}.{GROUP_SCAN}"
 
-    def _add_trigger(self, name: str, regex: str, func: Callable[[], None], grouped: bool) -> None:
+    def _add_trigger(
+        self, name: str, regex: str, func: Callable[[], None], grouped: bool, omit: bool = False
+    ) -> None:
         """Add a trigger and register its callback; the grouped ones start disabled."""
         kwargs: dict[str, Any] = {}
+        if omit:
+            kwargs["omit"] = True
         if grouped:
             kwargs["enabled"] = False
             kwargs["group"] = self._group()

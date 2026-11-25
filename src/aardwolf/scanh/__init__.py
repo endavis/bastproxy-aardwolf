@@ -12,4 +12,5 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.triggers",
     "plugins.core.settings",
     "plugins.core.colors",
+    "plugins.aardwolf.a102",
 ]

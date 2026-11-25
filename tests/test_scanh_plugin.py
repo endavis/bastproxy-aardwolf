@@ -1,5 +1,6 @@
 """Tests for the scan highlight plugin, with a stubbed API."""
 
+import ast
 import logging
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -48,6 +49,7 @@ class FakeApi:
         self.cp_exists = False
         self.cp_mobs: list[dict[str, Any]] = []
         self.cp_calls = 0
+        self.tag_toggles: list[tuple[str, bool]] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -61,11 +63,16 @@ class FakeApi:
                 (group, flag)
             ),
             "libs.api:api.exists": lambda api_name: self.cp_exists and api_name == CP_MOBS_API,
+            "plugins.aardwolf.a102:tag.toggle": self._tag_toggle,
             CP_MOBS_API: self._cp_mobs,
             "plugins.core.colors:colorcode.escape": lambda text: text.replace("@", "@@"),
             "plugins.core.colors:colorcode.to.ansicode": lambda text: text,
         }
         return table[name]
+
+    def _tag_toggle(self, name: str, enable: bool) -> bool:
+        self.tag_toggles.append((name, enable))
+        return True
 
     def _cp_mobs(self) -> list[dict[str, Any]]:
         self.cp_calls += 1
@@ -147,10 +154,78 @@ def test_after_load(env: Env) -> None:
     assert all(a[0] == PLUGIN_ID and a[3] == "color" for a in env.fake.settings_added)
     adds = {name: (regex, kwargs) for name, regex, kwargs in env.fake.trigger_adds}
     assert set(adds) == {"scanh_start", "scanh_end", "scanh_line"}
-    assert adds["scanh_start"][1] == {}
-    assert adds["scanh_end"] == (SCAN_END_REGEX, {"enabled": False, "group": GROUP})
+    assert adds["scanh_start"][1] == {"omit": True}
+    assert adds["scanh_end"] == (
+        SCAN_END_REGEX,
+        {"enabled": False, "group": GROUP, "omit": True},
+    )
     assert adds["scanh_line"] == (SCAN_LINE_REGEX, {"enabled": False, "group": GROUP})
     assert set(env.fake.trigger_regs) == set(adds)
+
+
+def test_tag_triggers_are_omitted(env: Env) -> None:
+    """The {scan} and {/scan} triggers hide their lines; the scan lines stay visible."""
+    env.plugin._phook_initialize()
+    omit = {name: kwargs.get("omit", False) for name, _, kwargs in env.fake.trigger_adds}
+    assert omit == {"scanh_start": True, "scanh_end": True, "scanh_line": False}
+
+
+def test_after_load_requests_scan_tag_once(env: Env) -> None:
+    """after_load asks for the SCAN tag; a restored flag (reload) does not ask again."""
+    env.plugin._phook_initialize()
+    assert env.fake.tag_toggles == [("SCAN", True)]
+    assert env.plugin._scan_tag_on is True
+    env.plugin._phook_initialize()
+    assert env.fake.tag_toggles == [("SCAN", True)]
+
+
+def test_reload_keeps_scan_tag_flag(env: Env) -> None:
+    """The flag is saved across a reload."""
+    assert env.plugin.attributes_to_save_on_reload == ["_scan_tag_on"]
+
+
+def test_unload_releases_scan_tag(env: Env) -> None:
+    """A real unload releases the tag once and clears the flag."""
+    env.plugin._phook_initialize()
+    env.plugin.is_reloading_f = False
+    env.plugin._phook_uninitialize()
+    env.plugin._phook_uninitialize()
+    assert env.fake.tag_toggles == [("SCAN", True), ("SCAN", False)]
+    assert env.plugin._scan_tag_on is False
+
+
+def test_reload_releases_nothing(env: Env) -> None:
+    """A reload leaves the tag on."""
+    env.plugin._phook_initialize()
+    env.plugin.is_reloading_f = True
+    env.plugin._phook_uninitialize()
+    assert env.fake.tag_toggles == [("SCAN", True)]
+    assert env.plugin._scan_tag_on is True
+
+
+def test_unload_without_request_releases_nothing(env: Env) -> None:
+    """Without an earlier request an unload calls nothing."""
+    env.plugin.is_reloading_f = False
+    env.plugin._phook_uninitialize()
+    assert env.fake.tag_toggles == []
+
+
+def test_imports_no_other_plugin() -> None:
+    """The plugin never imports another plugin."""
+    root = Path(aardwolf.__file__).resolve().parent / "scanh"
+    for path in root.rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names = [node.module]
+            for name in names:
+                assert not name.startswith("aardwolf.") or name.startswith("aardwolf.scanh")
+                assert not name.startswith("bastproxy.plugins.") or name in (
+                    "bastproxy.plugins._baseplugin",
+                    "bastproxy.plugins.core.events",
+                )
 
 
 def test_after_load_reads_cp(env: Env) -> None:
