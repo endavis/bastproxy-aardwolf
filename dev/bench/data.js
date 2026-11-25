@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795602416681,
+  "lastUpdate": 1795604221693,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2659,6 +2659,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010669265128325967",
             "extra": "mean: 6.020727402896658 usec\nrounds: 173883"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "303c1bdaef6ebd01ccc9f82e061580292f0adff4",
+          "message": "refactor: build each plugin's own event names from its plugin id (merges PR #142, addresses #138)\n\nPlugin libs no longer hold their own plugin id. The own-event constants\nbecome suffixes (SUFFIX_*), and each plugin builds the full name from\nself.plugin_id through the new aardwolf._libs.eventu helpers or the\n\"ev_{plugin_id}_var_<setting>_modified\" decorator template. Other\nplugins' events stay as literals. A new test scans every plugin's libs\nfor its own plugin id.\n\nTests that imported the removed constants build the expected names from\nthe test's plugin id.\n\nAddresses #138\n\nBREAKING CHANGE: the plugin libs packages no longer export PLUGIN_ID,\nPREFIX or their own EVENT_* constants (aflags, config, cp, daily, eq, gq,\niceage, itemid, level, mapper, mobk, move, promptfix, quest, repop,\nscanh, skills, su). The event names themselves are unchanged. Code that\nimported one of these constants should use the plugin id instead: inside\na plugin, aardwolf._libs.eventu.own_event(self.plugin_id, SUFFIX_<X>);\nfor another plugin's event, its full literal name.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T10:56:27Z",
+          "tree_id": "695d51cb320e1296cd4b61f988a9448c377b9619",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/303c1bdaef6ebd01ccc9f82e061580292f0adff4"
+        },
+        "date": 1795604220997,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3060240.825884418,
+            "unit": "iter/sec",
+            "range": "stddev: 4.145437692061568e-8",
+            "extra": "mean: 326.771668275812 nsec\nrounds: 197668"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 168929.92139113366,
+            "unit": "iter/sec",
+            "range": "stddev: 8.51531481935291e-7",
+            "extra": "mean: 5.919614428071861 usec\nrounds: 174826"
           }
         ]
       }
