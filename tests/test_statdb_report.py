@@ -420,3 +420,104 @@ def test_show_level_on_new_style_rows(empty: "StatStore") -> None:
     last = level_report(empty, 0, 2, formatters())
     assert last[-1] == "Finished : Current"
     assert not any("mobs killed" in line for line in last)
+
+
+NORMAL_KILL = {
+    "name": "a rat",
+    "time": 1500,
+    "xp": 10,
+    "rarexp": 4,
+    "bonusxp": 2,
+    "blessingxp": 3,
+    "totalxp": 19,
+    "gold": 5,
+}
+NOEXP_KILL = {
+    "name": "a bat",
+    "time": 1600,
+    "noexp": 1,
+    "xp": 100,
+    "rarexp": 50,
+    "bonusxp": 20,
+    "blessingxp": 30,
+    "totalxp": 200,
+    "gold": 7,
+    "vorpal": 1,
+}
+
+
+def test_mob_stats_leave_noexp_kills_out_of_xp(empty: "StatStore") -> None:
+    from aardwolf.statdb.libs import mob_stats
+
+    empty.save_mobkill(dict(NORMAL_KILL))
+    empty.save_mobkill(dict(NOEXP_KILL))
+    stats = mob_stats(empty.db)
+    expected = {
+        "xp": 10,
+        "rarexp": 4,
+        "bonusxp": 2,
+        "blessingxp": 3,
+        "totalxp": 19,
+        "avexp": 10,
+        "avetotalxp": 19,
+        "averarexp": 4,
+        "avebonusxp": 2,
+        "aveblessxp": 3,
+        "bonusmobsindb": 1,
+        "blessmobsindb": 1,
+        "raremobsindb": 2,
+        "indb": 2,
+        "gold": 12,
+        "vorpal": 1,
+    }
+    assert {key: stats[key] for key in expected} == expected
+
+
+def test_mob_stats_with_only_noexp_kills(empty: "StatStore") -> None:
+    from aardwolf.statdb.libs import mob_report, mob_stats
+
+    empty.save_mobkill(dict(NOEXP_KILL))
+    stats = mob_stats(empty.db)
+    assert stats["indb"] == 1
+    assert stats["raremobsindb"] == 1
+    assert stats["bonusmobsindb"] == 0
+    assert stats["blessmobsindb"] == 0
+    assert not stats["xp"]
+    assert not stats["totalxp"]
+    empty.db.modify("INSERT INTO stats (name, milestone) VALUES ('Tester', 'current')")
+    assert mob_report(empty, 5, formatters())
+
+
+def test_mob_line_has_no_bonus_flags_on_noexp_kills(empty: "StatStore") -> None:
+    from aardwolf.statdb.libs import mob_report
+
+    empty.db.modify("INSERT INTO stats (name, milestone) VALUES ('Tester', 'current')")
+    empty.save_mobkill(dict(NORMAL_KILL))
+    empty.save_mobkill(dict(NOEXP_KILL))
+    lines = mob_report(empty, 5, formatters())
+    normal_line, noexp_line = lines[-1], lines[-2]
+    assert "@R" not in normal_line
+    assert "DE" in normal_line.split()
+    assert "@R" in noexp_line
+    assert "D" not in noexp_line.split() and "DE" not in noexp_line.split()
+    assert "E" not in noexp_line.split()
+    assert "V" in noexp_line.split()
+
+
+def test_show_level_leaves_noexp_kills_out(empty: "StatStore") -> None:
+    from aardwolf.statdb.libs import level_report
+
+    _save_new_style(empty, [("level", 1000, 3), ("level", 2000, 2)])
+    empty.save_mobkill({"name": "a rat", "xp": 5, "totalxp": 20, "time": 1500})
+    empty.save_mobkill({"name": "a bat", "xp": 50, "totalxp": 500, "time": 1600, "noexp": 1})
+    lines = level_report(empty, 0, 1, formatters(), 6000.0)
+    assert lines[-2].startswith("It took 1000s with @G1@w mobs killed (@G20.00@w xp/mob)")
+
+
+def test_show_level_with_only_noexp_kills_has_no_mob_line(empty: "StatStore") -> None:
+    from aardwolf.statdb.libs import level_report
+
+    _save_new_style(empty, [("level", 1000, 3), ("level", 2000, 2)])
+    empty.save_mobkill({"name": "a bat", "xp": 50, "totalxp": 500, "time": 1600, "noexp": 1})
+    lines = level_report(empty, 0, 1, formatters(), 6000.0)
+    assert not any("mobs killed" in line for line in lines)

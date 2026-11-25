@@ -601,3 +601,17 @@ def test_linked_columns_keep_names_and_types() -> None:
         columns = {column["name"]: column for column in TABLE_PAGES[route].route_columns()}
         assert set(columns[name]) == {"name", "label", "type"}
         assert columns[name]["type"] == "int"
+
+
+def test_mobs_page_shows_no_bonus_flags_on_noexp_kills(empty_path: Path) -> None:
+    sql = (
+        "INSERT INTO mobkills(name, time, xp, totalxp, bonusxp, blessingxp, noexp) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    with closing(sqlite3.connect(empty_path)) as conn:
+        conn.execute("INSERT INTO stats (name, milestone) VALUES ('Tester', 'current')")
+        conn.execute(sql, ("a rat", 1000, 10, 15, 2, 3, 0))
+        conn.execute(sql, ("a bat", 1001, 100, 150, 20, 30, 1))
+        conn.commit()
+    flags = {row[1]: row[5] for row in _rows(empty_path, "mobs")}
+    assert flags == {"a rat": "DE", "a bat": ""}

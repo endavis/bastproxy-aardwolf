@@ -503,7 +503,7 @@ def show_level(
     if nextstart is not None:
         kills = store.db.select(
             "SELECT count(*) as count, AVG(totalxp) as average FROM "
-            "mobkills where time > ? and time < ? and xp > 0",
+            "mobkills where time > ? and time < ? and xp > 0 and noexp = 0",
             (item["starttime"], nextstart),
         )[0]
         count = kills["count"]
@@ -1009,13 +1009,13 @@ def mob_stats(db: ReadDb) -> dict[str, Any]:
     stats: dict[str, Any] = dict(current[0]) if current else {"monsterskilled": 0}
     stats.update(
         db.select(
-            """SELECT SUM(xp) AS xp,
-                  SUM(rarexp) as rarexp,
-                  SUM(bonusxp) AS bonusxp,
-                  SUM(blessingxp) AS blessingxp,
-                  SUM(totalxp) as totalxp,
-                  AVG(xp) AS avexp,
-                  AVG(totalxp) AS avetotalxp,
+            """SELECT SUM(CASE WHEN noexp = 0 THEN xp END) AS xp,
+                  SUM(CASE WHEN noexp = 0 THEN rarexp END) as rarexp,
+                  SUM(CASE WHEN noexp = 0 THEN bonusxp END) AS bonusxp,
+                  SUM(CASE WHEN noexp = 0 THEN blessingxp END) AS blessingxp,
+                  SUM(CASE WHEN noexp = 0 THEN totalxp END) as totalxp,
+                  AVG(CASE WHEN noexp = 0 THEN xp END) AS avexp,
+                  AVG(CASE WHEN noexp = 0 THEN totalxp END) AS avetotalxp,
                   SUM(tp) AS tp,
                   SUM(vorpal) AS vorpal,
                   SUM(assassinate) AS assassinate,
@@ -1033,19 +1033,19 @@ def mob_stats(db: ReadDb) -> dict[str, Any]:
         db.select(
             """SELECT AVG(bonusxp) as avebonusxp,
                  COUNT(*) as bonusmobsindb
-                 FROM mobkills where bonusxp > 0"""
+                 FROM mobkills where bonusxp > 0 and noexp = 0"""
         )[0]
     )
     stats.update(
         db.select(
             """SELECT AVG(blessingxp) as aveblessxp,
                  COUNT(*) as blessmobsindb
-                 FROM mobkills where blessingxp > 0"""
+                 FROM mobkills where blessingxp > 0 and noexp = 0"""
         )[0]
     )
     stats.update(
         db.select(
-            """SELECT AVG(rarexp) as averarexp,
+            """SELECT AVG(CASE WHEN noexp = 0 THEN rarexp END) as averarexp,
                  COUNT(*) as raremobsindb
                  FROM mobkills where rarexp > 0"""
         )[0]
@@ -1129,10 +1129,11 @@ def mobkill_list(store: StatStore, count: int, fmt: Formatters) -> list[str]:
 def _mob_line(item: dict[str, Any]) -> str:
     """Format a mob kill as a line of the mob list."""
     bonus = ""
-    if int(item["bonusxp"]) != 0:
-        bonus += "D"
-    if int(item["blessingxp"]) != 0:
-        bonus += "E"
+    if int(item["noexp"]) != 1:
+        if int(item["bonusxp"]) != 0:
+            bonus += "D"
+        if int(item["blessingxp"]) != 0:
+            bonus += "E"
     special = ""
     for column, letter in SPECIAL_FLAGS:
         if int(item[column]) == 1:
