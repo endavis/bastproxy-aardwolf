@@ -357,8 +357,8 @@ TABLE_PAGES: dict[str, TablePage] = {
                     "oxp",
                     "OXP",
                     "text",
-                    "(CASE WHEN bonusxp != 0 THEN 'D' ELSE '' END) "
-                    "|| (CASE WHEN blessingxp != 0 THEN 'E' ELSE '' END)",
+                    "(CASE WHEN noexp = 0 AND bonusxp != 0 THEN 'D' ELSE '' END) "
+                    "|| (CASE WHEN noexp = 0 AND blessingxp != 0 THEN 'E' ELSE '' END)",
                 ),
                 _col("tp", "TP", "int", "CASE WHEN tp = 1 THEN 1 ELSE 0 END"),
                 _col("s", "S", "text", _first_letter(SPECIAL_FLAGS)),

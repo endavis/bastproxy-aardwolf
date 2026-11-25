@@ -151,6 +151,9 @@ Bugs fixed:
    callback runs at priority 60, after statdb at 50.
 9. The SQL was built with `%` formatting. It uses bound `?` parameters.
 10. `SUM(...)` of no rows is `NULL`, which broke the report. Each sum is wrapped in `COALESCE(..., 0)`.
+11. NOEXP kills (`noexp = 1`) store the experience they would have given. The report's Mobs XP and
+    the level message's mob count and average leave them out. The report's Mobs count, gold and
+    TP still include them.
 
 Behaviour changes that are not bug fixes:
 

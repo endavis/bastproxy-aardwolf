@@ -291,6 +291,25 @@ def test_window_stats_sums_the_window_and_skips_failed(db: "Sqldb") -> None:
     ]
 
 
+def test_window_stats_leave_noexp_xp_out(db: "Sqldb") -> None:
+    mob = "INSERT INTO mobkills(time, totalxp, gold, tp, noexp) VALUES (?, ?, ?, ?, ?)"
+    db.modify(mob, (1000, 25, 10, 0, 0))
+    db.modify(mob, (1001, 500, 20, 1, 1))
+    rows = window_stats(_select(db), 500)
+    assert rows is not None
+    assert rows[-1] == StatRow("Mobs", 2, 25, 0, 1, 30)
+
+
+def test_level_kills_leave_noexp_kills_out(db: "Sqldb") -> None:
+    level = "INSERT INTO levels(starttime) VALUES (?)"
+    for start in (400, 1000):
+        db.modify(level, (start,))
+    mob = "INSERT INTO mobkills(time, xp, totalxp, noexp) VALUES (?, ?, ?, ?)"
+    db.modify(mob, (450, 10, 10, 0))
+    db.modify(mob, (500, 50, 90, 1))
+    assert level_kills(_select(db), 400, 1000) == (1, 10.0)
+
+
 def test_quest_average_ignores_failed_quests(db: "Sqldb") -> None:
     assert quest_average(_select(db)) == (0, 0.0)
     quest = "INSERT INTO quests(totqp, failed) VALUES (?, ?)"

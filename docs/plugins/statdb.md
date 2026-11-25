@@ -268,3 +268,7 @@ Bugs fixed in the port:
   level now.
 - **SQL injection.** The old code pasted values into its SQL. Every value is a bound parameter,
   and a stat name is checked against the `stats` columns first.
+- **NOEXP kills counted as experience.** Kills with `noexp = 1` store the experience they would
+  have given. They are left out of the level report's xp/mob and mob count, the `mobs` XP totals
+  and averages, and the Bonus and Blessing Mobs counts. They show no D/E in the `mobs` list or on
+  the `mobs` web page. Rare Mobs and the Overall count still include them.

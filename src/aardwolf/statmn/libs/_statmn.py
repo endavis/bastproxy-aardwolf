@@ -50,7 +50,9 @@ GQ_WINDOW_SQL = (
     "FROM gquests WHERE finishtime > ?"
 )
 MOB_WINDOW_SQL = (
-    "SELECT COUNT(*) AS total, COALESCE(SUM(totalxp), 0) AS xp, COALESCE(SUM(gold), 0) AS gold, "
+    "SELECT COUNT(*) AS total, "
+    "COALESCE(SUM(CASE WHEN noexp = 0 THEN totalxp END), 0) AS xp, "
+    "COALESCE(SUM(gold), 0) AS gold, "
     "COALESCE(SUM(tp), 0) AS tp FROM mobkills WHERE time > ?"
 )
 QUEST_AVERAGE_SQL = (
@@ -61,7 +63,7 @@ LEVEL_PREVIOUS_SQL = (
 )
 LEVEL_KILLS_SQL = (
     "SELECT COUNT(*) AS count, COALESCE(AVG(totalxp), 0) AS average FROM mobkills "
-    "WHERE time > ? AND time < ? AND xp > 0"
+    "WHERE time > ? AND time < ? AND xp > 0 AND noexp = 0"
 )
 
 # the order of the stats on a level message
