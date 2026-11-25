@@ -7,4 +7,8 @@ PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = False
-PLUGIN_DEPENDENCIES = ["plugins.core.triggers"]
+PLUGIN_DEPENDENCIES = [
+    "plugins.core.events",
+    "plugins.core.settings",
+    "plugins.core.triggers",
+]
