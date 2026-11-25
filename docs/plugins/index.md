@@ -46,7 +46,7 @@ lists every discovered plugin, loaded or not.
 | [itemid](itemid.md) | `plugins.aardwolf.itemid` | Identifies an item with `invdetails` and `identify`, saves the result through eq and eqdb, and shows it as an item box with the `id` command. |
 | [itemkeep](itemkeep.md) | `plugins.aardwolf.itemkeep` | Keeps items of chosen types with a hidden `keep` when they reach the inventory. |
 | [aarch](aarch.md) | `plugins.aardwolf.aarch` | Lists the Aarchaeology pieces still needed to complete the set, from the items eq has cached. |
-| [idle](idle.md) | `plugins.aardwolf.idle` | Sends `look` when Aardwolf warns that the character is idle, so it is not disconnected. |
+| [idle](idle.md) | `plugins.aardwolf.idle` | Sends a command (default `look`) when Aardwolf warns that the character is idle, so it is not disconnected. |
 | [daily](daily.md) | `plugins.aardwolf.daily` | Raises an event when the daily blessing can be received, and shows when the next one is with `next`. |
 | [afk](afk.md) | `plugins.aardwolf.afk` | Sets an AFK title and keeps the tells while no client that can play is connected. |
 | [aflags](aflags.md) | `plugins.aardwolf.aflags` | Keeps the character's affect flags from the `aflags` command and raises the flags added and removed. |

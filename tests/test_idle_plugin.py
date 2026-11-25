@@ -5,13 +5,13 @@ import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
 
 import aardwolf
-from aardwolf.idle.libs import GLAZE_REGEX
+from aardwolf.idle.libs import GLAZE_REGEX, regex_error
 
 if TYPE_CHECKING:
     from bastproxy.libs.records import NetworkData
@@ -29,14 +29,57 @@ class FakeApi:
         self.add_ok = add_ok
         self.triggers: dict[str, dict[str, Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
+        self.settings: dict[str, Any] = {}
+        self.validators: dict[str, Callable[[Any], str | None]] = {}
+        self.registered: dict[str, Callable[..., Any]] = {}
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
         table: dict[str, Callable[..., Any]] = {
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
+            "plugins.core.triggers:trigger.update": self._trigger_update,
+            "plugins.core.settings:setting.add": self._setting_add,
+            "plugins.core.settings:setting.get": self._setting_get,
+            "plugins.core.events:event.register": self._event_register,
         }
         return table[name]
+
+    def _setting_add(
+        self,
+        plugin_id: str,
+        name: str,
+        default: object,
+        stype: type,
+        help_text: str,
+        **kwargs: object,
+    ) -> None:
+        self.settings.setdefault(name, default)
+        if "validator" in kwargs:
+            self.validators[name] = cast("Callable[[Any], str | None]", kwargs["validator"])
+
+    def _setting_get(self, plugin_id: str, name: str) -> object:
+        return self.settings[name]
+
+    def set_setting(self, name: str, value: str) -> None:
+        """Set a setting like core does: run the validator, raise ValueError on an error."""
+        validator = self.validators.get(name)
+        error = validator(value) if validator else None
+        if error:
+            raise ValueError(error)
+        self.settings[name] = value
+
+    def _event_register(self, event_name: str, func: Callable[..., Any]) -> bool:
+        self.registered[event_name] = func
+        return True
+
+    def _trigger_update(self, name: str, changes: dict[str, Any]) -> bool:
+        try:
+            re.compile(changes["regex"])
+        except re.error:
+            return False
+        self.triggers[name]["regex"] = changes["regex"]
+        return True
 
     def _trigger_add(self, name: str, regex: str, **kwargs: object) -> SimpleNamespace:
         if not self.add_ok:
@@ -71,7 +114,12 @@ class Env:
         self.owners = owners
 
 
-def build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, add_ok: bool = True) -> Env:
+def build(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    add_ok: bool = True,
+    preset: dict[str, str] | None = None,
+) -> Env:
     """Build an IdlePlugin with a fake API and a fake send."""
     monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
     from aardwolf.idle.plugin import _idle
@@ -89,6 +137,7 @@ def build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, add_ok: bool = True) 
 
     monkeypatch.setattr(_idle, "SendDataDirectlyToMud", FakeSend)
     fake = FakeApi(add_ok)
+    fake.settings.update(preset or {})
     plugin = _idle.IdlePlugin.__new__(_idle.IdlePlugin)
     plugin.plugin_id = PLUGIN_ID
     plugin.api = MagicMock(side_effect=fake)
@@ -168,3 +217,65 @@ def test_add_failure(
     assert built.fake.callbacks == {}
     assert built.mud == []
     assert any("could not add" in r.getMessage() for r in caplog.records)
+
+
+def test_settings_added(env: Env) -> None:
+    """after_load adds both settings with their defaults and the regex validator."""
+    assert env.fake.settings == {"command": "look", "regex": GLAZE_REGEX}
+    assert env.fake.validators == {"regex": regex_error}
+
+
+def test_regex_event_registered(env: Env) -> None:
+    """after_load listens for the regex setting changing."""
+    assert env.fake.registered == {
+        "ev_plugins.aardwolf.idle_var_regex_modified": env.plugin._eventcb_regex_modified
+    }
+
+
+def test_preset_regex_used(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A persisted regex is the one the trigger is added with."""
+    built = build(monkeypatch, tmp_path, preset={"regex": r"^You are idle\.$"})
+    built.plugin._phook_initialize()
+    assert built.fake.triggers["glaze"]["regex"] == r"^You are idle\.$"
+    built.fake.feed(GLAZE_LINE)
+    assert built.mud == []
+    built.fake.feed("You are idle.")
+    assert built.mud == ["look"]
+
+
+def test_command_read_at_fire_time(env: Env) -> None:
+    """Changing the command setting changes the next send, with no reload."""
+    env.fake.set_setting("command", "score")
+    env.fake.feed(GLAZE_LINE)
+    assert env.mud == ["score"]
+
+
+def test_regex_change_updates_trigger(env: Env) -> None:
+    """A new regex setting retargets the trigger."""
+    env.fake.set_setting("regex", r"^You feel sleepy\.$")
+    env.plugin._eventcb_regex_modified()
+    env.fake.feed("You feel sleepy.")
+    assert env.mud == ["look"]
+    env.fake.feed(GLAZE_LINE)
+    assert env.mud == ["look"]
+
+
+def test_invalid_regex_refused(env: Env) -> None:
+    """The validator refuses a bad regex and nothing changes."""
+    with pytest.raises(ValueError, match="invalid regex"):
+        env.fake.set_setting("regex", "(")
+    assert env.fake.settings["regex"] == GLAZE_REGEX
+    assert env.fake.triggers["glaze"]["regex"] == GLAZE_REGEX
+    env.fake.feed(GLAZE_LINE)
+    assert env.mud == ["look"]
+
+
+def test_invalid_regex_in_store_keeps_trigger(env: Env, caplog: pytest.LogCaptureFixture) -> None:
+    """If a bad regex reaches the store anyway, the trigger keeps its working regex."""
+    env.fake.settings["regex"] = "("
+    with caplog.at_level("ERROR"):
+        env.plugin._eventcb_regex_modified()
+    assert env.fake.triggers["glaze"]["regex"] == GLAZE_REGEX
+    assert any("could not update" in r.getMessage() for r in caplog.records)
+    env.fake.feed(GLAZE_LINE)
+    assert env.mud == ["look"]
