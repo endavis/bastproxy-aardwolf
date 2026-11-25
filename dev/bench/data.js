@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795605496869,
+  "lastUpdate": 1795647977714,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2773,6 +2773,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.452839920676499e-7",
             "extra": "mean: 3.6885783295202286 usec\nrounds: 145922"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3bd7a09d9fe4ad4bb4b19b5b94aab55321ccd4f6",
+          "message": "fix: update the mapper adapter for core mismatch handling and norecall (merges PR #163, addresses #157, #158, #161)\n\n#161: mismatch_lines shows every difference the core mapper reports\n(name, terrain, x/y/z, details, area, exits), escapes the values, and\nfor a held area or exit change suggests #bp.client.mapper.accept <uid>\nand, for changed exits, #bp.client.mapper.ignoreexits <uid>, instead of\npurge -r. purge -a <old> stays for a replaced area. The MUSHclient import\nmaps rooms.ignore_exits_mismatch to the ignoreexits flag.\n\n#158: the norecall regex no longer ends in $, so the message matches with\ntext after the period, as in the old plugin.\n\n#157: no room request is sent after room.area. The room is stored and\ncurrent before its area is requested, and a reply for the same room is\nignored; the reason is recorded in the code and the plugin docs, and a\ntest pins it.\n\nuv.lock: bastproxy bumped to 487c4c4e (includes core #812 and #813, which\nadd accept and ignoreexits).\n\nApproved existing-test edit: test_mismatch_lines_area no longer expects\nthe purge -r hint and expects the accept hint.\n\nAddresses #157\nAddresses #158\nAddresses #161\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T23:05:41Z",
+          "tree_id": "b817377bd2630a32dcba00864fa2f482add4c543",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/3bd7a09d9fe4ad4bb4b19b5b94aab55321ccd4f6"
+        },
+        "date": 1795647977284,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4065656.3560031317,
+            "unit": "iter/sec",
+            "range": "stddev: 4.2499916331379025e-8",
+            "extra": "mean: 245.96274560279875 nsec\nrounds: 191645"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 223167.36326511402,
+            "unit": "iter/sec",
+            "range": "stddev: 5.938378201687423e-7",
+            "extra": "mean: 4.4809419503336585 usec\nrounds: 114247"
           }
         ]
       }
