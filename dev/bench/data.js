@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795647977714,
+  "lastUpdate": 1795648770973,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2811,6 +2811,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.938378201687423e-7",
             "extra": "mean: 4.4809419503336585 usec\nrounds: 114247"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a057567263a9ebb122c2f459f43c8bf8ae336d8c",
+          "message": "fix: refuse unknown strftime directives in time formats on every platform (merges PR #166, addresses #165)\n\ntime_format_error relied on how the C library treats an unknown\ndirective: glibc returns it unchanged and Windows raises, but macOS drops\nthe % and returns the letter, so %Q was accepted there (the nightly OS\nmatrix failed on test_time_format_refuses[%Q]).\n\nEach % directive is now checked against a fixed portable set (a A b B c\nd H I j m M p S U w W x X y Y Z z); %% is a literal percent but a format\nstill needs one real directive. Flags (%-d, %#d) and the E/O modifiers\nare platform-specific and refused. An unknown directive is named in the\nmessage (\"unsupported strftime directive: %Q\"). time.strftime still runs\nlast for errors it raises. Every settings default (daily, afk, statdb) is\naccepted, and a test mimics the BSD behaviour so Linux CI covers it.\n\nThe timeformat rows in the daily, statdb and afk docs list the accepted\ndirectives.\n\nAddresses #165\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T23:18:57Z",
+          "tree_id": "abc0e5f07ba9f9c73e737a3a19fe132bdd98208c",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/a057567263a9ebb122c2f459f43c8bf8ae336d8c"
+        },
+        "date": 1795648770585,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3596756.502517256,
+            "unit": "iter/sec",
+            "range": "stddev: 4.422646078146392e-8",
+            "extra": "mean: 278.0282733346368 nsec\nrounds: 196890"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 186736.62221407937,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000013989860953451133",
+            "extra": "mean: 5.355135956425173 usec\nrounds: 105486"
           }
         ]
       }
