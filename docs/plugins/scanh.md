@@ -57,11 +57,12 @@ The targets are kept in memory and start empty after a restart.
 | `ev_plugins.aardwolf.cp_comp`, `cp_failed` | Clear the cp targets. |
 | `ev_plugins.aardwolf.gq_done`, `gq_won`, `gq_completed`, `gq_cancelled` | Clear the gq targets. |
 | `ev_plugins.aardwolf.quest_killed`, `quest_comp`, `quest_failed`, `quest_reset` | Clear the quest target. |
+| `{scan}` (the `scanh_start` trigger) while `plugins.aardwolf.cp:oncp` is False or cp is not loaded | Clears the cp targets. |
 | `ev_libs.net.mud_muddisconnect` | Turns the scan group off. |
 
 Names come from `nocolorname`, or `name` when there is none. When the cp plugin is loaded before
 scanh, the plugin reads the campaign mobs left from the `plugins.aardwolf.cp:mobs.left.get` API at
-load. When cp loads later the targets stay empty until the next `cp_mobsleft`, which cp raises on
+load, only while `plugins.aardwolf.cp:oncp` is True. When cp loads later the targets stay empty until the next `cp_mobsleft`, which cp raises on
 every check and kill.
 
 ## Settings
@@ -95,6 +96,7 @@ The plugin raises no events. It listens to the events in the table above.
 - **Help text.** The text colour settings said "background color". They say "text color".
 - **Debug output.** The old plugin sent its debug messages to the client. They go to the log.
 - **cp mobs.** The old plugin called the cp plugin for the mobs on each line. The plugin keeps them
-  from `cp_mobsleft` and reads the cp API only once at load.
+  from `cp_mobsleft`. It reads `plugins.aardwolf.cp:oncp` once at each scan start, not once per
+  line, and reads the mobs from the cp API once at load.
 - **Scan group.** The old plugin registered a handler for every line of output during a scan. A
   disabled trigger group is turned on for the scan instead, and a disconnect turns it off.

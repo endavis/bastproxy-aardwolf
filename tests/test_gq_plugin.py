@@ -53,6 +53,7 @@ ALWAYS_ON = {
     "gq_quit",
     "gq_note",
     "gq_maxkills",
+    "gq_wonannounce",
 }
 DECLARED = "Global Quest: Global quest # 12 has been declared for levels 10 to 60 - some."
 JOINED = "You have now joined Global Quest # 12. Type gq info"
@@ -492,6 +493,30 @@ def test_extended_time_only_for_the_joined_gquest(env: Env) -> None:
     assert env.plugin.gqinfo["extended"] == 1
 
 
+def test_kill_of_a_name_at_several_locations_queues_a_check(env: Env) -> None:
+    """The first match counts down, and a check replaces the guess with the server's list."""
+    env.join(RAT, "You still have to kill 1 * A rat (Kitchen).")
+    env.fake.queued.clear()
+    env.fake.raised.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    (raised,) = env.fake.events(EVENT_MOBSLEFT)
+    assert [(m["location"], m["num"]) for m in raised["mobsleft"]] == [
+        ("Sewers", 1),
+        ("Kitchen", 1),
+    ]
+    assert env.fake.queued == [CMDTYPE]
+
+
+def test_kill_of_a_name_at_one_location_queues_no_check(env: Env) -> None:
+    """A name at one location is unambiguous."""
+    env.join(RAT, BAT)
+    env.fake.queued.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    assert env.fake.queued == []
+
+
 def test_win(env: Env) -> None:
     """A win raises won with the rewards, then leaves the gquest."""
     env.join(RAT)
@@ -518,13 +543,61 @@ def test_announce_of_another_winner_does_nothing(env: Env) -> None:
     assert env.fake.settings["joined"] == 12
 
 
-def test_announce_of_another_gquest_does_nothing(env: Env) -> None:
-    """A win announced for a gquest other than the one joined leaves the state alone."""
+def test_announce_of_another_gquest_number_still_raises_won(env: Env) -> None:
+    """A win for this character raises won even when the number is not the one joined."""
     env.join(RAT)
     env.fake.raised.clear()
     env.fake.feed(ANNOUNCE.replace("#12", "#13"))
+    (payload,) = env.fake.events(EVENT_WON)
+    assert payload["won"] == 1
+    assert env.fake.settings["joined"] == -1
+
+
+def test_announce_when_not_joined_raises_won(env: Env) -> None:
+    """With joined at -1 (after a reload) the announcement still raises won and sets it."""
+    assert env.fake.settings["joined"] == -1
+    env.fake.feed(ANNOUNCE)
+    (payload,) = env.fake.events(EVENT_WON)
+    assert payload["won"] == 1
+    assert payload["finishtime"] == NOW
+    assert env.fake.settings["joined"] == -1
+
+
+def test_announce_of_another_winner_when_not_joined_does_nothing(env: Env) -> None:
+    """Someone else winning raises nothing when no gquest is joined."""
+    env.fake.feed(ANNOUNCE.replace("Bast", "Other"))
     assert env.fake.raised == []
-    assert env.fake.settings["joined"] == 12
+
+
+def test_announce_winner_case_is_ignored(env: Env) -> None:
+    """The winner is compared without case."""
+    env.fake.feed(ANNOUNCE.replace("Bast", "BAST"))
+    assert len(env.fake.events(EVENT_WON)) == 1
+
+
+def test_announce_without_a_character_name_does_nothing(env: Env) -> None:
+    """Without a GMCP name the winner cannot be this character."""
+    del env.fake.gmcp["char.base.name"]
+    env.fake.feed(ANNOUNCE)
+    assert env.fake.raised == []
+
+
+def test_announce_without_the_won_line_is_counted_by_statdb(env: Env, tmp_path: Path) -> None:
+    """A win seen only from the announcement still counts in statdb."""
+    from aardwolf.statdb.libs import StatStore
+
+    env.join(RAT, BAT)
+    env.fake.feed(DEAD, ANNOUNCE)
+    payload = env.fake.events(EVENT_WON)[0]
+    database = make_db(tmp_path / "db")
+    try:
+        store = StatStore(database)
+        store.save_whois(WHOIS)
+        store.save_gq(payload)
+        stat = database.select("SELECT gquestswon FROM stats WHERE milestone = 'current'")
+        assert stat[0]["gquestswon"] == 1
+    finally:
+        database.close()
 
 
 def test_quoted_announce_does_not_match(env: Env) -> None:

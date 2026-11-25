@@ -533,6 +533,40 @@ def test_kill_of_unknown_mob_queues_a_check(env: Env) -> None:
     assert env.fake.queued == [CMDTYPE]
 
 
+RAT_KITCHEN = "You still have to kill * A rat (Kitchen)"
+
+
+def test_kill_of_a_name_at_several_locations_queues_a_check(env: Env) -> None:
+    """The first match goes, and a check replaces the guess with the server's list."""
+    env.take_cp(RAT, BAT, RAT_KITCHEN)
+    env.fake.queued.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    last = env.fake.events(EVENT_MOBSLEFT)[-1]
+    assert [(m["name"], m["location"]) for m in last["mobsleft"]] == [
+        ("A bat", "Cave"),
+        ("A rat", "Kitchen"),
+    ]
+    assert env.fake.queued == [CMDTYPE]
+    env.fake.feed(RAT, BAT, TIME)
+    last = env.fake.events(EVENT_MOBSLEFT)[-1]
+    assert [(m["name"], m["location"]) for m in last["mobsleft"]] == [
+        ("A rat", "Sewers"),
+        ("A bat", "Cave"),
+    ]
+
+
+def test_kill_of_a_name_at_one_location_queues_no_check(env: Env) -> None:
+    """Two mobs with the name at the same location are unambiguous."""
+    env.fake.feed(NEW, *info_lines("2 * A rat (Sewers)"), RAT, RAT, TIME)
+    assert len(env.plugin.cp["mobsleft"]) == 2
+    env.fake.queued.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    assert len(env.plugin.cp["mobsleft"]) == 1
+    assert env.fake.queued == []
+
+
 def test_completion_with_bonus_line(env: Env) -> None:
     """The bonus line sets bonusqp and raises the campaign once."""
     env.take_cp(RAT)

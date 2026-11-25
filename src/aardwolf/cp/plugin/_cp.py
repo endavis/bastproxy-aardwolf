@@ -49,6 +49,7 @@ from ..libs import (
     info_mobs,
     info_starttime,
     is_count_line,
+    name_has_several_locations,
     new_campaign_regex,
     new_mob,
     new_state,
@@ -455,10 +456,19 @@ class CpPlugin(BasePlugin):
         self._await_kill = False
         name = str(self._record().get("name", ""))
         mobsleft = list(self.cp.get("mobsleft", []))
+        ambiguous = name_has_several_locations(mobsleft, name)
         if remove_mob(mobsleft, name):
             self.cp["mobsleft"] = mobsleft
             self.cp.sync()
             self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+            if ambiguous:
+                log_to(
+                    [self.plugin_id],
+                    logging.DEBUG,
+                    "mob at several locations, checking: %s",
+                    name,
+                )
+                self._queue_check()
         else:
             log_to([self.plugin_id], logging.DEBUG, "could not find the mob: %s", name)
             self._queue_check()

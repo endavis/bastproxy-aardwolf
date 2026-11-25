@@ -40,6 +40,7 @@ from ..libs import (
     WATCH_REGEX,
     TriggerSpec,
     count_down,
+    name_has_several_locations,
     new_mob,
     new_state,
     reward_key,
@@ -394,17 +395,31 @@ class GqPlugin(BasePlugin):
         self._toggle_group(GROUP_REW, True)
 
     def _trigger_wonannounce(self) -> None:
-        """The MUD announced who won the gquest: raise it when it is ours and the one joined."""
+        """The MUD announced who won the gquest: raise it when the winner is this character.
+
+        The announcement does not depend on ``joined``, which is -1 after a reload and may be
+        stale. It sets ``won`` too, so the win counts when the won line was missed.
+        """
         matches = self._matches()
         gqnum = int(matches["gqnum"])
+        winner = str(matches.get("winner", "")).strip().casefold()
+        name = str(self._gmcp_value("char.base.name") or "").strip().casefold()
+        if not name or winner != name:
+            return
         if gqnum != self._joined():
             log_to(
-                [self.plugin_id], logging.DEBUG, "win announced for gquest %s, not joined", gqnum
+                [self.plugin_id],
+                logging.DEBUG,
+                "win announced for gquest %s, joined is %s",
+                gqnum,
+                self._joined(),
             )
-            return
-        if self._gmcp_value("char.base.name") == matches.get("winner"):
-            self._raise(SUFFIX_WON, self._state_payload())
-            self._gq_reset(gqnum)
+        self.gqinfo["won"] = 1
+        if not self.gqinfo.get("finishtime"):
+            self.gqinfo["finishtime"] = self._now()
+        self.gqinfo.sync()
+        self._raise(SUFFIX_WON, self._state_payload())
+        self._gq_reset(gqnum)
 
     def _trigger_reward(self) -> None:
         """A reward of the gquest."""
@@ -436,9 +451,18 @@ class GqPlugin(BasePlugin):
         self._await_kill = False
         name = str(self._record().get("name", ""))
         mobsleft = copy.deepcopy(self._mobsleft())
+        ambiguous = name_has_several_locations(mobsleft, name)
         if count_down(mobsleft, name):
             self.track["mobsleft"] = mobsleft
             self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+            if ambiguous:
+                log_to(
+                    [self.plugin_id],
+                    logging.DEBUG,
+                    "mob at several locations, checking: %s",
+                    name,
+                )
+                self._queue_check()
         else:
             log_to([self.plugin_id], logging.DEBUG, "could not find the mob: %s", name)
             self._queue_check()

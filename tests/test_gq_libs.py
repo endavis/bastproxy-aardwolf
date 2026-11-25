@@ -6,6 +6,7 @@ from aardwolf.gq.libs import (
     EVENTS,
     TRIGGERS,
     count_down,
+    name_has_several_locations,
     new_mob,
     new_state,
     reward_key,
@@ -20,6 +21,7 @@ ALWAYS_ON = {
     "gq_quit",
     "gq_note",
     "gq_maxkills",
+    "gq_wonannounce",
 }
 
 
@@ -37,8 +39,8 @@ def test_there_are_seventeen_triggers_with_prefixed_names() -> None:
     assert all(name.startswith("gq_") for name in SPECS)
 
 
-def test_only_the_seven_always_on_triggers_are_enabled_without_a_group() -> None:
-    """The declare, join, start, cancel, quit, note and maxkills triggers are always on."""
+def test_only_the_eight_always_on_triggers_are_enabled_without_a_group() -> None:
+    """The declare, join, start, cancel, quit, note, maxkills and win triggers are always on."""
     assert {s.name for s in TRIGGERS if s.enabled} == ALWAYS_ON
     assert all(SPECS[name].group is None for name in ALWAYS_ON)
     assert all(s.group is not None for s in TRIGGERS if s.name not in ALWAYS_ON)
@@ -55,7 +57,6 @@ def test_groups_hold_the_expected_triggers() -> None:
         "gq_extended",
         "gq_won",
         "gq_extfin",
-        "gq_wonannounce",
     }
     assert by_group["gqrew"] == {"gq_reward"}
 
@@ -111,15 +112,20 @@ def test_in_group_lines() -> None:
     assert groups("gq_extended", extended)["gqnum"] == "12"
     assert re.match(SPECS["gq_won"].regex, "You were the first to complete this quest!")
     assert re.match(SPECS["gq_extfin"].regex, "You have finished this global quest.")
+
+
+def test_win_announcement_lines() -> None:
+    """The announcement matches the old loose forms and not a quoted or malformed line."""
     announce = "Global Quest: Global Quest #12 has been won by Bast - 1st win."
-    assert groups("gq_wonannounce", announce) == {
-        "gqnum": "12",
-        "winner": "Bast",
-    }
+    assert groups("gq_wonannounce", announce) == {"gqnum": "12", "winner": "Bast"}
+    spaced = "Global Quest: Global Quest # 12 has been won by Bast - 1st win!"
+    assert groups("gq_wonannounce", spaced) == {"gqnum": "12", "winner": "Bast"}
+    ordinal = "Global Quest: Global Quest #12 has been won by Bast - first win."
+    assert groups("gq_wonannounce", ordinal) == {"gqnum": "12", "winner": "Bast"}
     for line in (
         f"(Gossip) Other: {announce}",
         "Global Quest: Global Quest #x has been won by Bast - 1st win.",
-        "Global Quest: Global Quest #12 has been won by Bast - 1st win!",
+        "Global Quest: Global Quest #12 has been won by Bast - 1st",
     ):
         assert not re.match(SPECS["gq_wonannounce"].regex, line), line
 
@@ -238,3 +244,22 @@ def test_event_text_has_no_raw_braces() -> None:
         for text in [*info["description"], *info["arg_descriptions"].values()]:
             assert "{" not in text
             assert "}" not in text
+
+
+def test_name_has_several_locations() -> None:
+    """The name is ambiguous only when its mobs are at more than one distinct location."""
+    left = [
+        new_mob("A rat", "Sewers", 1),
+        new_mob("A bat", "Cave", 1),
+        new_mob("A rat", "Kitchen", 1),
+    ]
+    assert name_has_several_locations(left, "A rat") is True
+    assert name_has_several_locations(left, "A bat") is False
+    assert name_has_several_locations(left, "A cat") is False
+    assert name_has_several_locations([], "A rat") is False
+
+
+def test_name_has_several_locations_ignores_same_location_duplicates() -> None:
+    """Two mobs with the name at the same location are not ambiguous."""
+    left = [new_mob("A rat", "Sewers", 1), new_mob("A rat", "Sewers", 2)]
+    assert name_has_several_locations(left, "A rat") is False

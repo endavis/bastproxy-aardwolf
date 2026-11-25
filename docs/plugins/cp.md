@@ -91,8 +91,9 @@ refreshed by a new `campaign check`.
   `campaign info` started the campaign, `mobs` is already set from it and the check does not raise
   `cp_mobsorig` again.
 - **Kills.** `cp_mobdead` sets a flag. The next `mobk_kill` event, when the flag is set, removes the
-  first mob with that name from the mobs left and raises `cp_mobsleft`. A name that is not in the list
-  queues a check instead.
+  first mob with that name from the mobs left and raises `cp_mobsleft`. When that name is at more than
+  one location, a `campaign check` is queued after the event, so the server's list corrects the
+  location. A name that is not in the list queues a check instead.
 - **Completion.** `cp_complete` turns on the rewards group, and each `cp_reward` line sets `qp`,
   `trains`, `gold`, `tp` or `pracs`. A reward of an unknown type is logged at debug level and ignored.
   After the dashed line, the plugin watches every line: the bonus line sets `bonusqp` and finishes,
@@ -135,7 +136,11 @@ Each payload is a deep copy; changing it does not change the state. statdb store
 - **New campaign tell.** It no longer resets the state; it queues `campaign info`, and only that
   output starts a campaign.
 - **First mob.** The old plugin tested the index of the killed mob for truth, so the mob at index 0
-  was never removed. `remove_mob` tests it with `is not None`.
+  was never removed. `remove_mob` tests it with `is not None`. The old plugin removed the last mob
+  with the killed name; the first is removed now, as in the gq plugin. The kill carries only the
+  name, and the zone key of GMCP `room.info` is not the area name that `campaign check` prints, so
+  neither first nor last is right in general. When the name is at more than one location the plugin
+  queues a check to replace the guess.
 - **Level.** The old plugin passed only `char.status.level` to its level helper. The level is now
   `actual_level_from_gmcp`, which also reads the remorts, the tier and the redos.
 - **No bonus line.** The old plugin waited for the bonus line or the count line, and lost the
