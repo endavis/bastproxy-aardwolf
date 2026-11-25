@@ -374,7 +374,10 @@ def info_mobs(count: int, name: str, location: str) -> list[dict[str, Any]]:
 def remove_mob(mobs: list[dict[str, Any]], name: str) -> bool:
     """Delete the first mob called ``name``; return False when there is none.
 
-    The old plugin skipped the mob at index 0 because it tested the index for truth.
+    The old plugin removed the last match, and skipped the mob at index 0 because it tested
+    the index for truth. The kill carries only the name, not the location, so neither first
+    nor last is right in general; the first is kept, as gq does, and the plugin queues a
+    check when the name is at several locations (see ``name_has_several_locations``).
     """
     found: int | None = None
     for index, mob in enumerate(mobs):
@@ -385,6 +388,12 @@ def remove_mob(mobs: list[dict[str, Any]], name: str) -> bool:
         return False
     del mobs[found]
     return True
+
+
+def name_has_several_locations(mobs: list[dict[str, Any]], name: str) -> bool:
+    """Return True when the mobs called ``name`` are at more than one distinct location."""
+    locations = {str(mob.get("location", "")) for mob in mobs if mob.get("name") == name}
+    return len(locations) > 1
 
 
 def reward_key(rtype: str) -> str | None:

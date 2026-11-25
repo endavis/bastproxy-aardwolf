@@ -31,11 +31,12 @@ refreshed by a new `gq check`.
 
 ## Behaviour
 
-- **Triggers.** Their names carry a `gq_` prefix because trigger names are global. Seven are always on:
-  `gq_declared`, `gq_joined`, `gq_started`, `gq_cancelled`, `gq_quit`, `gq_note` and `gq_maxkills`.
+- **Triggers.** Their names carry a `gq_` prefix because trigger names are global. Eight are always on:
+  `gq_declared`, `gq_joined`, `gq_started`, `gq_cancelled`, `gq_quit`, `gq_note`, `gq_maxkills` and
+  `gq_wonannounce`.
   The others sit in three groups, named `<plugin id>.<suffix>`: `gqcheck` (`gq_none`, `gq_item`,
   `gq_notstarted` and `gq_wins`, the output of `gq check`), `gqin` (`gq_mobdead`, `gq_extended`,
-  `gq_won`, `gq_extfin` and `gq_wonannounce`, while in a gquest) and `gqrew` (`gq_reward`). No trigger
+  `gq_won` and `gq_extfin`, while in a gquest) and `gqrew` (`gq_reward`). No trigger
   omits its line, so a check the client types is shown.
 - **Checking.** A `gq check` the client types is seen by the `gq_check` watch, which clears the mobs
   left and turns `gqcheck` on. The plugin's own checks go through a `gqcheck` command type in the
@@ -49,10 +50,13 @@ refreshed by a new `gq check`.
 - **Kills.** `gq_mobdead` adds 3 to `qpmobs`, unless the maxkills line was seen, and sets a flag. The
   next `mobk_kill` event, when the flag is set, counts down the first mob with that name: a mob with
   more than one kill left loses one, the last kill removes it. `gq_mobsleft` is raised. A name that is
-  not in the list queues a check instead.
+  not in the list queues a check instead. When the name is at more than one location, a `gq check`
+  is queued after `gq_mobsleft`, so the server's list corrects the guess.
 - **Ending.** `gq_won` turns on the rewards group, and each `gq_reward` line sets `qp`, `trains`,
   `gold`, `tp` or `pracs`. A reward of an unknown type is logged at debug level and ignored. The
-  announcement of a win by the character raises `gq_won` and leaves the gquest. Finishing in extended
+  announcement of a win by the character raises `gq_won` and leaves the gquest, whether or not a gquest
+  is joined. It sets `won` (and `finishtime` when unset) first, so the win counts even when the
+  `You were the first to complete this quest!` line was missed. Finishing in extended
   time after kills raises `gq_completed`. A quit, a cancel or the forum note of the joined gquest
   raises `gq_done` when mobs were killed. Each of them then leaves the gquest.
 - **Leaving.** `joined` goes back to -1, `maxkills` to false, the state is cleared and every group is
@@ -92,7 +96,13 @@ Each payload is a deep copy; changing it does not change the state. statdb store
 - **First mob.** The old plugin tested the index of the mob to remove for truth, so the mob at index 0
   was never removed. `count_down` tests it with `is not None` semantics.
 - **One mob per kill.** The old loop counted down every mob with the killed name. Only the first is
-  counted down now.
+  counted down now. The kill carries only the name, so with the name at several locations the
+  first is a guess and a check is queued; cp does the same.
+- **Win announcement.** The old trigger was in the `gqin` group, which is off while `joined` is -1,
+  and the new one checked the gquest number against `joined`. The trigger is always on now and the
+  plugin raises `gq_won` whenever the winner is the character, logging a number mismatch at debug
+  level. The winner and the ordinal tail follow the old loose regex; the number is digits only,
+  because the `int` argument type needs them.
 - **`joined` reset.** The old plugin set the integer setting to the string `'default'`. It is -1 now.
 - **Mobs left type.** The old plugin set it to a dict in one place and a list in another. It is a list.
 - **Level.** The old plugin passed only `char.status.level` to its level helper. The level is now

@@ -3,6 +3,7 @@
 from ._scanh import (
     API_A102_TAG_TOGGLE,
     CP_MOBS_API,
+    CP_ONCP_API,
     EVENT_CP_COMP,
     EVENT_CP_FAILED,
     EVENT_CP_MOBSLEFT,
@@ -37,6 +38,7 @@ from ._scanh import (
 __all__ = [
     "API_A102_TAG_TOGGLE",
     "CP_MOBS_API",
+    "CP_ONCP_API",
     "EVENT_CP_COMP",
     "EVENT_CP_FAILED",
     "EVENT_CP_MOBSLEFT",

@@ -11,6 +11,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from ..libs import (
     API_A102_TAG_TOGGLE,
     CP_MOBS_API,
+    CP_ONCP_API,
     EVENT_CP_COMP,
     EVENT_CP_FAILED,
     EVENT_CP_MOBSLEFT,
@@ -103,8 +104,14 @@ class ScanhPlugin(BasePlugin):
 
     def _load_cp_targets(self) -> None:
         """Read the mobs left of a campaign that started before the plugin loaded."""
-        if self.api("libs.api:api.exists")(CP_MOBS_API):
+        if self.api("libs.api:api.exists")(CP_MOBS_API) and self._on_campaign():
             self.targets["cp"] = mob_names(self.api(CP_MOBS_API)())
+
+    def _on_campaign(self) -> bool:
+        """Return True when the cp plugin is loaded and says the character is on a campaign."""
+        if not self.api("libs.api:api.exists")(CP_ONCP_API):
+            return False
+        return bool(self.api(CP_ONCP_API)())
 
     def _record(self) -> dict[str, Any]:
         """Return the record of the current event."""
@@ -116,6 +123,8 @@ class ScanhPlugin(BasePlugin):
 
     def _trigger_start(self) -> None:
         """The scan starts: look at its lines."""
+        if not self._on_campaign():
+            self._clear("cp")
         log_to([self.plugin_id], logging.DEBUG, "found {scan}")
         self._toggle_group(True)
 

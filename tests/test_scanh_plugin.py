@@ -13,6 +13,7 @@ import pytest
 import aardwolf
 from aardwolf.scanh.libs import (
     CP_MOBS_API,
+    CP_ONCP_API,
     EVENT_CP_COMP,
     EVENT_CP_FAILED,
     EVENT_GQ_CANCELLED,
@@ -48,6 +49,7 @@ class FakeApi:
         self.toggles: list[tuple[str, bool]] = []
         self.cp_exists = False
         self.cp_mobs: list[dict[str, Any]] = []
+        self.cp_oncp = True
         self.cp_calls = 0
         self.tag_toggles: list[tuple[str, bool]] = []
 
@@ -62,9 +64,12 @@ class FakeApi:
             "plugins.core.triggers:group.toggle.enable": lambda group, flag: self.toggles.append(
                 (group, flag)
             ),
-            "libs.api:api.exists": lambda api_name: self.cp_exists and api_name == CP_MOBS_API,
+            "libs.api:api.exists": lambda api_name: (
+                self.cp_exists and api_name in (CP_MOBS_API, CP_ONCP_API)
+            ),
             "plugins.aardwolf.a102:tag.toggle": self._tag_toggle,
             CP_MOBS_API: self._cp_mobs,
+            CP_ONCP_API: lambda: self.cp_oncp,
             "plugins.core.colors:colorcode.escape": lambda text: text.replace("@", "@@"),
             "plugins.core.colors:colorcode.to.ansicode": lambda text: text,
         }
@@ -235,6 +240,61 @@ def test_after_load_reads_cp(env: Env) -> None:
     env.plugin._phook_initialize()
     assert env.plugin.targets == {"cp": ["a rat"]}
     assert env.scan_line("   - a rat").line == "@x0@z14   - a rat - (CP)@x"
+
+
+def test_after_load_does_not_read_cp_mobs_when_not_on_a_campaign(env: Env) -> None:
+    """A stale list of mobs is not read when cp says the campaign is over."""
+    env.fake.cp_exists = True
+    env.fake.cp_oncp = False
+    env.fake.cp_mobs = [{"nocolorname": "A Rat"}]
+    env.plugin._phook_initialize()
+    assert "cp" not in env.plugin.targets
+    assert env.fake.cp_calls == 0
+
+
+def test_scan_start_clears_cp_when_the_campaign_is_over(env: Env) -> None:
+    """A campaign that ended without an event stops being highlighted at the next scan."""
+    env.fake.cp_exists = True
+    env.plugin._phook_initialize()
+    env.set_cp("a rat")
+    env.set_gq("a gq mob")
+    env.set_quest("A Quest Mob")
+    env.fake.cp_oncp = False
+    env.plugin._trigger_start()
+    assert env.scan_line("  - a rat").line == "  - a rat"
+    assert env.scan_line("  - a gq mob").line == "@x0@z9  - a gq mob - (GQ)@x"
+    assert env.scan_line("  - a quest mob").line == "@x0@z13  - a quest mob - (Quest)@x"
+
+
+def test_scan_start_keeps_cp_while_on_a_campaign(env: Env) -> None:
+    """With the campaign on, the cp targets stay highlighted."""
+    env.fake.cp_exists = True
+    env.plugin._phook_initialize()
+    env.set_cp("a rat")
+    env.plugin._trigger_start()
+    assert env.scan_line("  - a rat").line == "@x0@z14  - a rat - (CP)@x"
+
+
+def test_scan_start_clears_cp_when_cp_is_not_loaded(env: Env) -> None:
+    """Without the cp plugin there is no campaign to highlight."""
+    env.plugin._phook_initialize()
+    env.set_cp("a rat")
+    env.plugin._trigger_start()
+    assert "cp" not in env.plugin.targets
+
+
+def test_new_campaign_after_a_clear_is_highlighted_again(env: Env) -> None:
+    """A cp_mobsleft after a scan-start clear sets the targets again."""
+    env.fake.cp_exists = True
+    env.plugin._phook_initialize()
+    env.set_cp("a rat")
+    env.fake.cp_oncp = False
+    env.plugin._trigger_start()
+    assert "cp" not in env.plugin.targets
+    env.fake.cp_oncp = True
+    env.set_cp("a bat")
+    env.plugin._trigger_start()
+    assert env.scan_line("  - a bat").line == "@x0@z14  - a bat - (CP)@x"
 
 
 def test_after_load_without_cp(env: Env) -> None:

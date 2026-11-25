@@ -16,6 +16,7 @@ from aardwolf.cp.libs import (
     info_mobs,
     info_starttime,
     is_count_line,
+    name_has_several_locations,
     new_campaign_regex,
     new_mob,
     new_state,
@@ -198,6 +199,35 @@ def test_remove_mob_without_a_match() -> None:
     assert remove_mob(left, "z") is False
     assert len(left) == 1
     assert remove_mob([], "z") is False
+
+
+def test_name_has_several_locations() -> None:
+    """The name is ambiguous only when its mobs are at more than one distinct location."""
+    left = [
+        new_mob("A rat", "Sewers", ""),
+        new_mob("A bat", "Cave", ""),
+        new_mob("A rat", "Kitchen", ""),
+    ]
+    assert name_has_several_locations(left, "A rat") is True
+    assert name_has_several_locations(left, "A bat") is False
+    assert name_has_several_locations(left, "A cat") is False
+    assert name_has_several_locations([], "A rat") is False
+
+
+def test_name_has_several_locations_ignores_same_location_duplicates() -> None:
+    """Two mobs with the name at the same location are not ambiguous."""
+    assert name_has_several_locations(mobs("A rat", "A rat"), "A rat") is False
+
+
+def test_remove_mob_removes_the_first_of_several_locations() -> None:
+    """The first match goes, even when the same name is at another location."""
+    left = [
+        new_mob("A rat", "Sewers", ""),
+        new_mob("A bat", "Cave", ""),
+        new_mob("A rat", "Kitchen", ""),
+    ]
+    assert remove_mob(left, "A rat") is True
+    assert [(m["name"], m["location"]) for m in left] == [("A bat", "Cave"), ("A rat", "Kitchen")]
 
 
 @pytest.mark.parametrize(

@@ -228,9 +228,9 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
         "gq_wonannounce",
         r"^Global Quest: Global Quest \# *(?P<gqnum>\d+) has been won "
-        r"by (?P<winner>\w+) - (\d+\w*) win\.$",
-        GROUP_IN,
-        False,
+        r"by (?P<winner>.+?) - .+ win.$",
+        None,
+        True,
         {"gqnum": int},
     ),
     TriggerSpec(
@@ -273,7 +273,9 @@ def count_down(mobs: list[dict[str, Any]], name: str) -> bool:
 
     A mob with more than one kill left loses one; the last kill removes it. The old plugin
     skipped the mob at index 0 because it tested the index for truth, and counted down every
-    mob with the name.
+    mob with the name. The kill carries only the name, not the location, so with the name at
+    several locations the first is a guess; the plugin queues a check then (see
+    ``name_has_several_locations``), as cp does.
     """
     for index, mob in enumerate(mobs):
         if mob.get("name") != name:
@@ -284,6 +286,12 @@ def count_down(mobs: list[dict[str, Any]], name: str) -> bool:
             del mobs[index]
         return True
     return False
+
+
+def name_has_several_locations(mobs: list[dict[str, Any]], name: str) -> bool:
+    """Return True when the mobs called ``name`` are at more than one distinct location."""
+    locations = {str(mob.get("location", "")) for mob in mobs if mob.get("name") == name}
+    return len(locations) > 1
 
 
 def reward_key(rtype: str) -> str | None:
