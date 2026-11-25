@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795648770973,
+  "lastUpdate": 1795649176909,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2849,6 +2849,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000013989860953451133",
             "extra": "mean: 5.355135956425173 usec\nrounds: 105486"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c3b5515dcde98c8bc1a0d0460f6ffbd71092437",
+          "message": "fix: stop the statmn out-of-order and quest_status undeclared-key warnings (merges PR #167, addresses #162, #164)\n\n#162: the level plugin raises level_gain from its empty-line callback,\nand statmn's _queue registered _flush on that same empty-line event while\nit was running, so the core ran it in the same pass and logged \"called\nout of order\". _queue now checks plugins.core.events:event.stack.get and,\nwhen the empty-line event is being raised and nothing is waiting yet,\nflushes at once instead of registering. The message still shows at that\nempty line. Messages queued outside an empty line (quest, cp, gq) still\nwait for the next one and go out together.\n\n#164: quest_status passes the GMCP status data through, which can carry\nwait; wait is now described in its arg_descriptions, like quest_comp\n(#50).\n\nDocs: statmn (completion messages, events) and quest (quest_status row).\n\nAddresses #162\nAddresses #164\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T23:25:35Z",
+          "tree_id": "504e1b0d916c5bbca913b7a77d96d9f7621ff7cd",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/2c3b5515dcde98c8bc1a0d0460f6ffbd71092437"
+        },
+        "date": 1795649176258,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4988258.159284093,
+            "unit": "iter/sec",
+            "range": "stddev: 1.498805048967424e-8",
+            "extra": "mean: 200.47077919149203 nsec\nrounds: 52362"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 270438.3732654753,
+            "unit": "iter/sec",
+            "range": "stddev: 5.111743139046358e-7",
+            "extra": "mean: 3.6977001004896297 usec\nrounds: 143308"
           }
         ]
       }
