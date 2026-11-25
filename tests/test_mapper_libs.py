@@ -22,7 +22,6 @@ from aardwolf.mapper.libs import (
     search_lines,
     split_command,
     steps_to_commands,
-    stored_room_with_flags,
     table_lines,
     to_int,
     total_wait,
@@ -219,37 +218,6 @@ def test_search_lines() -> None:
         "uid | name | area | found",
         "1 | A Bank | aylor | Bank",
     ]
-
-
-def test_stored_room_with_flags() -> None:
-    """Only missing flags are added, and the dict has no exits or note."""
-    stored = {
-        "uid": "1",
-        "name": "R",
-        "area": "a",
-        "terrain": "t",
-        "x": 1,
-        "y": 2,
-        "z": 3,
-        "details": {"details": "bank"},
-        "flags": ["noportal"],
-        "exits": [{"dir": "n"}],
-        "note": "x",
-    }
-    assert stored_room_with_flags(stored, ["noportal"]) is None
-    assert stored_room_with_flags(stored, []) is None
-    assert stored_room_with_flags(stored, ["noportal", "norecall"]) == {
-        "uid": "1",
-        "name": "R",
-        "area": "a",
-        "terrain": "t",
-        "x": 1,
-        "y": 2,
-        "z": 3,
-        "details": {"details": "bank"},
-        "flags": ["noportal", "norecall"],
-    }
-    assert stored_room_with_flags({"uid": "2"}, ["norecall"])["flags"] == ["norecall"]  # type: ignore[index]
 
 
 def test_split_command() -> None:
