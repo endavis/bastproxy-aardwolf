@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795604221693,
+  "lastUpdate": 1795604706875,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2697,6 +2697,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.51531481935291e-7",
             "extra": "mean: 5.919614428071861 usec\nrounds: 174826"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eea92038337218e4cec7bf68523d9576a793fb6b",
+          "message": "feat: make user-facing timings, counts, time formats and line lengths settings (merges PR #144, addresses #139)\n\nEach value the issue lists is now a setting in the plugin that uses it,\nwith the old constant as its default and a validator that refuses bad\nvalues. Libs functions take the value as a parameter. A shared validator\nmodule backs the integer and time format checks. The statdb report no\nlonger hard-codes +0000 in its time format.\n\nAddresses #139\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T11:04:19Z",
+          "tree_id": "58497a0dbc5f449fcae6c8265cf6917fb28e3b50",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/eea92038337218e4cec7bf68523d9576a793fb6b"
+        },
+        "date": 1795604706128,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3889725.2162037306,
+            "unit": "iter/sec",
+            "range": "stddev: 8.629863852893718e-8",
+            "extra": "mean: 257.0875690226709 nsec\nrounds: 193163"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 208672.1866809426,
+            "unit": "iter/sec",
+            "range": "stddev: 7.799431263649532e-7",
+            "extra": "mean: 4.792205496600219 usec\nrounds: 108649"
           }
         ]
       }
