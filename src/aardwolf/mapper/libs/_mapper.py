@@ -39,7 +39,9 @@ CEXIT_MAX_TIMEOUT = 40
 MAX_WAIT = 40
 RECALL_COMMANDS = ("recall", "home", "hom")
 IMPORT_SLICE = 0.05
-IMPORT_PROGRESS = 2000
+# most rows of one map.batch.add call; mirrors the core mapper's BATCH_LIMIT, which a plugin
+# cannot import, and a call over it is refused
+IMPORT_BATCH = 1000
 
 
 def to_int(value: object) -> int:
@@ -332,28 +334,3 @@ def table_lines(title: str, header: Sequence[str], rows: Iterable[Sequence[str]]
 def search_lines(title: str, rows: Iterable[tuple[str, str, str, str]]) -> list[str]:
     """Return a search table: the title, a header, and one line per (uid, name, area, found)."""
     return table_lines(title, ("uid", "name", "area", "found"), rows)
-
-
-def stored_room_with_flags(
-    stored: Mapping[str, Any], extra_flags: Iterable[str]
-) -> dict[str, Any] | None:
-    """Return the stored room as a room.add dict with extra_flags added, or None if it has them all.
-
-    The dict has no ``exits`` and no ``note``, so adding it leaves the exits and the mismatch
-    check alone.
-    """
-    flags = list(stored.get("flags") or [])
-    missing = [flag for flag in extra_flags if flag not in flags]
-    if not missing:
-        return None
-    return {
-        "uid": stored.get("uid"),
-        "name": stored.get("name"),
-        "area": stored.get("area"),
-        "terrain": stored.get("terrain"),
-        "x": stored.get("x"),
-        "y": stored.get("y"),
-        "z": stored.get("z"),
-        "details": stored.get("details"),
-        "flags": [*flags, *missing],
-    }

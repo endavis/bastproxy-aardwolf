@@ -4,7 +4,7 @@ import asyncio
 import logging
 import sqlite3
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ from ..libs import (
     GMCP_LEVEL,
     GMCP_ROOM,
     GMCP_TIER,
-    IMPORT_PROGRESS,
+    IMPORT_BATCH,
     IMPORT_SLICE,
     MAPPER,
     NOPORTAL_REGEX,
@@ -46,7 +46,6 @@ from ..libs import (
     area_from_gmcp,
     command_chunks,
     detail_matches,
-    exit_update,
     is_cexit,
     is_recall_command,
     mismatch_lines,
@@ -62,11 +61,29 @@ from ..libs import (
     room_from_gmcp,
     room_uid,
     search_lines,
-    stored_room_with_flags,
     table_lines,
     to_int,
     total_wait,
 )
+
+
+class _BatchRefusedError(Exception):
+    """The core mapper refused a batch (None result), so nothing of it was written."""
+
+
+def _chunks(items: list[Any], rows: Callable[[Any], int]) -> Iterator[list[Any]]:
+    """Yield slices of items whose rows, counted as the core mapper does, fit IMPORT_BATCH."""
+    chunk: list[Any] = []
+    used = 0
+    for item in items:
+        cost = rows(item)
+        if chunk and used + cost > IMPORT_BATCH:
+            yield chunk
+            chunk, used = [], 0
+        chunk.append(item)
+        used += cost
+    if chunk:
+        yield chunk
 
 
 class MapperPlugin(BasePlugin):
@@ -351,56 +368,62 @@ class MapperPlugin(BasePlugin):
             self._importing = False
 
     async def _write_import(self, data: MushMap, token: int) -> None:
-        """Write the read map to the core mapper in time slices; captured data wins."""
-        started = time.monotonic()
+        """Write the read map through map.batch.add in chunks; captured data wins."""
         phase = "areas"
         done = 0
         total = len(data.areas)
         counts = {"areas": 0, "rooms": 0, "flagged": 0, "notes": 0, "exits": 0, "updated": 0}
+        first = True
 
-        async def step() -> bool:
-            """Count an item, report progress, yield when the slice is used; False to stop."""
-            nonlocal started, done
-            done += 1
-            if done % IMPORT_PROGRESS == 0:
-                self._client([f"Mapper import: {phase} {done}/{total}"])
+        async def write(batch: dict[str, Any], size: int) -> bool:
+            """Write one chunk, report progress, yield between calls; False to stop."""
+            nonlocal first, done
+            if not first:
+                await asyncio.sleep(0)
+            first = False
             if token != self._unload_token:
                 return False
-            if time.monotonic() - started >= IMPORT_SLICE:
-                await asyncio.sleep(0)
-                started = time.monotonic()
-                return token == self._unload_token
-            return True
+            result = self._mapper_api("map.batch.add")(overwrite=False, **batch)
+            if result is None:
+                raise _BatchRefusedError
+            counts["areas"] += result["areas"]
+            counts["rooms"] += result["new_rooms"]
+            counts["flagged"] += result["rooms"] - result["new_rooms"]
+            counts["exits"] += result["new_exits"]
+            counts["updated"] += result["exits"] - result["new_exits"]
+            counts["notes"] += result["notes"]
+            done += size
+            self._client([f"Mapper import: {phase} {done}/{total}"])
+            return token == self._unload_token
 
         try:
             self._client([f"Mapper import: {phase} 0/{total}"])
-            for area in data.areas:
-                if self._mapper_api("area.get")(area["uid"]) is None:
-                    self._mapper_api("area.add")(**area)
-                    counts["areas"] += 1
-                if not await step():
+            for chunk in _chunks(data.areas, lambda _: 1):
+                if not await write({"areas": chunk}, len(chunk)):
                     return
             phase, done, total = "rooms", 0, len(data.rooms)
             self._client([f"Mapper import: {phase} 0/{total}"])
-            for room in data.rooms:
-                self._import_room(room, data.notes.get(room["uid"]), counts)
-                if not await step():
+            for chunk in _chunks(data.rooms, lambda r: 2 if data.notes.get(r["uid"]) else 1):
+                notes = {r["uid"]: data.notes[r["uid"]] for r in chunk if data.notes.get(r["uid"])}
+                if not await write({"rooms": chunk, "notes": notes}, len(chunk)):
                     return
             phase, done = "exits", 0
-            total = sum(len(items) for items in data.exits.values())
+            exits = [
+                {"fromuid": f, "dir": d, "touid": touid, "cost": 1, "requirement": req}
+                for f, items in data.exits.items()
+                for d, touid, req in items
+            ]
+            total = len(exits)
             self._client([f"Mapper import: {phase} 0/{total}"])
-            for fromuid, items in data.exits.items():
-                stored = {e["dir"]: e for e in self._mapper_api("exit.list")(fromuid)}
-                for direction, touid, requirement in items:
-                    update = exit_update(stored.get(direction), touid, requirement)
-                    if update is not None:
-                        counts["updated" if direction in stored else "exits"] += 1
-                        self._mapper_api("exit.add")(fromuid, direction, *update)
-                    if not await step():
-                        return
-        except sqlite3.Error as exc:
+            for chunk in _chunks(exits, lambda _: 1):
+                if not await write({"exits": chunk}, len(chunk)):
+                    return
+        except (sqlite3.Error, _BatchRefusedError) as exc:
             log_to(self.plugin_id, logging.ERROR, "import failed in %s", phase, exc_info=True)
-            self._client([f"Mapper import stopped in {phase} at {done}/{total}: {exc}"])
+            reason = (
+                "the mapper refused a batch" if isinstance(exc, _BatchRefusedError) else str(exc)
+            )
+            self._client([f"Mapper import stopped in {phase} at {done}/{total}: {reason}"])
             return
         self._client(
             [
@@ -410,21 +433,6 @@ class MapperPlugin(BasePlugin):
                 f"skipped {data.skipped_rooms} rooms and {data.skipped_exits} exits"
             ]
         )
-
-    def _import_room(self, room: dict[str, Any], note: str | None, counts: dict[str, int]) -> None:
-        """Add a room the map does not have, or only add the flags a stored room lacks."""
-        stored = self._mapper_api("room.get")(room["uid"])
-        if stored is None:
-            self._mapper_api("room.add")(room)
-            counts["rooms"] += 1
-        else:
-            update = stored_room_with_flags(stored, room["flags"])
-            if update is not None:
-                self._mapper_api("room.add")(update)
-                counts["flagged"] += 1
-        if note and not self._mapper_api("room.note.get")(room["uid"]):
-            self._mapper_api("room.note.set")(room["uid"], note)
-            counts["notes"] += 1
 
     # searches
 

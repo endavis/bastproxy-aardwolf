@@ -12,7 +12,6 @@ from mush_db import build_mush_db
 from aardwolf.mapper.libs import (
     MushDbError,
     check_schema,
-    exit_update,
     read_mush_db,
     requirement_from_level,
     resolve_import_path,
@@ -204,36 +203,3 @@ def test_check_schema_reports_optional_columns(tmp_path: Path) -> None:
 def test_requirement_from_level(value: object, expected: dict[str, int] | None) -> None:
     """Level 0 or junk is no requirement; above 0 is a level requirement."""
     assert requirement_from_level(value) == expected
-
-
-def test_exit_update_new_exit() -> None:
-    """A new exit is added with cost 1."""
-    assert exit_update(None, "5", {"level": 3}) == ("5", 1, {"level": 3})
-
-
-def test_exit_update_keeps_known_touid() -> None:
-    """A stored known touid stays."""
-    stored = {"touid": "7", "cost": 2, "requirement": None}
-    assert exit_update(stored, "5", None) is None
-
-
-def test_exit_update_replaces_unexplored_touid() -> None:
-    """A stored -1 is replaced, and the stored cost stays."""
-    stored = {"touid": "-1", "cost": 4, "requirement": None}
-    assert exit_update(stored, "5", None) == ("5", 4, None)
-
-
-def test_exit_update_requirement() -> None:
-    """A stored requirement stays; a missing one is filled."""
-    kept = {"touid": "7", "cost": 1, "requirement": {"level": 9}}
-    assert exit_update(kept, "7", {"level": 50}) is None
-    filled = {"touid": "7", "cost": 1, "requirement": None}
-    assert exit_update(filled, "7", {"level": 50}) == ("7", 1, {"level": 50})
-
-
-def test_exit_update_identical_is_nothing() -> None:
-    """Identical input writes nothing."""
-    stored = {"touid": "7", "cost": 1, "requirement": {"level": 50}}
-    assert exit_update(stored, "7", {"level": 50}) is None
-    unexplored = {"touid": "-1", "cost": 1, "requirement": None}
-    assert exit_update(unexplored, "-1", None) is None

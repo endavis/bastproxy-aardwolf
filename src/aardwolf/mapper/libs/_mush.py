@@ -91,27 +91,6 @@ def requirement_from_level(value: object) -> dict[str, Any] | None:
     return {"level": level} if level > 0 else None
 
 
-def exit_update(
-    stored: dict[str, Any] | None,
-    touid: str,
-    requirement: dict[str, Any] | None,
-) -> tuple[str, int, dict[str, Any] | None] | None:
-    """Return the (touid, cost, requirement) to write for an imported exit, or None for nothing.
-
-    Captured data wins: a stored touid stays unless it is unexplored, a stored requirement stays
-    unless it is None, and the stored cost stays.
-    """
-    if stored is None:
-        return (touid, 1, requirement)
-    old_touid = str(stored.get("touid") or UNKNOWN_UID)
-    old_requirement = stored.get("requirement")
-    new_touid = touid if old_touid == UNKNOWN_UID else old_touid
-    new_requirement = requirement if old_requirement is None else old_requirement
-    if new_touid == old_touid and new_requirement == old_requirement:
-        return None
-    return (new_touid, to_int(stored.get("cost", 1)), new_requirement)
-
-
 def _room_uid(value: object) -> str | None:
     """Return a MUSH room uid when it is a positive integer, else None."""
     number = to_int(value)

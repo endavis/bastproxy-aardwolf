@@ -79,9 +79,9 @@ core `plugins.client.mapper`, so loading it loads them too.
 
 ### Limitations
 
-- A large import takes minutes, because the core mapper has no bulk add and commits every room and
-  exit on its own. The proxy stays responsive: the file is read in a thread and the writes run in
-  short slices.
+- The import is batched: it writes through the core mapper's `map.batch.add` in batches of at most
+  1000 rows, each one transaction, so a large map takes seconds. The proxy stays responsive: the
+  file is read in a thread and the loop runs between batches.
 - No search covers all areas; `here` or one area id only.
 - `|` is the proxy command separator and cannot be part of a custom exit or portal command; use
   `;`. Quote words with an apostrophe.
@@ -165,7 +165,7 @@ reports "No shops found in aylor".
   `norecall` and `noportal` flags it lacks. A stored exit keeps its target (unless unexplored), its
   requirement (unless it has none) and its cost. A note is set only when the room has none.
 - **Progress.** The client gets `Mapper import: <phase> <done>/<total>` at the start of the areas,
-  rooms and exits phases and every 2000 items, then a summary. Only one import runs at a time.
+  rooms and exits phases and after every batch, then a summary. Only one import runs at a time.
 
 | MUSH | Mapper |
 | :--- | :--- |

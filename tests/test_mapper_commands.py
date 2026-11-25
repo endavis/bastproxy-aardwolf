@@ -37,6 +37,10 @@ class FakeMapper:
         self.tasks: list[Coroutine[Any, Any, None]] = []
         self.calls: list[str] = []
         self.fail_exit_add = False
+        self.batches: list[dict[str, Any]] = []
+        self.batch_limit = 1000
+        self.on_batch: Callable[[], None] | None = None
+        self.batch_error: Exception | None = None
         self.gmcp: dict[str, Any] = {}
 
     def state(self) -> dict[str, Any]:
@@ -62,6 +66,7 @@ class FakeMapper:
             "room.note.get": lambda uid: self.notes.get(uid),
             "room.note.set": self.note_set,
             "exit.add": self.exit_add,
+            "map.batch.add": self.batch_add,
             "exit.list": self.exit_list,
             "exit.remove": self.exit_remove,
             "libs.asynch:task.add": lambda coro, task_name: self.tasks.append(coro),
@@ -76,6 +81,77 @@ class FakeMapper:
             return func(*args, **kwargs)
 
         return record
+
+    def batch_add(
+        self,
+        areas: list[dict[str, Any]] | None = None,
+        rooms: list[dict[str, Any]] | None = None,
+        exits: list[dict[str, Any]] | None = None,
+        notes: dict[str, str] | None = None,
+        overwrite: bool = True,
+    ) -> dict[str, int] | None:
+        """Behave like the core map.batch.add: row cap, fill mode and counts."""
+        areas, rooms, exits, notes = areas or [], rooms or [], exits or [], notes or {}
+        rows = len(areas) + len(rooms) + len(exits) + len(notes)
+        self.batches.append({"rows": rows, "overwrite": overwrite, "kinds": self._kinds(locals())})
+        if rows > self.batch_limit:
+            return None
+        if self.batch_error is not None:
+            raise self.batch_error
+        if self.on_batch is not None:
+            self.on_batch()
+        counts = dict.fromkeys(
+            ("areas", "rooms", "new_rooms", "exits", "new_exits", "notes", "skipped"), 0
+        )
+        for area in areas:
+            if overwrite or area["uid"] not in self.areas:
+                self.areas[area["uid"]] = {**area}
+                counts["areas"] += 1
+        for room in rooms:
+            stored = self.rooms.get(room["uid"])
+            body = {k: v for k, v in room.items() if k != "exits"}
+            if stored is None:
+                self.rooms[room["uid"]] = body
+                counts["rooms"] += 1
+                counts["new_rooms"] += 1
+            elif overwrite:
+                self.rooms[room["uid"]] = body
+                counts["rooms"] += 1
+            else:
+                missing = [f for f in room["flags"] if f not in stored["flags"]]
+                if missing:
+                    stored["flags"] = [*stored["flags"], *missing]
+                    counts["rooms"] += 1
+        for item in exits:
+            key = (item["fromuid"], item["dir"])
+            old = self.exits.get(key)
+            if old is None:
+                self.exits[key] = {**item}
+                counts["exits"] += 1
+                counts["new_exits"] += 1
+            elif overwrite:
+                touid = old["touid"] if item["touid"] == "-1" else item["touid"]
+                self.exits[key] = {**item, "touid": touid}
+                counts["exits"] += 1
+            else:
+                new = dict(old)
+                if old["touid"] == "-1":
+                    new["touid"] = item["touid"]
+                if old["requirement"] is None:
+                    new["requirement"] = item["requirement"]
+                if new != old:
+                    self.exits[key] = new
+                    counts["exits"] += 1
+        for uid, text in notes.items():
+            if uid in self.rooms and (overwrite or not self.notes.get(uid)):
+                self.notes[uid] = text
+                counts["notes"] += 1
+        return counts
+
+    @staticmethod
+    def _kinds(args: dict[str, Any]) -> set[str]:
+        """Return which of areas, rooms, exits and notes a batch call carried."""
+        return {k for k in ("areas", "rooms", "exits", "notes") if args.get(k)}
 
     def area_add(
         self, uid: str, name: str = "", flags: Iterable[str] = (), details: object = None
@@ -231,13 +307,15 @@ def test_import_end_to_end(env: Env, db: Path) -> None:
 
 
 def test_import_progress_lines(env: Env, db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A progress line is sent every IMPORT_PROGRESS items."""
+    """A progress line is sent after every batch."""
     from aardwolf.mapper.plugin import _mapper
 
-    monkeypatch.setattr(_mapper, "IMPORT_PROGRESS", 2)
+    monkeypatch.setattr(_mapper, "IMPORT_BATCH", 3)
     env.run_import(db)
+    assert "Mapper import: rooms 0/5" in env.lines()
     assert "Mapper import: rooms 2/5" in env.lines()
     assert "Mapper import: rooms 4/5" in env.lines()
+    assert "Mapper import: rooms 5/5" in env.lines()
     assert "Mapper import: exits 8/8" in env.lines()
 
 
@@ -298,6 +376,42 @@ def test_captured_data_wins(env: Env, db: Path) -> None:
     assert "(1 updated)" in env.lines()[-1]
 
 
+def test_import_makes_only_batch_writes(env: Env, db: Path) -> None:
+    """No per-item room, exit, area or note write is made, and fill mode is used."""
+    env.run_import(db)
+    assert env.fake.count("area.add", "room.add", "exit.add", "room.note.set") == 0
+    assert env.fake.count("map.batch.add") == len(env.fake.batches) > 0
+    assert all(batch["overwrite"] is False for batch in env.fake.batches)
+    assert [batch["kinds"] for batch in env.fake.batches] == [
+        {"areas"},
+        {"rooms", "notes"},
+        {"exits"},
+    ]
+
+
+def test_every_batch_is_within_the_cap(env: Env, db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A small cap splits the import into several batches that all fit it."""
+    from aardwolf.mapper.plugin import _mapper
+
+    monkeypatch.setattr(_mapper, "IMPORT_BATCH", 3)
+    env.fake.batch_limit = 3
+    env.run_import(db)
+    assert len(env.fake.batches) > 3
+    assert all(batch["rows"] <= 3 for batch in env.fake.batches)
+    assert set(env.fake.rooms) == {"100", "101", "102", "103", "200"}
+    assert len(env.fake.exits) == 8
+    assert env.lines()[-1].startswith("Mapper import done: 2 areas, 5 rooms")
+    assert "8 exits (0 updated), 2 notes" in env.lines()[-1]
+
+
+def test_a_refused_batch_stops_the_import(env: Env, db: Path) -> None:
+    """A batch the core mapper refuses (None) stops the import with one line."""
+    env.fake.batch_limit = 0
+    env.run_import(db)
+    assert env.lines()[-1] == "Mapper import stopped in areas at 0/2: the mapper refused a batch"
+    assert env.plugin._importing is False
+
+
 def test_second_import_is_refused_while_running(env: Env, db: Path) -> None:
     """Only one import runs at a time; the flag clears when it finishes."""
     env.fake.args = {"path": str(db)}
@@ -348,35 +462,33 @@ def test_unload_stops_the_writes(env: Env, db: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_unload_during_the_writes_stops(env: Env, db: Path) -> None:
-    """An unload while writing stops at the next item."""
-    original = env.fake.area_add
+    """An unload while writing stops before the next batch."""
 
-    def unload_on_first(
-        uid: str, name: str = "", flags: Iterable[str] = (), details: object = None
-    ) -> bool:
+    def unload() -> None:
         env.plugin._unload_token += 1
-        return original(uid, name, flags, details)
 
-    env.fake.area_add = unload_on_first  # type: ignore[method-assign]
+    env.fake.on_batch = unload
     env.run_import(db)
-    assert len(env.fake.areas) == 1
+    assert len(env.fake.batches) == 1
+    assert len(env.fake.areas) == 2
     assert env.fake.rooms == {}
     assert not any(line.startswith("Mapper import done") for line in env.lines())
 
 
 def test_write_failure_stops_with_a_line(env: Env, db: Path) -> None:
-    """A sqlite error from an API stops the import, says where, and clears the flag."""
-    env.fake.fail_exit_add = True
+    """A sqlite error from a batch stops the import, says where, and clears the flag."""
+    env.fake.batch_error = sqlite3.OperationalError("disk is full")
     env.run_import(db)
-    assert env.lines()[-1] == "Mapper import stopped in exits at 0/8: disk is full"
+    assert env.lines()[-1] == "Mapper import stopped in areas at 0/2: disk is full"
+    assert [line for line in env.lines() if "stopped" in line] == [env.lines()[-1]]
     assert env.plugin._importing is False
 
 
 def test_time_slicing_yields(env: Env, db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """With a zero slice the import yields to the loop after every item."""
+    """The import yields to the loop between batches, never before the first."""
     from aardwolf.mapper.plugin import _mapper
 
-    monkeypatch.setattr(_mapper, "IMPORT_SLICE", 0)
+    monkeypatch.setattr(_mapper, "IMPORT_BATCH", 3)
     sleeps: list[float] = []
     real_sleep = asyncio.sleep
 
@@ -386,15 +498,15 @@ def test_time_slicing_yields(env: Env, db: Path, monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(asyncio, "sleep", counting)
     env.run_import(db)
-    assert len(sleeps) == 2 + 5 + 8
+    assert len(env.fake.batches) == 1 + 3 + 3
+    assert sleeps == [0] * (len(env.fake.batches) - 1)
     assert env.lines()[-1].startswith("Mapper import done")
 
 
-def test_no_yield_inside_a_long_slice(env: Env, db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """With a long slice the import never yields."""
-    from aardwolf.mapper.plugin import _mapper
-
-    monkeypatch.setattr(_mapper, "IMPORT_SLICE", 1000.0)
+def test_one_batch_per_phase_yields_between_phases(
+    env: Env, db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the default cap each phase is one batch, so the import yields twice."""
     sleeps: list[float] = []
 
     async def counting(delay: float) -> None:
@@ -402,7 +514,8 @@ def test_no_yield_inside_a_long_slice(env: Env, db: Path, monkeypatch: pytest.Mo
 
     monkeypatch.setattr(asyncio, "sleep", counting)
     env.run_import(db)
-    assert sleeps == []
+    assert len(env.fake.batches) == 3
+    assert sleeps == [0, 0]
 
 
 # searches
