@@ -5,7 +5,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Protocol
 from urllib.parse import urlencode
 
-PLUGIN_ID = "plugins.aardwolf.mapper"
 MAPPER = "plugins.client.mapper"
 EVENT_GMCP_ROOM = "ev_libs.net.mud_gmcp_room.info"
 EVENT_GMCP_AREA = "ev_libs.net.mud_gmcp_room.area"

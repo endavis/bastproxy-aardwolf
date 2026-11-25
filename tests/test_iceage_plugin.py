@@ -13,12 +13,16 @@ import pytest
 from event_keys import assert_raised_described
 
 import aardwolf
-from aardwolf.iceage.libs import EVENT_ICEAGE, EVENT_REBOOT, EVENTS, TRIGGERS
+from aardwolf.iceage.libs import EVENTS as SUFFIX_EVENTS
+from aardwolf.iceage.libs import TRIGGERS
 
 if TYPE_CHECKING:
     from aardwolf.iceage.plugin._iceage import IceAgePlugin
 
 PLUGIN_ID = "plugins.aardwolf.iceage"
+EVENT_ICEAGE = f"ev_{PLUGIN_ID}_iceage"
+EVENT_REBOOT = f"ev_{PLUGIN_ID}_reboot"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 ICEAGE = "INFO: An Ice Age Approaches - 5 minutes - See 'help iceage'."
 REBOOT = "INFO: Aardwolf will Reboot in 3 minutes."
 REBOOT_REASON = "INFO: Aardwolf will reboot for a code update in 10 minutes."

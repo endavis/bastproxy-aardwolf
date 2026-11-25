@@ -16,24 +16,25 @@ import aardwolf
 from aardwolf._libs.aardu import actual_level
 from aardwolf.gq.libs import (
     CMDTYPE,
-    EVENT_AVAILABLE,
-    EVENT_CANCELLED,
-    EVENT_COMPLETED,
-    EVENT_DECLARED,
-    EVENT_DONE,
-    EVENT_JOINED,
-    EVENT_MOBSLEFT,
-    EVENT_NOTAVAILABLE,
-    EVENT_STARTED,
-    EVENT_WON,
-    EVENTS,
     TRIGGERS,
 )
+from aardwolf.gq.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.gq.plugin._gq import GqPlugin
 
 PLUGIN_ID = "plugins.aardwolf.gq"
+EVENT_DECLARED = f"ev_{PLUGIN_ID}_declared"
+EVENT_JOINED = f"ev_{PLUGIN_ID}_joined"
+EVENT_STARTED = f"ev_{PLUGIN_ID}_started"
+EVENT_CANCELLED = f"ev_{PLUGIN_ID}_cancelled"
+EVENT_MOBSLEFT = f"ev_{PLUGIN_ID}_mobsleft"
+EVENT_WON = f"ev_{PLUGIN_ID}_won"
+EVENT_COMPLETED = f"ev_{PLUGIN_ID}_completed"
+EVENT_DONE = f"ev_{PLUGIN_ID}_done"
+EVENT_AVAILABLE = f"ev_{PLUGIN_ID}_available"
+EVENT_NOTAVAILABLE = f"ev_{PLUGIN_ID}_notavailable"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 NOW = 1000.0
 GMCP: dict[str, Any] = {
     "char.status.level": 50,

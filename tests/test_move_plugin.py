@@ -9,12 +9,14 @@ import pytest
 from event_keys import assert_raised_described
 
 import aardwolf
-from aardwolf.move.libs import EVENT_MOVE_ROOM, EVENTS
+from aardwolf.move.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.move.plugin._move import MovePlugin
 
 PLUGIN_ID = "plugins.aardwolf.move"
+EVENT_MOVE_ROOM = f"ev_{PLUGIN_ID}_room"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 A: dict[str, Any] = {"num": 1, "exits": {"n": 2}}
 B: dict[str, Any] = {"num": 2, "exits": {"s": 1}}
 C: dict[str, Any] = {"num": 3, "exits": {}}

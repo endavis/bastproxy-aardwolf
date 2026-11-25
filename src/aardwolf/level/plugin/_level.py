@@ -12,21 +12,22 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs import aardu
+from aardwolf._libs.eventu import own_event, own_events
 
 from ..libs import (
     EMPTYLINE_ID,
     EVENT_DISCONNECT,
-    EVENT_GAIN,
     EVENT_GMCP_BASE,
     EVENT_GMCP_STATUS,
-    EVENT_HERO,
-    EVENT_PREREMORT,
-    EVENT_REMORT,
-    EVENT_SUPERHERO,
-    EVENT_TIER,
     EVENTS,
     GROUP_LINFO,
     GROUP_SUPERHERO,
+    SUFFIX_GAIN,
+    SUFFIX_HERO,
+    SUFFIX_PREREMORT,
+    SUFFIX_REMORT,
+    SUFFIX_SUPERHERO,
+    SUFFIX_TIER,
     TRIGGERS,
     WATCHES,
     TriggerSpec,
@@ -63,7 +64,7 @@ class LevelPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events, settings, watches and triggers."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -175,9 +176,11 @@ class LevelPlugin(BasePlugin):
         record = self.api("plugins.core.events:event.current.record.get")()
         return dict(record.get("matches") or {})
 
-    def _raise(self, event_name: str, payload: dict[str, Any] | None = None) -> None:
-        """Raise an event of the plugin."""
-        self.api("plugins.core.events:event.raise")(event_name, event_args=payload or {})
+    def _raise(self, suffix: str, payload: dict[str, Any] | None = None) -> None:
+        """Raise one of this plugin's events."""
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, suffix), event_args=payload or {}
+        )
 
     def _start(self, kind: str, level: int | None = None) -> None:
         """Start a new record and collect its gains until the next empty line.
@@ -263,7 +266,7 @@ class LevelPlugin(BasePlugin):
     def _trigger_preremort(self) -> None:
         """The character is flagged as remorting."""
         self._set("preremort", True)
-        self._raise(EVENT_PREREMORT)
+        self._raise(SUFFIX_PREREMORT)
 
     def _trigger_remort_complete(self) -> None:
         """A remort is complete: the record at level 1 ends at the next empty line."""
@@ -327,21 +330,21 @@ class LevelPlugin(BasePlugin):
         info.sync()
         self._toggle_collecting_groups(False)
         self._unregister_finish()
-        self._raise(EVENT_GAIN, copy.deepcopy(dict(info)))
+        self._raise(SUFFIX_GAIN, copy.deepcopy(dict(info)))
         level = info.get("level")
         kind = info.get("type")
         if level == 200 and kind == "level":
-            self._raise(EVENT_HERO)
+            self._raise(SUFFIX_HERO)
         elif level == 201 and kind == "level":
-            self._raise(EVENT_SUPERHERO)
+            self._raise(SUFFIX_SUPERHERO)
         elif level == 1:
             if self._setting("tiering"):
                 self._set("tiering", False)
                 self._set("seen2", False)
-                self._raise(EVENT_TIER)
+                self._raise(SUFFIX_TIER)
             else:
                 self._set("remortcomp", False)
-                self._raise(EVENT_REMORT)
+                self._raise(SUFFIX_REMORT)
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
     def _eventcb_disconnect(self) -> None:

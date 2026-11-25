@@ -3,7 +3,6 @@
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-PLUGIN_ID = "plugins.aardwolf.scanh"
 GROUP_SCAN = "scan"
 
 TRIGGER_START = "scanh_start"

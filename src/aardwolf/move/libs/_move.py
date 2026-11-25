@@ -4,15 +4,15 @@ import copy
 from collections.abc import Mapping
 from typing import Any
 
-PLUGIN_ID = "plugins.aardwolf.move"
 EVENT_GMCP_ROOM = "ev_libs.net.mud_gmcp_room.info"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
-EVENT_MOVE_ROOM = "ev_plugins.aardwolf.move_room"
+# the suffix of the event this plugin raises; the plugin builds the full name from its plugin id
+SUFFIX_ROOM = "room"
 GMCP_ROOM = "room.info"
 UNKNOWN = "unknown"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_MOVE_ROOM: {
+    SUFFIX_ROOM: {
         "description": ["raised when the character moves to another room"],
         "arg_descriptions": {
             "from": "the GMCP room.info of the room left",

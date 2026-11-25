@@ -21,21 +21,22 @@ from aardwolf.cp.libs import (
     CMDTYPE,
     CMDTYPE_INFO,
     CP_DURATION,
-    EVENT_COMP,
-    EVENT_FAILED,
-    EVENT_MOBSLEFT,
-    EVENT_MOBSORIG,
     EVENT_QUESTMASTERS_CHANGED,
-    EVENTS,
     HIDE_MAX_LINES,
     INFO_HIDE_START,
     TRIGGERS,
 )
+from aardwolf.cp.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.cp.plugin._cp import CpPlugin
 
 PLUGIN_ID = "plugins.aardwolf.cp"
+EVENT_COMP = f"ev_{PLUGIN_ID}_comp"
+EVENT_FAILED = f"ev_{PLUGIN_ID}_failed"
+EVENT_MOBSLEFT = f"ev_{PLUGIN_ID}_mobsleft"
+EVENT_MOBSORIG = f"ev_{PLUGIN_ID}_mobsorig"
+EVENTS = {f"ev_{PLUGIN_ID}_{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 NOW = 1000.0
 GMCP: dict[str, Any] = {
     "char.status.level": 50,

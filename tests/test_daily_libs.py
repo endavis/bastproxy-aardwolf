@@ -7,9 +7,9 @@ import pytest
 
 from aardwolf.daily.libs import (
     ACTIVE_STATE,
-    EVENT_AVAILABLE,
     EVENTS,
     READY_REGEX,
+    SUFFIX_AVAILABLE,
     TIME_FORMAT,
     TOOK_REGEX,
     TRIGGERS,
@@ -106,6 +106,6 @@ def test_next_message_branches() -> None:
 
 def test_event_is_declared() -> None:
     """The available event has a description."""
-    assert set(EVENTS) == {EVENT_AVAILABLE}
-    assert EVENT_AVAILABLE == "ev_plugins.aardwolf.daily_available"
-    assert EVENTS[EVENT_AVAILABLE]["description"]
+    assert set(EVENTS) == {SUFFIX_AVAILABLE}
+    assert SUFFIX_AVAILABLE == "available"
+    assert EVENTS[SUFFIX_AVAILABLE]["description"]

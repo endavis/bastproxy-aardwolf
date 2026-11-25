@@ -12,28 +12,29 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs import aardu
+from aardwolf._libs.eventu import own_event, own_events
 
 from ..libs import (
     CMD,
     CMD_REGEX,
     CMDTYPE,
-    EVENT_AVAILABLE,
-    EVENT_CANCELLED,
     EVENT_CHAR_ACTIVE,
-    EVENT_COMPLETED,
-    EVENT_DECLARED,
     EVENT_DISCONNECT,
-    EVENT_DONE,
-    EVENT_JOINED,
     EVENT_MOBK_KILL,
-    EVENT_MOBSLEFT,
-    EVENT_NOTAVAILABLE,
-    EVENT_STARTED,
-    EVENT_WON,
     EVENTS,
     GROUP_CHECK,
     GROUP_IN,
     GROUP_REW,
+    SUFFIX_AVAILABLE,
+    SUFFIX_CANCELLED,
+    SUFFIX_COMPLETED,
+    SUFFIX_DECLARED,
+    SUFFIX_DONE,
+    SUFFIX_JOINED,
+    SUFFIX_MOBSLEFT,
+    SUFFIX_NOTAVAILABLE,
+    SUFFIX_STARTED,
+    SUFFIX_WON,
     TRIGGERS,
     WATCH_NAME,
     WATCH_REGEX,
@@ -68,7 +69,7 @@ class GqPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events, settings, watch, command type and triggers."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -183,9 +184,10 @@ class GqPlugin(BasePlugin):
         self.gqinfo.sync()
         self.track.sync()
 
-    def _raise(self, name: str, payload: dict[str, Any] | None = None) -> None:
-        """Raise an event with a payload that is a copy, so no one changes the state."""
+    def _raise(self, suffix: str, payload: dict[str, Any] | None = None) -> None:
+        """Raise one of this plugin's events with a payload that is a copy."""
         self._sync()
+        name = own_event(self.plugin_id, suffix)
         if payload:
             self.api("plugins.core.events:event.raise")(name, event_args=copy.deepcopy(payload))
         else:
@@ -250,19 +252,19 @@ class GqPlugin(BasePlugin):
 
     def _check_available(self) -> None:
         """Raise whether a gquest is declared."""
-        self._raise(EVENT_AVAILABLE if self._declared else EVENT_NOTAVAILABLE)
+        self._raise(SUFFIX_AVAILABLE if self._declared else SUFFIX_NOTAVAILABLE)
 
     def _finish_done(self) -> None:
         """Raise done when gquest mobs were killed."""
         if self.gqinfo.get("qpmobs", 0) > 0:
             self.gqinfo["finishtime"] = self._now()
-            self._raise(EVENT_DONE, self._state_payload())
+            self._raise(SUFFIX_DONE, self._state_payload())
 
     def _start(self, gqnum: int) -> None:
         """A gquest started: raise it once, and follow it when it is the one joined."""
         if gqnum not in self._started:
             self._started.add(gqnum)
-            self._raise(EVENT_STARTED, {"gqnum": gqnum})
+            self._raise(SUFFIX_STARTED, {"gqnum": gqnum})
             self._check_available()
         if self._joined() == gqnum:
             self.gqinfo["starttime"] = self._now()
@@ -277,7 +279,7 @@ class GqPlugin(BasePlugin):
         gqnum = int(matches["gqnum"])
         self._declared.add(gqnum)
         self._raise(
-            EVENT_DECLARED,
+            SUFFIX_DECLARED,
             {
                 "gqnum": gqnum,
                 "lowlev": matches.get("lowlev"),
@@ -296,7 +298,7 @@ class GqPlugin(BasePlugin):
         elif gqnum not in self._declared:
             self._declared.add(gqnum)
             self._start(gqnum)
-        self._raise(EVENT_JOINED, {"gqnum": gqnum})
+        self._raise(SUFFIX_JOINED, {"gqnum": gqnum})
 
     def _trigger_started(self) -> None:
         """A gquest started."""
@@ -305,7 +307,7 @@ class GqPlugin(BasePlugin):
     def _trigger_cancelled(self) -> None:
         """A gquest was cancelled."""
         gqnum = int(self._matches()["gqnum"])
-        self._raise(EVENT_CANCELLED, {"gqnum": gqnum})
+        self._raise(SUFFIX_CANCELLED, {"gqnum": gqnum})
         if gqnum == self._joined():
             self._finish_done()
             self._gq_reset(gqnum)
@@ -365,7 +367,7 @@ class GqPlugin(BasePlugin):
         """The end of the check output: raise the mobs left and finish the command."""
         if not self.gqinfo.get("mobs"):
             self.gqinfo["mobs"] = copy.deepcopy(self._mobsleft())
-        self._raise(EVENT_MOBSLEFT, self._mobsleft_payload())
+        self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
         self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
         self._toggle_group(GROUP_CHECK, False)
         if self._joined() != _NOT_JOINED:
@@ -401,7 +403,7 @@ class GqPlugin(BasePlugin):
             )
             return
         if self._gmcp_value("char.base.name") == matches.get("winner"):
-            self._raise(EVENT_WON, self._state_payload())
+            self._raise(SUFFIX_WON, self._state_payload())
             self._gq_reset(gqnum)
 
     def _trigger_reward(self) -> None:
@@ -421,7 +423,7 @@ class GqPlugin(BasePlugin):
             gqnum = self._joined()
             self.gqinfo["completed"] = 1
             self.gqinfo["finishtime"] = self._now()
-            self._raise(EVENT_COMPLETED, self._state_payload())
+            self._raise(SUFFIX_COMPLETED, self._state_payload())
             self._gq_reset(gqnum)
 
     # events
@@ -436,7 +438,7 @@ class GqPlugin(BasePlugin):
         mobsleft = copy.deepcopy(self._mobsleft())
         if count_down(mobsleft, name):
             self.track["mobsleft"] = mobsleft
-            self._raise(EVENT_MOBSLEFT, self._mobsleft_payload())
+            self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
         else:
             log_to([self.plugin_id], logging.DEBUG, "could not find the mob: %s", name)
             self._queue_check()

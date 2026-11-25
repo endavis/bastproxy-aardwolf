@@ -5,17 +5,18 @@ from typing import Any, NamedTuple
 
 from aardwolf._libs import aardu
 
-PREFIX = "ev_plugins.aardwolf.gq_"
-EVENT_DECLARED = f"{PREFIX}declared"
-EVENT_JOINED = f"{PREFIX}joined"
-EVENT_STARTED = f"{PREFIX}started"
-EVENT_CANCELLED = f"{PREFIX}cancelled"
-EVENT_MOBSLEFT = f"{PREFIX}mobsleft"
-EVENT_WON = f"{PREFIX}won"
-EVENT_COMPLETED = f"{PREFIX}completed"
-EVENT_DONE = f"{PREFIX}done"
-EVENT_AVAILABLE = f"{PREFIX}available"
-EVENT_NOTAVAILABLE = f"{PREFIX}notavailable"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its
+# plugin id
+SUFFIX_DECLARED = "declared"
+SUFFIX_JOINED = "joined"
+SUFFIX_STARTED = "started"
+SUFFIX_CANCELLED = "cancelled"
+SUFFIX_MOBSLEFT = "mobsleft"
+SUFFIX_WON = "won"
+SUFFIX_COMPLETED = "completed"
+SUFFIX_DONE = "done"
+SUFFIX_AVAILABLE = "available"
+SUFFIX_NOTAVAILABLE = "notavailable"
 
 EVENT_MOBK_KILL = "ev_plugins.aardwolf.mobk_kill"
 EVENT_CHAR_ACTIVE = "ev_libs.api_character_active"
@@ -52,7 +53,7 @@ _STATE_KEYS = {
 _MOBSLEFT = "the mobs left, each with name, nocolorname, location and num"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_DECLARED: {
+    SUFFIX_DECLARED: {
         "description": ["raised when a global quest is declared"],
         "arg_descriptions": {
             "gqnum": "the number of the global quest",
@@ -60,45 +61,45 @@ EVENTS: dict[str, dict[str, Any]] = {
             "highlev": "the highest level that may join",
         },
     },
-    EVENT_JOINED: {
+    SUFFIX_JOINED: {
         "description": ["raised when the character joins a global quest"],
         "arg_descriptions": {"gqnum": "the number of the global quest"},
     },
-    EVENT_STARTED: {
+    SUFFIX_STARTED: {
         "description": ["raised when a global quest starts"],
         "arg_descriptions": {"gqnum": "the number of the global quest"},
     },
-    EVENT_CANCELLED: {
+    SUFFIX_CANCELLED: {
         "description": ["raised when a global quest is cancelled"],
         "arg_descriptions": {"gqnum": "the number of the global quest"},
     },
-    EVENT_MOBSLEFT: {
+    SUFFIX_MOBSLEFT: {
         "description": ["raised after a gq check and when a target mob is killed"],
         "arg_descriptions": {"mobsleft": _MOBSLEFT},
     },
-    EVENT_WON: {
+    SUFFIX_WON: {
         "description": ["raised when the character wins a global quest, with a copy of the state"],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    EVENT_COMPLETED: {
+    SUFFIX_COMPLETED: {
         "description": [
             "raised when the character finishes a global quest in extended time,",
             "with a copy of the state",
         ],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    EVENT_DONE: {
+    SUFFIX_DONE: {
         "description": [
             "raised when a global quest ends otherwise, after mobs were killed,",
             "with a copy of the state",
         ],
         "arg_descriptions": dict(_STATE_KEYS),
     },
-    EVENT_AVAILABLE: {
+    SUFFIX_AVAILABLE: {
         "description": ["raised when a global quest is declared and not over"],
         "arg_descriptions": {},
     },
-    EVENT_NOTAVAILABLE: {
+    SUFFIX_NOTAVAILABLE: {
         "description": ["raised when no global quest is declared any more"],
         "arg_descriptions": {},
     },

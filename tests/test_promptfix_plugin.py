@@ -1,5 +1,6 @@
 """Tests for the Aardwolf prompt fixer plugin, with a stubbed API."""
 
+import inspect
 import logging
 import re
 from collections.abc import Callable, Iterator
@@ -134,6 +135,16 @@ def test_after_load(env: Env) -> None:
     assert env.fake.trigger_adds == [("promptfix_set", PROMPT_SET_REGEX)]
     assert env.fake.trigger_regs == [("tid", env.plugin._trigger_prompt_set)]
     assert env.fake.sent_gmcp == []
+
+
+def test_registered_events_of_its_own_setting(env: Env) -> None:
+    """The setting event is named from the plugin id; no other event carries the plugin's id."""
+    names: set[str] = set()
+    for _, method in inspect.getmembers(env.plugin, inspect.ismethod):
+        for item in getattr(method, "event_registration", []):
+            names.add(item["event_name"].format(**env.plugin.__dict__))
+    own = {name for name in names if name.startswith(f"ev_{PLUGIN_ID}_")}
+    assert own == {f"ev_{PLUGIN_ID}_var_autofix_modified"}
 
 
 def test_character_active_requests_once(env: Env) -> None:

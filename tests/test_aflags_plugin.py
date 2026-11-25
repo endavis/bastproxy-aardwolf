@@ -16,7 +16,6 @@ from aardwolf.aflags.libs import (
     EVENT_AFFECTED_UPDATE,
     EVENT_AFFOFF,
     EVENT_AFFON,
-    EVENT_DIFF,
     EVENT_UPTODATE,
     HEADER_REGEX,
     HIDE_MAX_LINES,
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from aardwolf.aflags.plugin import _aflags
 
 PLUGIN_ID = "plugins.aardwolf.aflags"
+EVENT_DIFF = f"ev_{PLUGIN_ID}_diff"
 PROMPT = "<100/100hp 50/50mn 90/90mv> "
 HEADER = "Affect Flags: Sanctuary, Haste"
 MORE = "              Fly"

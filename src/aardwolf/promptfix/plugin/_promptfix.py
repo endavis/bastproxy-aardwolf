@@ -15,7 +15,6 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from ..libs import (
-    EVENT_AUTOFIX_MODIFIED,
     EVENT_DISCONNECT,
     EVENT_LINE_MODIFY,
     EVENT_PROMPTS,
@@ -158,7 +157,7 @@ class PromptFixPlugin(BasePlugin):
         self._prompt_patterns.clear()
         self._prompt_templates.clear()
 
-    @RegisterToEvent(event_name=EVENT_AUTOFIX_MODIFIED)
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_autofix_modified")
     def _eventcb_autofix_modified(self) -> None:
         """The fixer was turned on while the character is active: read the prompts."""
         record: dict[str, Any] = self.api("plugins.core.events:event.current.record.get")() or {}

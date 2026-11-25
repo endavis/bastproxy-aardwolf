@@ -16,19 +16,21 @@ from aardwolf.aflags.libs import (
     flag_diff,
     split_flags,
 )
-from aardwolf.skills.libs import EVENT_AFFECTED_UPDATE as SKILLS_AFFECTED_UPDATE
-from aardwolf.skills.libs import EVENT_AFFOFF as SKILLS_AFFOFF
-from aardwolf.skills.libs import EVENT_AFFON as SKILLS_AFFON
-from aardwolf.skills.libs import EVENT_UPTODATE as SKILLS_UPTODATE
+from aardwolf.skills.libs import (
+    SUFFIX_AFFECTED_UPDATE,
+    SUFFIX_AFFOFF,
+    SUFFIX_AFFON,
+    SUFFIX_UPTODATE,
+)
 
 PROMPT = "<100/100hp 50/50mn 90/90mv> "
 
 
 def test_event_names_match_the_skills_plugin() -> None:
-    assert EVENT_AFFON == SKILLS_AFFON
-    assert EVENT_AFFOFF == SKILLS_AFFOFF
-    assert EVENT_AFFECTED_UPDATE == SKILLS_AFFECTED_UPDATE
-    assert EVENT_UPTODATE == SKILLS_UPTODATE
+    assert f"ev_plugins.aardwolf.skills_{SUFFIX_AFFON}" == EVENT_AFFON
+    assert f"ev_plugins.aardwolf.skills_{SUFFIX_AFFOFF}" == EVENT_AFFOFF
+    assert f"ev_plugins.aardwolf.skills_{SUFFIX_AFFECTED_UPDATE}" == EVENT_AFFECTED_UPDATE
+    assert f"ev_plugins.aardwolf.skills_{SUFFIX_UPTODATE}" == EVENT_UPTODATE
 
 
 def test_regexes() -> None:

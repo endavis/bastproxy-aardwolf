@@ -5,11 +5,11 @@ import re
 import pytest
 
 from aardwolf.iceage.libs import (
-    EVENT_ICEAGE,
-    EVENT_REBOOT,
     EVENTS,
     ICEAGE_REGEX,
     REBOOT_REGEX,
+    SUFFIX_ICEAGE,
+    SUFFIX_REBOOT,
     TRIGGERS,
     minutes,
 )
@@ -69,14 +69,14 @@ def test_minutes_rejects_others(value: object) -> None:
 
 def test_events_cover_triggers_and_describe_minutes() -> None:
     """Every trigger event is declared and describes exactly the minutes key."""
-    assert {spec.event for spec in TRIGGERS} == {EVENT_ICEAGE, EVENT_REBOOT}
-    assert set(EVENTS) == {EVENT_ICEAGE, EVENT_REBOOT}
+    assert {spec.event for spec in TRIGGERS} == {SUFFIX_ICEAGE, SUFFIX_REBOOT}
+    assert set(EVENTS) == {SUFFIX_ICEAGE, SUFFIX_REBOOT}
     for info in EVENTS.values():
         assert set(info["arg_descriptions"]) == {"minutes"}
         assert info["description"]
 
 
 def test_event_names() -> None:
-    """The event names are the documented literals."""
-    assert EVENT_ICEAGE == "ev_plugins.aardwolf.iceage_iceage"
-    assert EVENT_REBOOT == "ev_plugins.aardwolf.iceage_reboot"
+    """The event suffixes are the documented literals."""
+    assert SUFFIX_ICEAGE == "iceage"
+    assert SUFFIX_REBOOT == "reboot"

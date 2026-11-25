@@ -11,6 +11,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from aardwolf._libs import aardu
+from aardwolf._libs.eventu import own_event, own_events
 
 from ..libs import ACTION_EVENTS, EVENT_GMCP_QUEST, EVENTS, start_state
 
@@ -29,7 +30,7 @@ class QuestPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -55,8 +56,8 @@ class QuestPlugin(BasePlugin):
         if not isinstance(data, dict):
             return
         action = data.get("action")
-        event_name = ACTION_EVENTS.get(action) if isinstance(action, str) else None
-        if event_name is None:
+        suffix = ACTION_EVENTS.get(action) if isinstance(action, str) else None
+        if suffix is None:
             return
         payload: dict[str, Any]
         if action == "start":
@@ -78,7 +79,9 @@ class QuestPlugin(BasePlugin):
             payload = copy.deepcopy(data)
         else:
             payload = {}
-        self.api("plugins.core.events:event.raise")(event_name, event_args=payload)
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, suffix), event_args=payload
+        )
         self.quest.sync()
 
     @RegisterPluginHook("save")

@@ -6,15 +6,15 @@ from typing import Any
 import pytest
 
 from aardwolf.move.libs import EVENT_DISCONNECT as MOVE_DISCONNECT
-from aardwolf.move.libs import EVENT_MOVE_ROOM as MOVE_ROOM
-from aardwolf.skills.libs import EVENT_AFFECTED_UPDATE as SK_AFFECTED_UPDATE
-from aardwolf.skills.libs import EVENT_AFFOFF as SK_AFFOFF
-from aardwolf.skills.libs import EVENT_AFFON as SK_AFFON
-from aardwolf.skills.libs import EVENT_FAIL as SK_FAIL
-from aardwolf.skills.libs import EVENT_GAIN as SK_GAIN
-from aardwolf.skills.libs import EVENT_RECOFF as SK_RECOFF
-from aardwolf.skills.libs import EVENT_UPTODATE as SK_UPTODATE
+from aardwolf.move.libs import SUFFIX_ROOM as MOVE_ROOM
 from aardwolf.skills.libs import FAILREASON, TRIGGERS, fail_payload
+from aardwolf.skills.libs import SUFFIX_AFFECTED_UPDATE as SK_AFFECTED_UPDATE
+from aardwolf.skills.libs import SUFFIX_AFFOFF as SK_AFFOFF
+from aardwolf.skills.libs import SUFFIX_AFFON as SK_AFFON
+from aardwolf.skills.libs import SUFFIX_FAIL as SK_FAIL
+from aardwolf.skills.libs import SUFFIX_GAIN as SK_GAIN
+from aardwolf.skills.libs import SUFFIX_RECOFF as SK_RECOFF
+from aardwolf.skills.libs import SUFFIX_UPTODATE as SK_UPTODATE
 from aardwolf.su.libs import (
     ACTION_BLOCK,
     ACTION_CLEAR,
@@ -52,15 +52,15 @@ from aardwolf.su.libs import (
 
 
 def test_constants_equal_those_of_the_other_plugins() -> None:
-    assert EVENT_AFFON == SK_AFFON
-    assert EVENT_AFFOFF == SK_AFFOFF
-    assert EVENT_RECOFF == SK_RECOFF
-    assert EVENT_GAIN == SK_GAIN
-    assert EVENT_FAIL == SK_FAIL
-    assert EVENT_AFFECTED_UPDATE == SK_AFFECTED_UPDATE
-    assert EVENT_UPTODATE == SK_UPTODATE
+    assert f"ev_plugins.aardwolf.skills_{SK_AFFON}" == EVENT_AFFON
+    assert f"ev_plugins.aardwolf.skills_{SK_AFFOFF}" == EVENT_AFFOFF
+    assert f"ev_plugins.aardwolf.skills_{SK_RECOFF}" == EVENT_RECOFF
+    assert f"ev_plugins.aardwolf.skills_{SK_GAIN}" == EVENT_GAIN
+    assert f"ev_plugins.aardwolf.skills_{SK_FAIL}" == EVENT_FAIL
+    assert f"ev_plugins.aardwolf.skills_{SK_AFFECTED_UPDATE}" == EVENT_AFFECTED_UPDATE
+    assert f"ev_plugins.aardwolf.skills_{SK_UPTODATE}" == EVENT_UPTODATE
     assert EVENT_DISCONNECT == MOVE_DISCONNECT
-    assert EVENT_MOVE_ROOM == MOVE_ROOM
+    assert f"ev_plugins.aardwolf.move_{MOVE_ROOM}" == EVENT_MOVE_ROOM
 
 
 @pytest.mark.parametrize(

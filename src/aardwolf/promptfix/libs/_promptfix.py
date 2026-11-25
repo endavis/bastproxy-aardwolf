@@ -5,15 +5,12 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import NamedTuple
 
-PLUGIN_ID = "plugins.aardwolf.promptfix"
 SETTING_AUTOFIX = "autofix"
 MAX_VISIBLE = 80
 GMCP_REQUEST = "request prompt"
 
 EVENT_PROMPTS = "ev_libs.net.mud_gmcp_char.prompts"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
-# the event the core settings plugin raises when the setting changes or loads
-EVENT_AUTOFIX_MODIFIED = "ev_plugins.aardwolf.promptfix_var_autofix_modified"
 
 EVENT_LINE_MODIFY = "ev_to_client_data_modify"
 # runs before the core line waiters (priority 40) and triggers (priority 50) read is_prompt

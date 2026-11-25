@@ -18,7 +18,11 @@ existing plugins, `connect` and `a102`, for layout.
 
 - **Code:** `src/aardwolf/<name>/` with its `plugin/` package. A plugin reaches another plugin
   only through bastproxy's API, never by importing it. Shared helpers that are not plugins go in
-  `src/aardwolf/_libs/`.
+  `src/aardwolf/_libs/`. A plugin's own event names are built from `self.plugin_id`, with
+  `own_event` and `own_events` from `aardwolf._libs.eventu` or, for the event of one of its own
+  settings, the decorator template `"ev_{plugin_id}_var_<setting>_modified"`. Its `libs` hold the
+  suffixes, descriptions and argument descriptions only, never the plugin's own id; the events of
+  other plugins stay literal names. `tests/test_libs_own_plugin_id.py` enforces it.
 - **Tests:** add tests under `tests/`. A test file that imports `aardwolf` must be listed in
   `pytest_add_cli_args_test_selection` under `[tool.mutmut]` in `pyproject.toml`, or the mutmut
   configuration test fails.

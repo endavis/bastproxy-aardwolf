@@ -10,11 +10,13 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     BLESSING_WAIT,
     DAILY_CMD,
-    EVENT_AVAILABLE,
     EVENTS,
+    SUFFIX_AVAILABLE,
     TIMER_NAME,
     TRIGGER_READY,
     TRIGGER_TOOK,
@@ -42,7 +44,7 @@ class DailyPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the event and the triggers, and check the daily when the character is active."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -90,7 +92,7 @@ class DailyPlugin(BasePlugin):
         self._remove_timer()
         self._next_time = None
         self._available = True
-        self.api("plugins.core.events:event.raise")(EVENT_AVAILABLE)
+        self.api("plugins.core.events:event.raise")(own_event(self.plugin_id, SUFFIX_AVAILABLE))
 
     def _timer_available(self) -> None:
         """The timer fired."""

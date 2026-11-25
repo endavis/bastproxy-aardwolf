@@ -4,13 +4,14 @@ import re
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
-PREFIX = "ev_plugins.aardwolf.level_"
-EVENT_GAIN = f"{PREFIX}gain"
-EVENT_HERO = f"{PREFIX}hero"
-EVENT_SUPERHERO = f"{PREFIX}superhero"
-EVENT_REMORT = f"{PREFIX}remort"
-EVENT_TIER = f"{PREFIX}tier"
-EVENT_PREREMORT = f"{PREFIX}preremort"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its
+# plugin id
+SUFFIX_GAIN = "gain"
+SUFFIX_HERO = "hero"
+SUFFIX_SUPERHERO = "superhero"
+SUFFIX_REMORT = "remort"
+SUFFIX_TIER = "tier"
+SUFFIX_PREREMORT = "preremort"
 
 EVENT_GMCP_STATUS = "ev_libs.net.mud_gmcp_char.status"
 EVENT_GMCP_BASE = "ev_libs.net.mud_gmcp_char.base"
@@ -50,27 +51,27 @@ _GAIN_KEYS = {
 }
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_GAIN: {
+    SUFFIX_GAIN: {
         "description": ["raised when a level or a powerup finished, with a copy of the record"],
         "arg_descriptions": dict(_GAIN_KEYS),
     },
-    EVENT_HERO: {
+    SUFFIX_HERO: {
         "description": ["raised after level_gain when level 200 is reached by levelling"],
         "arg_descriptions": {},
     },
-    EVENT_SUPERHERO: {
+    SUFFIX_SUPERHERO: {
         "description": ["raised after level_gain when level 201 is reached"],
         "arg_descriptions": {},
     },
-    EVENT_REMORT: {
+    SUFFIX_REMORT: {
         "description": ["raised after level_gain when a remort is complete, back at level 1"],
         "arg_descriptions": {},
     },
-    EVENT_TIER: {
+    SUFFIX_TIER: {
         "description": ["raised after level_gain when a tier is complete, back at level 1"],
         "arg_descriptions": {},
     },
-    EVENT_PREREMORT: {
+    SUFFIX_PREREMORT: {
         "description": ["raised when the character is flagged as remorting"],
         "arg_descriptions": {},
     },

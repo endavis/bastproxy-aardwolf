@@ -8,14 +8,14 @@ from aardwolf._libs.itemu import WEARLOCS, WEARLOCSREV
 
 from ._eq import (
     CONTAINER_ITYPE,
-    EVENT_INVENTORY_ADDED,
-    EVENT_INVENTORY_REMOVED,
-    EVENT_PUT,
-    EVENT_REMOVED,
-    EVENT_TAKEN,
-    EVENT_WORN,
     INVENTORY,
     KEYRING,
+    SUFFIX_INVENTORY_ADDED,
+    SUFFIX_INVENTORY_REMOVED,
+    SUFFIX_PUT,
+    SUFFIX_REMOVED,
+    SUFFIX_TAKEN,
+    SUFFIX_WORN,
     VAULT,
     WORN,
 )
@@ -285,14 +285,14 @@ class EqState:
             slot = self.worn.index(serial)
             self.lastworn[serial] = slot
             self.move(serial, INVENTORY, 0)
-            out.events.append((EVENT_REMOVED, {"item": self.item_copy(serial), "location": slot}))
+            out.events.append((SUFFIX_REMOVED, {"item": self.item_copy(serial), "location": slot}))
             self._note_bag(out, serial)
         else:
             self._refresh(out, WORN, INVENTORY)
 
     def _a_wear(self, out: InvmonOutcome, serial: int, _c: int, location: int) -> None:
         if serial in self.containers[INVENTORY] and self.move(serial, WORN, location):
-            out.events.append((EVENT_WORN, {"item": self.item_copy(serial), "location": location}))
+            out.events.append((SUFFIX_WORN, {"item": self.item_copy(serial), "location": location}))
         else:
             self._refresh(out, INVENTORY, WORN)
 
@@ -302,7 +302,7 @@ class EqState:
             if str(serial) in self.containers:
                 self.drop_container(str(serial))
             self.drop_item(serial)
-            out.events.append((EVENT_INVENTORY_REMOVED, {"item": item}))
+            out.events.append((SUFFIX_INVENTORY_REMOVED, {"item": item}))
         else:
             self._refresh(out, INVENTORY)
 
@@ -310,10 +310,10 @@ class EqState:
         if serial in self.items:
             self.move(serial, INVENTORY, 0)
             self._note_bag(out, serial)
-            out.events.append((EVENT_INVENTORY_ADDED, {"item": self.item_copy(serial)}))
+            out.events.append((SUFFIX_INVENTORY_ADDED, {"item": self.item_copy(serial)}))
         else:
             self._refresh(out, INVENTORY)
-        self._event(out, EVENT_PUT, serial, INVENTORY)
+        self._event(out, SUFFIX_PUT, serial, INVENTORY)
 
     def _a_bag_take(self, out: InvmonOutcome, serial: int, container: int, _l: int) -> None:
         cid, known = self._bag_cid(out, container)
@@ -322,7 +322,7 @@ class EqState:
             self._note_bag(out, serial)
         else:
             self._refresh(out, *([cid] if cid else []), INVENTORY)
-        self._event(out, EVENT_TAKEN, serial, cid or str(container))
+        self._event(out, SUFFIX_TAKEN, serial, cid or str(container))
 
     def _a_bag_put(self, out: InvmonOutcome, serial: int, container: int, _l: int) -> None:
         cid, known = self._bag_cid(out, container)
@@ -330,14 +330,14 @@ class EqState:
             self.move(serial, cid, 0)
         else:
             self._refresh(out, *([cid] if cid else []), INVENTORY)
-        self._event(out, EVENT_PUT, serial, cid or str(container))
+        self._event(out, SUFFIX_PUT, serial, cid or str(container))
 
     def _a_vault_put(self, out: InvmonOutcome, serial: int, _c: int, _l: int) -> None:
         if serial in self.items:
             self.move(serial, VAULT)
         else:
             self._refresh(out, VAULT, INVENTORY)
-        self._event(out, EVENT_PUT, serial, VAULT)
+        self._event(out, SUFFIX_PUT, serial, VAULT)
 
     def _a_vault_take(self, out: InvmonOutcome, serial: int, _c: int, _l: int) -> None:
         if serial in self.containers[VAULT]:
@@ -345,21 +345,21 @@ class EqState:
             self._note_bag(out, serial)
         else:
             self._refresh(out, VAULT, INVENTORY)
-        self._event(out, EVENT_TAKEN, serial, VAULT)
+        self._event(out, SUFFIX_TAKEN, serial, VAULT)
 
     def _a_keyring_put(self, out: InvmonOutcome, serial: int, _c: int, _l: int) -> None:
         if serial in self.containers[INVENTORY]:
             self.move(serial, KEYRING, 0)
         else:
             self._refresh(out, INVENTORY, KEYRING)
-        self._event(out, EVENT_PUT, serial, KEYRING)
+        self._event(out, SUFFIX_PUT, serial, KEYRING)
 
     def _a_keyring_take(self, out: InvmonOutcome, serial: int, _c: int, _l: int) -> None:
         if serial in self.containers[KEYRING]:
             self.move(serial, INVENTORY, 0)
         else:
             self._refresh(out, KEYRING, INVENTORY)
-        self._event(out, EVENT_TAKEN, serial, KEYRING)
+        self._event(out, SUFFIX_TAKEN, serial, KEYRING)
 
 
 _ACTIONS = {

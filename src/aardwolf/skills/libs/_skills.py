@@ -4,15 +4,16 @@ import copy
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, NamedTuple
 
-PREFIX = "ev_plugins.aardwolf.skills_"
-EVENT_AFFON = f"{PREFIX}affon"
-EVENT_AFFOFF = f"{PREFIX}affoff"
-EVENT_RECON = f"{PREFIX}recon"
-EVENT_RECOFF = f"{PREFIX}recoff"
-EVENT_GAIN = f"{PREFIX}gain"
-EVENT_FAIL = f"{PREFIX}fail"
-EVENT_AFFECTED_UPDATE = f"{PREFIX}affected_update"
-EVENT_UPTODATE = f"{PREFIX}uptodate"
+# the suffixes of the events this plugin raises; the plugin builds the full names from its
+# plugin id
+SUFFIX_AFFON = "affon"
+SUFFIX_AFFOFF = "affoff"
+SUFFIX_RECON = "recon"
+SUFFIX_RECOFF = "recoff"
+SUFFIX_GAIN = "gain"
+SUFFIX_FAIL = "fail"
+SUFFIX_AFFECTED_UPDATE = "affected_update"
+SUFFIX_UPTODATE = "uptodate"
 
 # the level plugin's events and the disconnect event, listened to by name
 EVENT_LEVEL_REMORT = "ev_plugins.aardwolf.level_remort"
@@ -54,27 +55,27 @@ _SN_DURATION: dict[str, str] = {
 _NO_ARGS: dict[str, None] = {"None": None}
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_AFFON: {
+    SUFFIX_AFFON: {
         "description": ["raised when a spell or skill affect starts on the character"],
         "arg_descriptions": dict(_SN_DURATION),
     },
-    EVENT_AFFOFF: {
+    SUFFIX_AFFOFF: {
         "description": ["raised when a spell or skill affect ends"],
         "arg_descriptions": {"sn": _SN},
     },
-    EVENT_RECON: {
+    SUFFIX_RECON: {
         "description": ["raised when a recovery starts"],
         "arg_descriptions": dict(_SN_DURATION),
     },
-    EVENT_RECOFF: {
+    SUFFIX_RECOFF: {
         "description": ["raised when a recovery ends"],
         "arg_descriptions": {"sn": _SN},
     },
-    EVENT_GAIN: {
+    SUFFIX_GAIN: {
         "description": ["raised when the percent of a skill or spell changes by practice"],
         "arg_descriptions": {"sn": _SN, "percent": "the new percent learned"},
     },
-    EVENT_FAIL: {
+    SUFFIX_FAIL: {
         "description": ["raised when a skill or spell fails"],
         "arg_descriptions": {
             "sn": _SN,
@@ -83,11 +84,11 @@ EVENTS: dict[str, dict[str, Any]] = {
             "recovery": "the sn of the recovery that blocks it, or -1",
         },
     },
-    EVENT_AFFECTED_UPDATE: {
+    SUFFIX_AFFECTED_UPDATE: {
         "description": ["raised when a full or affected slist set the durations of the affects"],
         "arg_descriptions": dict(_NO_ARGS),
     },
-    EVENT_UPTODATE: {
+    SUFFIX_UPTODATE: {
         "description": ["raised once the skills are known and the spellups are flagged"],
         "arg_descriptions": dict(_NO_ARGS),
     },

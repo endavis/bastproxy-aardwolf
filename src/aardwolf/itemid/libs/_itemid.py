@@ -22,10 +22,10 @@ EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 EVENT_EQ_PUT = "ev_plugins.aardwolf.eq_put"
 EVENT_EQ_WORN = "ev_plugins.aardwolf.eq_worn"
 EVENT_EQ_INVENTORY_REMOVED = "ev_plugins.aardwolf.eq_inventory_removed"
-EVENT_IDENTIFIED = "ev_plugins.aardwolf.itemid_identified"
+SUFFIX_IDENTIFIED = "identified"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_IDENTIFIED: {
+    SUFFIX_IDENTIFIED: {
         "description": ["raised when an item has been identified and put back where it was"],
         "arg_descriptions": {
             "serial": "the serial of the item, as an int",

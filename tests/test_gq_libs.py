@@ -4,7 +4,6 @@ import re
 
 from aardwolf.gq.libs import (
     EVENTS,
-    PREFIX,
     TRIGGERS,
     count_down,
     new_mob,
@@ -213,8 +212,8 @@ def test_reward_key() -> None:
 
 
 def test_events_are_described() -> None:
-    """The ten events carry the prefix, a description and the payload keys."""
-    assert {name.removeprefix(PREFIX) for name in EVENTS} == {
+    """The ten events carry a suffix, a description and the payload keys."""
+    assert set(EVENTS) == {
         "declared",
         "joined",
         "started",
@@ -227,10 +226,10 @@ def test_events_are_described() -> None:
         "notavailable",
     }
     assert all(info["description"] for info in EVENTS.values())
-    assert set(EVENTS[f"{PREFIX}declared"]["arg_descriptions"]) == {"gqnum", "lowlev", "highlev"}
-    assert set(EVENTS[f"{PREFIX}mobsleft"]["arg_descriptions"]) == {"mobsleft"}
-    assert EVENTS[f"{PREFIX}available"]["arg_descriptions"] == {}
-    assert EVENTS[f"{PREFIX}won"]["arg_descriptions"] == EVENTS[f"{PREFIX}done"]["arg_descriptions"]
+    assert set(EVENTS["declared"]["arg_descriptions"]) == {"gqnum", "lowlev", "highlev"}
+    assert set(EVENTS["mobsleft"]["arg_descriptions"]) == {"mobsleft"}
+    assert EVENTS["available"]["arg_descriptions"] == {}
+    assert EVENTS["won"]["arg_descriptions"] == EVENTS["done"]["arg_descriptions"]
 
 
 def test_event_text_has_no_raw_braces() -> None:

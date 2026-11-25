@@ -3,7 +3,7 @@
 import copy
 from typing import Any
 
-from aardwolf.quest.libs import ACTION_EVENTS, EVENTS, PREFIX, start_state
+from aardwolf.quest.libs import ACTION_EVENTS, EVENTS, start_state
 
 
 def test_start_state_maps_the_message() -> None:
@@ -36,7 +36,7 @@ def test_start_state_defaults_and_does_not_mutate() -> None:
 def test_every_action_event_is_declared() -> None:
     """Each event an action raises has an entry."""
     assert set(ACTION_EVENTS.values()) == set(EVENTS)
-    assert all(name.startswith(PREFIX) for name in EVENTS)
+    assert set(EVENTS) == {"ready", "start", "killed", "comp", "failed", "status", "reset"}
     assert ACTION_EVENTS["fail"] == ACTION_EVENTS["timeout"]
 
 

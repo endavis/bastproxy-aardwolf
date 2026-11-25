@@ -14,6 +14,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from aardwolf._libs.eventu import own_event, own_events
+
 from ..libs import (
     A102_OPTIONS,
     API_A102_TOGGLE,
@@ -24,17 +26,9 @@ from ..libs import (
     CMD_SPELLUP_REGEX,
     CMDTYPE,
     CMDTYPE_SPELLUP,
-    EVENT_AFFECTED_UPDATE,
-    EVENT_AFFOFF,
-    EVENT_AFFON,
     EVENT_DISCONNECT,
-    EVENT_FAIL,
-    EVENT_GAIN,
     EVENT_LEVEL_REMORT,
     EVENT_LEVEL_TIER,
-    EVENT_RECOFF,
-    EVENT_RECON,
-    EVENT_UPTODATE,
     EVENTS,
     GROUP_RECOVERIES,
     GROUP_SLIST,
@@ -44,6 +38,14 @@ from ..libs import (
     HIDE_MAX_LINES,
     HIDE_START_FULL,
     HIDE_START_SPELLUP,
+    SUFFIX_AFFECTED_UPDATE,
+    SUFFIX_AFFOFF,
+    SUFFIX_AFFON,
+    SUFFIX_FAIL,
+    SUFFIX_GAIN,
+    SUFFIX_RECOFF,
+    SUFFIX_RECON,
+    SUFFIX_UPTODATE,
     TRIGGERS,
     SkillTable,
     TriggerSpec,
@@ -76,7 +78,7 @@ class SkillsPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Add the events, the command type and the triggers, and ask for the tags."""
         add_event = self.api("plugins.core.events:event.add")
-        for event_name, info in EVENTS.items():
+        for event_name, info in own_events(self.plugin_id, EVENTS).items():
             add_event(
                 event_name,
                 self.plugin_id,
@@ -182,9 +184,11 @@ class SkillsPlugin(BasePlugin):
         """Return the groups the current trigger matched."""
         return dict(self._record().get("matches") or {})
 
-    def _raise(self, name: str, payload: dict[str, Any]) -> None:
-        """Raise an event with a payload that is a copy, so no one changes the state."""
-        self.api("plugins.core.events:event.raise")(name, event_args=copy.deepcopy(payload))
+    def _raise(self, suffix: str, payload: dict[str, Any]) -> None:
+        """Raise one of this plugin's events with a payload that is a copy."""
+        self.api("plugins.core.events:event.raise")(
+            own_event(self.plugin_id, suffix), event_args=copy.deepcopy(payload)
+        )
 
     def _args(self) -> dict[str, Any]:
         """Return the arguments of the running command."""
@@ -210,9 +214,9 @@ class SkillsPlugin(BasePlugin):
         if self._current == "spellup":
             if not self.table.uptodate:
                 self.table.uptodate = True
-                self._raise(EVENT_UPTODATE, {})
+                self._raise(SUFFIX_UPTODATE, {})
         elif self._current in (None, "affected"):
-            self._raise(EVENT_AFFECTED_UPDATE, {})
+            self._raise(SUFFIX_AFFECTED_UPDATE, {})
         self._current = None
 
     def _end_block(self) -> None:
@@ -297,7 +301,7 @@ class SkillsPlugin(BasePlugin):
             return
         skill = self.table.get_skill(sn)
         duration = skill["duration"] if skill else 0
-        self._raise(EVENT_AFFON, {"sn": sn, "duration": duration})
+        self._raise(SUFFIX_AFFON, {"sn": sn, "duration": duration})
 
     def _trigger_affoff(self) -> None:
         """An affect ended."""
@@ -305,7 +309,7 @@ class SkillsPlugin(BasePlugin):
         if not self.table.set_duration(sn, 0, self._now()):
             log_to([self.plugin_id], logging.DEBUG, "affoff for an unknown sn %d", sn)
             return
-        self._raise(EVENT_AFFOFF, {"sn": sn})
+        self._raise(SUFFIX_AFFOFF, {"sn": sn})
 
     def _trigger_recon(self) -> None:
         """A recovery started: store when it ends."""
@@ -316,7 +320,7 @@ class SkillsPlugin(BasePlugin):
             return
         recovery = self.table.get_recovery(sn)
         duration = recovery["duration"] if recovery else 0
-        self._raise(EVENT_RECON, {"sn": sn, "duration": duration})
+        self._raise(SUFFIX_RECON, {"sn": sn, "duration": duration})
 
     def _trigger_recoff(self) -> None:
         """A recovery ended."""
@@ -324,7 +328,7 @@ class SkillsPlugin(BasePlugin):
         if not self.table.set_recovery_duration(sn, 0, self._now()):
             log_to([self.plugin_id], logging.DEBUG, "recoff for an unknown sn %d", sn)
             return
-        self._raise(EVENT_RECOFF, {"sn": sn})
+        self._raise(SUFFIX_RECOFF, {"sn": sn})
 
     def _trigger_skillgain(self) -> None:
         """The percent of a skill changed."""
@@ -333,7 +337,7 @@ class SkillsPlugin(BasePlugin):
         if not self.table.set_percent(sn, matches["percent"]):
             log_to([self.plugin_id], logging.DEBUG, "skillgain for an unknown sn %d", sn)
             return
-        self._raise(EVENT_GAIN, {"sn": sn, "percent": matches["percent"]})
+        self._raise(SUFFIX_GAIN, {"sn": sn, "percent": matches["percent"]})
 
     def _trigger_sfail(self) -> None:
         """A skill or spell failed: raise why, and refresh when a known skill says unknown."""
@@ -345,7 +349,7 @@ class SkillsPlugin(BasePlugin):
         if payload["reason"] == "dontknow" and skill and skill["percent"] > 0:
             log_to([self.plugin_id], logging.DEBUG, "refreshing because of an unlearned spell")
             self._refresh()
-        self._raise(EVENT_FAIL, payload)
+        self._raise(SUFFIX_FAIL, payload)
 
     # events
 

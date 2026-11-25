@@ -4,11 +4,11 @@ import re
 import time
 from typing import Any, NamedTuple
 
-PLUGIN_ID = "plugins.aardwolf.daily"
-EVENT_AVAILABLE = f"ev_{PLUGIN_ID}_available"
+# the suffix of the event this plugin raises; the plugin builds the full name from its plugin id
+SUFFIX_AVAILABLE = "available"
 
 EVENTS: dict[str, dict[str, Any]] = {
-    EVENT_AVAILABLE: {
+    SUFFIX_AVAILABLE: {
         "description": ["raised when the daily blessing can be received"],
         "arg_descriptions": {},
     },

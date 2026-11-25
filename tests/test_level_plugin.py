@@ -14,7 +14,7 @@ from statdb_support import make_db
 
 import aardwolf
 from aardwolf._libs.aardu import actual_level
-from aardwolf.level.libs import EVENTS
+from aardwolf.level.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
     from aardwolf.level.plugin._level import LevelPlugin
@@ -31,6 +31,7 @@ GMCP: dict[str, Any] = {
 }
 WHOIS = {"name": "Bast", "level": 50, "totallevels": 50, "remorts": 1, "classes": []}
 EVENT_PREFIX = "ev_plugins.aardwolf.level_"
+EVENTS = {f"{EVENT_PREFIX}{suffix}": info for suffix, info in SUFFIX_EVENTS.items()}
 GMCP_STATUS = "ev_libs.net.mud_gmcp_char.status"
 GMCP_BASE = "ev_libs.net.mud_gmcp_char.base"
 FAILURES = [

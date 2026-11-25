@@ -3,8 +3,8 @@
 from typing import Any
 
 from aardwolf.move.libs import (
-    EVENT_MOVE_ROOM,
     EVENTS,
+    SUFFIX_ROOM,
     UNKNOWN,
     find_direction,
     move_payload,
@@ -62,5 +62,5 @@ def test_room_num() -> None:
 
 def test_events() -> None:
     """One event with the three payload keys described."""
-    assert set(EVENTS) == {EVENT_MOVE_ROOM}
-    assert set(EVENTS[EVENT_MOVE_ROOM]["arg_descriptions"]) == {"from", "to", "direction"}
+    assert set(EVENTS) == {SUFFIX_ROOM}
+    assert set(EVENTS[SUFFIX_ROOM]["arg_descriptions"]) == {"from", "to", "direction"}
