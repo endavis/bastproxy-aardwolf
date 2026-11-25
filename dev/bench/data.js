@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795564547119,
+  "lastUpdate": 1795565934658,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2393,6 +2393,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000017980758726338821",
             "extra": "mean: 6.2737112409390265 usec\nrounds: 175101"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "842f28ba40b348b5daa4cf9dedbf4fef06b1a962",
+          "message": "feat: write the MUSHclient import through the core batch API (merges PR #126, addresses #124)\n\nimportmush wrote every area, room, note and exit with its own core\nmapper call, and each call is its own database transaction. On disk\nthat made a large import take many minutes.\n\nThe import now sends areas, rooms with their notes, and exits to\nmap.batch.add in fill mode (overwrite=False), so captured data still\nwins. Chunks stay within the core row cap, counted as core counts them.\nThe import yields to the event loop and checks for an unload between\nchunks, and reports progress after each chunk. The summary line keeps\nits wording, summed from the batch counts: \"flags added to N stored\"\nis rooms - new_rooms and \"updated\" is exits - new_exits.\n\nexit_update and stored_room_with_flags are removed with their tests;\nthe core fill mode does their merge. With approval, five per-item\ntests (unload, write failure, the two yield tests, progress) are\nrewritten to check the same behaviour per batch.\n\nThe lock moves core to cbfa5bd2 for the new_exits count.\n\nAddresses #124\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-25T00:18:14Z",
+          "tree_id": "142153f96354493088b399889428fd9ce062dd5f",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/842f28ba40b348b5daa4cf9dedbf4fef06b1a962"
+        },
+        "date": 1795565933945,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5743145.352247722,
+            "unit": "iter/sec",
+            "range": "stddev: 3.9057472329187055e-8",
+            "extra": "mean: 174.1206148663163 nsec\nrounds: 59330"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 284153.06256827933,
+            "unit": "iter/sec",
+            "range": "stddev: 5.140313331069639e-7",
+            "extra": "mean: 3.519230062001212 usec\nrounds: 145752"
           }
         ]
       }
