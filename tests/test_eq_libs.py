@@ -623,3 +623,30 @@ def test_a_worn_or_vault_bag_survives_an_inventory_commit() -> None:
     state.commit(WORN, [])
     state.commit(INVENTORY, [item(1)])
     assert state.bag_cids() == ["5002"]
+
+
+# death (#147)
+
+
+def test_reset_carried_keeps_the_vault_and_its_bags() -> None:
+    state = EqState()
+    state.commit(WORN, [item(10, wearslot=24)])
+    state.commit(INVENTORY, [item(1), item(2002, "a test bag", itype=CONTAINER_ITYPE)])
+    state.commit("2002", [item(3001)])
+    state.commit(KEYRING, [item(20, itype=13)])
+    state.commit(VAULT, [item(5001, "a vault bag", itype=CONTAINER_ITYPE)])
+    state.commit("5001", [item(5002)])
+    state.vault_counts = {"items": 2, "total": 2, "max": 50}
+    assert state.reset_carried() == ["2002"]
+    assert state.serials(WORN) == []
+    assert state.serials(INVENTORY) == []
+    assert state.serials(KEYRING) == []
+    assert not state.has_container("2002")
+    assert 3001 not in state.items
+    assert state.serials(VAULT) == [5001]
+    assert state.serials("5001") == [5002]
+    assert state.items[5002]["container"] == "5001"
+    assert state.bag_cids() == ["5001"]
+    assert state.vault_counts == {"items": 2, "total": 2, "max": 50}
+    assert state.vault_read is True
+    assert state.lastworn == {}

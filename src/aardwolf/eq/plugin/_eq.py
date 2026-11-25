@@ -58,6 +58,7 @@ _CALLBACKS = {
     "eq_data_end": "_trigger_data_end",
     "eq_vaultcounts": "_trigger_vaultcounts",
     "eq_no_vault": "_trigger_no_vault",
+    "eq_dead": "_trigger_dead",
     "eq_data_line": "_trigger_data_line",
 }
 _END_TAGS = {"invdata": "invdata", "eqdata": "eqdata", "keyring": "keyring", "vault": "vault"}
@@ -340,6 +341,14 @@ class EqPlugin(BasePlugin):
             }
         except (KeyError, TypeError, ValueError):
             log_to([self.plugin_id], logging.DEBUG, "bad vaultcounts: %s", matches)
+
+    def _trigger_dead(self) -> None:
+        """The character died: forget what it carries, keep the vault, and read it all again."""
+        dropped = self.state.reset_carried()
+        log_to([self.plugin_id], logging.DEBUG, "the character died, bags dropped: %s", dropped)
+        self._stop_reading()
+        self._sync_types()
+        self._refresh_all()
 
     # events
 

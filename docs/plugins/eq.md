@@ -74,6 +74,13 @@ kept from the client: the plugin still reads them, and other lines are shown as 
 - **No vault.** A character without a vault gets "You do not have a vault." instead of a vault
   block. That line finishes the vault read at once and records an empty vault. When the read was
   queued, the line and its prompt are hidden.
+- **Death.** The `^You die\.$` trigger (`eq_dead`, the line is still shown) forgets what is worn
+  and carried: Worn, Inventory, Keyring, the bags and their items. The vault stays, with its
+  counts, whether it was read and the bags in it, because it lives in the bank and death cannot
+  change it. Eq then drops a block being read and queues the same reads as `refresh`. The reads
+  are queued at once. This is inferred, not checked live: Aardwolf prints `You die.` from inside
+  its death routine and reads the next command only on a later pulse, after the corpse is made, so
+  `eqdata` and `invdata` sent after the line are answered with the inventory after death.
 - **Disconnect.** The state is cleared, a block that was being read is dropped and the bag types
   are removed.
 
@@ -118,6 +125,7 @@ The forms below are the ones the plugin matches. The item values are made up.
 {/vault}
 {vaultcounts}1,1,50{/vaultcounts}     # items, total, maximum; after {/vault}
 You do not have a vault. See 'help vault' for how to acquire one.   # vault data, no vault
+You die.                              # the death message
 {invitem}6001,,a new thing,3,6,0,-1,-1
 {invmon}6,2001,2002,-1                # action,serial,container,location
 ```
@@ -190,6 +198,7 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | commands `eq`, `inv` | the same names |
 | `Item.score` default `Unkn` | a display-only default, `Unkn` when an item has no `score` |
 | commands `refresh`, `get`, `put`, `icache` | the same names |
+| `dead`, event `trigger_dead` | the `eq_dead` trigger, which eq handles itself |
 
 ## Changes from the old plugin
 
@@ -224,8 +233,11 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
   identify, and the copy saved to eqdb leaves them out.
 - **Fixed: `origcontainer`** was never cleared, so a later put sent the item to an old place.
 - **Fixed: a put into the inventory** sent `put <serial> Inventory`; now it only fetches.
-- **Fixed: `dead`.** The handler emptied the containers without a read and nothing raised its
-  event. The state is cleared on disconnect, and read again when the character is active.
+- **Changed: death.** The old handler emptied the containers without a read, and nothing in this
+  repo raised `trigger_dead`, so #75 (plan item 18) dropped it. Aardwolf leaves many items in the
+  corpse, so eq now has its own `^You die\.$` trigger. Unlike the old handler it keeps the vault
+  and reads everything else again; unlike #75 it does not leave the state stale until the next
+  connect. The timing of the reads is inferred, not checked live (see Death above).
 - **Fixed: vault counts compared as strings.** The old inventory showed the vault line even for an
   empty vault (a string is always above an int in Python 2), and the keep-flagged line compared the
   total with the item count as text, so `10` was not above `9`. Both compare ints now.

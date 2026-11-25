@@ -277,6 +277,7 @@ def test_after_load(env: Env) -> None:
         "eq_data_end",
         "eq_vaultcounts",
         "eq_no_vault",
+        "eq_dead",
         "eq_data_line",
     }
     assert fake.enabled() == set(fake.triggers) - {"eq_data_line"}
@@ -992,3 +993,36 @@ def test_a_vault_bag_gets_a_container_and_is_read(env: Env) -> None:
     assert "eq_container_5002" in env.fake.queued
     env.fake.args = {"container": "5002"}
     assert "does not exist" not in " ".join(env.plugin._command_inv().message)
+
+
+# death (#147)
+
+
+def test_death_forgets_what_is_carried_keeps_the_vault_and_reads_again(env: Env) -> None:
+    env.fill()
+    env.fake.feed(["{vault}", VAULT_BAG, "{/vault}"])
+    env.fake.queued.clear()
+    env.fake.feed(["You die."])
+    state = env.plugin.state
+    assert state.serials("Inventory") == []
+    assert state.serials("Worn") == []
+    assert state.serials("Vault") == [5002]
+    assert state.vault_read is True
+    assert env.fake.removed_types == ["eq_container_2002"]
+    assert env.fake.queued == ["eq_worn", "eq_inventory", "eq_keyring", "eq_container_5002"]
+    assert "You die." in env.fake.shown
+
+
+def test_death_in_a_bank_reads_the_vault_too(env: Env) -> None:
+    env.fill()
+    env.fake.gmcp["room.info.details"] = "bank"
+    env.fake.feed(["You die."])
+    assert env.fake.queued == ["eq_worn", "eq_inventory", "eq_keyring", "eq_vault"]
+
+
+def test_death_in_the_middle_of_a_block_drops_it(env: Env) -> None:
+    env.fill()
+    env.fake.feed(["{eqdata}", "You die."])
+    assert "eq_data_line" not in env.fake.enabled()
+    env.fake.feed([SWORD, "{/eqdata}"])
+    assert env.plugin.state.serials("Worn") == []
