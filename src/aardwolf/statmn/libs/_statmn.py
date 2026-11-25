@@ -20,6 +20,9 @@ EVENT_LEVEL_GAIN = f"{PREFIX}level_gain"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 # the core trigger that fires on an empty line
 EMPTYLINE_ID = "t_plugins.core.triggers_emptyline"
+# the event the core empty-line trigger raises (the core names a trigger's event
+# ``event_<trigger id>``); copied, because statmn imports no other plugin
+EMPTYLINE_EVENT = f"event_{EMPTYLINE_ID}"
 # the statdb API that runs a select
 SELECT_API = "plugins.aardwolf.statdb:stats.select"
 

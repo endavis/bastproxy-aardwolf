@@ -20,6 +20,7 @@ from ..libs import (
     DEFAULT_REPORTMINUTES,
     DEFAULT_SHOW,
     DEFAULT_STATCOLOR,
+    EMPTYLINE_EVENT,
     EMPTYLINE_ID,
     EVENT_CP_COMP,
     EVENT_DISCONNECT,
@@ -205,10 +206,19 @@ class StatmnPlugin(BasePlugin):
 
     # the completion messages
 
+    def _in_empty_line(self) -> bool:
+        """Return True while the core is raising the empty-line event."""
+        return EMPTYLINE_EVENT in self.api("plugins.core.events:event.stack.get")()
+
     def _queue(self, message: str) -> None:
-        """Hold a message until the next empty line."""
+        """Hold a message until the next empty line, or show it now during an empty line."""
         self._msgs.append(message)
         if self._waiting:
+            return
+        if self._in_empty_line():
+            # registering on the event while it is running would run _flush out of order
+            # in the same pass (#162), so show the message at this empty line directly
+            self._flush()
             return
         registered = self.api("plugins.core.triggers:trigger.register")(EMPTYLINE_ID, self._flush)
         self._waiting = bool(registered)
