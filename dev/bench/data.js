@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795718573155,
+  "lastUpdate": 1795724997218,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3039,6 +3039,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.435055965883612e-7",
             "extra": "mean: 3.7775332322897173 usec\nrounds: 142512"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eec928fa516ecb7188de314ad1d178065470d8f1",
+          "message": "feat: add a hunger plugin that drinks when hungry or thirsty (merges PR #176, addresses #174)\n\nplugins.aardwolf.hunger drinks from a configured container when any of\nAardwolf's six hunger or thirst stage lines arrives (start to feel,\nvery, starving/dehydrated). Drinking is off by default; a cooldown\n(default 60 s) stops the repeating lines from sending a burst. Orange\njuice satisfies both, so there is no eating (the user's decision).\n\nThe container is fetched through plugins.aardwolf.eq:item.fetch, the\ndrink goes out once eq reports eq_taken, and item.put returns it.\nReply triggers (drank, \"<container> is empty.\", filled, no liquid\nsource) are on only while a drink or fill the plugin sent is waiting.\nA missing or empty container gives one client message and stops\ndrinking until the setting changes or the container is filled.\n\nfillsource records the current GMCP room, and optionally a source\nobject. fill fills in that room, or walks there with\nplugins.client.mapper:walk.start and fills once on walk_done; failed,\nstopped or impossible walks are reported. Only the fill command starts\na walk. An automatic fill runs only when the character enters the fill\nroom with the container known to be empty.\n\nThe Aardwolf lines come from the user's live check on 2026-11-26.\ndrink/fill with a serial are still to be confirmed live.\n\nDocs: docs/plugins/hunger.md, the plugin index and the nav.\n\nAddresses #174\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T20:29:13Z",
+          "tree_id": "f2f0a0cd4c326c9b60924d2929c7dba6022fdb8e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/eec928fa516ecb7188de314ad1d178065470d8f1"
+        },
+        "date": 1795724996894,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5163845.177254341,
+            "unit": "iter/sec",
+            "range": "stddev: 1.4297177092719347e-8",
+            "extra": "mean: 193.65414060142453 nsec\nrounds: 53328"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 270906.91742496646,
+            "unit": "iter/sec",
+            "range": "stddev: 4.6940669016844794e-7",
+            "extra": "mean: 3.6913047828576455 usec\nrounds: 143576"
           }
         ]
       }
