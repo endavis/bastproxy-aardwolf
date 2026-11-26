@@ -18,9 +18,11 @@ def make_db(directory: Path) -> "Sqldb":
     """Open the eqdb database in a directory the way ``database.add`` does."""
     from bastproxy.plugins.core.sqldb.libs._sqlite import create_database
 
-    from aardwolf.eqdb.libs import DB_NAME, DB_VERSION, TABLES
+    from aardwolf.eqdb.libs import DB_NAME, DB_VERSION, MIGRATIONS, TABLES
 
-    return create_database(OWNER, DB_NAME, TABLES, version=DB_VERSION, directory=directory)
+    return create_database(
+        OWNER, DB_NAME, TABLES, version=DB_VERSION, migrations=MIGRATIONS, directory=directory
+    )
 
 
 def sample_item(serial: int = 1001) -> dict[str, Any]:

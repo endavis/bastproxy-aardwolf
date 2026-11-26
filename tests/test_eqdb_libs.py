@@ -2,6 +2,7 @@
 
 import copy
 import sqlite3
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -70,16 +71,77 @@ def test_tables_are_the_old_ones() -> None:
     from aardwolf.eqdb.libs import DB_NAME, DB_VERSION, TABLES
 
     assert DB_NAME == "eqdb"
-    assert DB_VERSION == 1
+    assert DB_VERSION == 2
     assert {t["name"]: t.get("keyfield") for t in TABLES} == OLD_TABLES
     assert len(TABLES) == 18
 
 
 def test_database_is_created(db: "Sqldb") -> None:
-    """Every table exists and the version is 1."""
+    """Every table exists and the version is 2."""
     for name in OLD_TABLES:
         assert db.checktableexists(name)
-    assert db.getversion() == 1
+    assert db.getversion() == 2
+
+
+def test_migrations_cover_every_version() -> None:
+    """There is one migration, for version 2, and it can be called."""
+    from aardwolf.eqdb.libs import DB_VERSION, MIGRATIONS
+
+    assert set(MIGRATIONS) == {2}
+    assert max(MIGRATIONS) == DB_VERSION
+    assert callable(MIGRATIONS[2])
+
+
+def _build_v1_database(path: Path) -> None:
+    """Write a made-up version 1 eqdb file with the stdlib, as the old plugin left it."""
+    from aardwolf.eqdb.libs import TABLES
+
+    connection = sqlite3.connect(path)
+    try:
+        for table in TABLES:
+            connection.execute(table["sql"])
+        rows = [
+            (1, "Weapon"),
+            (2, "Raw Material"),
+            (3, " light "),
+            (4, "Mystery"),
+            (5, 5),
+        ]
+        connection.executemany("INSERT INTO items(serial, itype) VALUES (?, ?)", rows)
+        connection.execute("INSERT INTO weapon(serial, wtype) VALUES (1, 'sword')")
+        connection.execute("PRAGMA user_version = 1")
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_version_1_database_converts_type_names(tmp_path: Path) -> None:
+    """A version 1 file is upgraded: type names become numbers, the rest is kept."""
+    from aardwolf.eqdb.libs import ItemStore
+
+    directory = tmp_path / "old"
+    directory.mkdir()
+    _build_v1_database(directory / "eqdb.sqlite")
+    db = make_db(directory)
+    try:
+        assert db.getversion() == 2
+        assert (directory / "archive" / "eqdb_1.sqlite.zip").exists()
+        with zipfile.ZipFile(directory / "archive" / "eqdb_1.sqlite.zip") as archive:
+            assert archive.namelist() == ["eqdb_1.sqlite"]
+        rows = db.select("SELECT serial, itype, typeof(itype) AS kind FROM items ORDER BY serial")
+        assert [(row["itype"], row["kind"]) for row in rows] == [
+            (5, "integer"),
+            (24, "integer"),
+            (1, "integer"),
+            ("Mystery", "text"),
+            (5, "integer"),
+        ]
+        assert _count(db, "weapon") == 1
+        item = ItemStore(db).get_item(1)
+        assert item is not None
+        assert item["itype"] == 5
+    finally:
+        db.close()
 
 
 def test_items_columns_match_the_old_create_text() -> None:

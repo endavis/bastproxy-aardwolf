@@ -254,6 +254,8 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 - **Fixed: bags by serial.** The old command turned the container into an int to find a bag; bag
   ids are strings now, and the serial is normalised.
 - **Changed: container names are not case sensitive,** so `inv vault` and `inv keyring` work.
+- **Changed: `unique` is a bool.** The old code gave `0` or `1`. It is not an `items` column,
+  so the eqdb database is not affected.
 - **Changed: a character with no vault** sees an empty vault, not "has not been refreshed". The
   state has a new `vault_read` flag, set when a vault read ends (including the no-vault answer) and
   cleared on reset, because `vault_counts` is `None` in both cases.

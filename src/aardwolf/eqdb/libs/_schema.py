@@ -1,14 +1,22 @@
-"""The eqdb schema: the 18 tables of the old proxy's eqdb database, version 1.
+"""The eqdb schema: the 18 tables of the old proxy's eqdb database, now version 2.
 
 The CREATE statements are the old proxy's text, word for word and in the same column order,
 so a database file written by the old plugin opens as it is (the same approach as statdb).
 The old ``additemindexes`` postcreate did nothing and is dropped.
+
+Version 2 changes no table. It converts the ``itype`` of rows that hold the type name the MUD
+sends (``Weapon``) to the ``OBJECTTYPES`` number, which is what the column is declared for.
 """
 
+from collections.abc import Callable
 from typing import Any
 
+from aardwolf._libs.itemu import OBJECTTYPESREV
+
+from ._db import EqDb
+
 DB_NAME = "eqdb"
-DB_VERSION = 1
+DB_VERSION = 2
 
 ITEMS_SQL = """CREATE TABLE items(
           serial INTEGER NOT NULL,
@@ -227,3 +235,21 @@ SINGLE_DETAILS = (
     "food",
     "spells",
 )
+
+
+def _version_2(db: EqDb) -> None:
+    """Store ``itype`` as the object type number.
+
+    A text ``itype`` is looked up, stripped and lower-cased, in ``OBJECTTYPESREV``. A name that
+    is not an object type, and a row that already holds a number, are left as they are.
+    """
+    rows = db.select("SELECT serial, itype FROM items WHERE typeof(itype) = 'text'")
+    converted = [
+        (OBJECTTYPESREV[name], row["serial"])
+        for row in rows
+        if (name := str(row["itype"]).strip().lower()) in OBJECTTYPESREV
+    ]
+    db.modifymany("UPDATE items SET itype = ? WHERE serial = ?", converted)
+
+
+MIGRATIONS: dict[int, Callable[[Any], Any]] = {2: _version_2}
