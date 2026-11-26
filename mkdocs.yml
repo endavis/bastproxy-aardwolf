@@ -116,6 +116,7 @@ nav:
       - itemkeep: plugins/itemkeep.md
       - aarch: plugins/aarch.md
       - idle: plugins/idle.md
+      - hunger: plugins/hunger.md
       - daily: plugins/daily.md
       - afk: plugins/afk.md
       - aflags: plugins/aflags.md
