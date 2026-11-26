@@ -14,7 +14,8 @@ tags:
 
 The `hunger` plugin drinks from a container you name when Aardwolf says the character is hungry or
 thirsty. Orange juice satisfies both hunger and thirst (`help drink` on Aardwolf), so the plugin only
-drinks. It has no eating.
+drinks, with the `gulp` command, which takes a whole drink at once. A gulp answers with one
+`You gulp down ...` line, then usually `You are now full.`. It has no eating.
 
 ## Loading
 
@@ -32,11 +33,11 @@ APIs and events, and the mapper is optional. It is not required, so it does not 
 
 - **Stage lines.** Any of the six hunger or thirst lines (see below) makes the plugin drink, when the
   `drink` setting is on. It is off by default.
-- **Fetch, drink, put back.** The container is taken out with eq's `item.fetch`, the plugin waits for
+- **Fetch, gulp, put back.** The container is taken out with eq's `item.fetch`, the plugin waits for
   the eq event `eq_taken` for that serial (eq moves the item only when the mud's `{invmon}` line
   arrives, and `item.put` returns early while it still thinks the item is in the bag), sends
-  `drink <serial>`, and then calls `item.put`. When the container is already in the inventory, or eq
-  knows no container for it, `drink` goes out at once with no put back. A timer of 10 seconds
+  `gulp <serial>`, and then calls `item.put`. When the container is already in the inventory, or eq
+  knows no container for it, `gulp` goes out at once with no put back. A timer of 10 seconds
   (`PENDING_TIMEOUT`) drops the action when no `eq_taken` arrives, and tells the client.
 - **Cooldown.** After one attempt, stage lines wait `cooldown` seconds (default 60). The line that
   repeats while nothing is done therefore sets off one attempt, not a burst. Every stage line,
@@ -117,10 +118,12 @@ an optional prefix):
 ## You are dehydrated; your healing is greatly reduced.
 ```
 
-The replies, recorded on a live character with a Sacramental Carafe of orange juice:
+The replies, recorded on a live character (the `drink` line from the older `drink` command) with a Sacramental Carafe of orange juice:
 
 ```text
 You drink some orange juice from Sacramental Carafe.
+You gulp down some orange juice from Sacramental Carafe.
+You are now full.
 Sacramental Carafe is empty.
 You fill Sacramental Carafe with orange juice.
 There is no liquid source here.
@@ -128,7 +131,7 @@ There is no liquid source here.
 
 ## Known gaps
 
-- `drink <serial>`, `fill <serial>` and `fill <serial> <object>` still need a live check on
+- `gulp <serial>`, `fill <serial>` and `fill <serial> <object>` still need a live check on
   Aardwolf. The live check used the keyword, and the two argument fill is unconfirmed.
 - The name lookup is case sensitive.
 - There is no eating.

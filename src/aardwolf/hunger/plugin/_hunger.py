@@ -27,7 +27,6 @@ from ..libs import (
     API_WALK_GET,
     API_WALK_START,
     COOLDOWN,
-    DRINK_CMD,
     EVENT_DISCONNECT,
     EVENT_EQ_INVENTORY_ADDED,
     EVENT_EQ_PUT,
@@ -39,6 +38,7 @@ from ..libs import (
     GMCP_ROOM_NUM,
     GROUP,
     GROUP_REPLY,
+    GULP_CMD,
     INVENTORY,
     PENDING_TIMEOUT,
     REPLY_TRIGGERS,
@@ -302,7 +302,7 @@ class HungerPlugin(BasePlugin):
             self._block("the drink container was not found")
             return
         self._last = now
-        self._act(DRINK_CMD.format(item=serial), serial, KIND_DRINK)
+        self._act(GULP_CMD.format(item=serial), serial, KIND_DRINK)
 
     def _do_fill(self, auto: bool) -> bool:
         """Fill the container where the character is; return False when nothing was sent."""

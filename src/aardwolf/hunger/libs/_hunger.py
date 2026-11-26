@@ -43,6 +43,7 @@ TIMER_REPLY = "hunger_reply"
 PENDING_TIMEOUT = 10
 
 DRINK_CMD = "drink {item}"
+GULP_CMD = "gulp {item}"
 FILL_CMD = "fill {item}"
 # TODO(live check #174): the two argument form of fill is not confirmed on Aardwolf yet
 FILL_FROM_CMD = "fill {item} {source}"
@@ -77,7 +78,9 @@ STAGE_TRIGGERS: tuple[TriggerSpec, ...] = (
 
 # the replies to a drink or fill this plugin sent; on only while one is awaited
 REPLY_TRIGGERS: tuple[TriggerSpec, ...] = (
-    TriggerSpec(TRIGGER_DRANK, r"^You drink (?P<liquid>.+) from (?P<container>.+)\.$"),
+    TriggerSpec(
+        TRIGGER_DRANK, r"^You (?:drink|gulp down) (?P<liquid>.+) from (?P<container>.+)\.$"
+    ),
     TriggerSpec(TRIGGER_EMPTY, r"^(?P<container>.+) is empty\.$"),
     TriggerSpec(TRIGGER_FILLED, r"^You fill (?P<container>.+) with (?P<liquid>.+)\.$"),
     TriggerSpec(TRIGGER_NOSOURCE, r"^There is no liquid source here\.$"),
