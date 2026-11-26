@@ -31,6 +31,7 @@ REPLY_LINES = {
     "hunger_drank": "You drink some orange juice from Sacramental Carafe.",
     "hunger_empty": "Sacramental Carafe is empty.",
     "hunger_filled": "You fill Sacramental Carafe with orange juice.",
+    "hunger_full": "Sacramental Carafe is already full.",
     "hunger_nosource": "There is no liquid source here.",
 }
 NEAR_MISSES = [

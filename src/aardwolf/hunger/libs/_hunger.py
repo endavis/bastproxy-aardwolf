@@ -51,6 +51,7 @@ FILL_FROM_CMD = "fill {item} {source}"
 TRIGGER_DRANK = "hunger_drank"
 TRIGGER_EMPTY = "hunger_empty"
 TRIGGER_FILLED = "hunger_filled"
+TRIGGER_FULL = "hunger_full"
 TRIGGER_NOSOURCE = "hunger_nosource"
 
 
@@ -83,6 +84,7 @@ REPLY_TRIGGERS: tuple[TriggerSpec, ...] = (
     ),
     TriggerSpec(TRIGGER_EMPTY, r"^(?P<container>.+) is empty\.$"),
     TriggerSpec(TRIGGER_FILLED, r"^You fill (?P<container>.+) with (?P<liquid>.+)\.$"),
+    TriggerSpec(TRIGGER_FULL, r"^(?P<container>.+) is already full\.$"),
     TriggerSpec(TRIGGER_NOSOURCE, r"^There is no liquid source here\.$"),
 )
 

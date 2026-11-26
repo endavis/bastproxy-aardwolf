@@ -126,6 +126,7 @@ You gulp down some orange juice from Sacramental Carafe.
 You are now full.
 Sacramental Carafe is empty.
 You fill Sacramental Carafe with orange juice.
+Sacramental Carafe is already full.
 There is no liquid source here.
 ```
 
