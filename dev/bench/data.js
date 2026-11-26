@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795730770998,
+  "lastUpdate": 1795731992114,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3115,6 +3115,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.409600547591711e-7",
             "extra": "mean: 5.875566985977954 usec\nrounds: 176119"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "463136b63d4ca35d8435405781de3d73dc908cea",
+          "message": "fix: mark a battle prompt whose value holds spaces as a prompt (merges PR #182, addresses #178)\n\nA prompt value ended at the first character of the fixed text after it.\nIn the battle prompt the enemy health value is followed by \" ]>\", so the\nvalue stopped at its first space and could not hold \"Enemy: 100%\". The\nbattle line never matched, was not marked is_prompt, and got no GA, so\nhide windows stayed open in combat.\n\nWhen the fixed text after a value starts with blanks and has other text,\nthe value now ends at that text's first non-blank character and the\nblanks match as \\s*. Values stay possessive, so matching stays linear.\n\nAddresses #178\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T22:25:50Z",
+          "tree_id": "7066ceecb8691a07e9a6df875e7b2f48b06483b5",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/463136b63d4ca35d8435405781de3d73dc908cea"
+        },
+        "date": 1795731991274,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 6058727.983566201,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1252199929520109e-8",
+            "extra": "mean: 165.05114649682528 nsec\nrounds: 62329"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 311038.5110763722,
+            "unit": "iter/sec",
+            "range": "stddev: 3.450615147769743e-7",
+            "extra": "mean: 3.2150359662519756 usec\nrounds: 156202"
           }
         ]
       }
