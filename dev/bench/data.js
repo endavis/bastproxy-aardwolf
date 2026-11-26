@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795733128170,
+  "lastUpdate": 1795734814759,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3191,6 +3191,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.547507644882516e-7",
             "extra": "mean: 4.536591393125845 usec\nrounds: 115036"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f0de9e3857ec2afc7377ee96356110f0ecdb0ec",
+          "message": "fix: refuse to record a portal above the character's level (merges PR #185, addresses #184)\n\n_command_portal now checks the portal's level (eq's item level or -l)\nwith the same tier-adjusted requirement check walks use, and refuses\nat once with \"Mapper: <name> (<serial>) needs level <N>\". Nothing is\nsent to the MUD and nothing is stored.\n\nAddresses #184\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T23:13:03Z",
+          "tree_id": "ac19bce1735ca168b88927b55d3e4d5b0e4bec82",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/2f0de9e3857ec2afc7377ee96356110f0ecdb0ec"
+        },
+        "date": 1795734814353,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5820126.793534802,
+            "unit": "iter/sec",
+            "range": "stddev: 1.706231552511842e-8",
+            "extra": "mean: 171.81756265358936 nsec\nrounds: 59015"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 282852.48659575096,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000029090856476647103",
+            "extra": "mean: 3.535411733640464 usec\nrounds: 155280"
           }
         ]
       }
