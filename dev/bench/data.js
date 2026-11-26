@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795724997218,
+  "lastUpdate": 1795730770998,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3077,6 +3077,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.6940669016844794e-7",
             "extra": "mean: 3.6913047828576455 usec\nrounds: 143576"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77bff8753c8a7b1d9198006813a077c13c56b6e3",
+          "message": "feat: add a mapper portal by item serial, recorded by entering it (merges PR #181, addresses #175)\n\n* feat: add a mapper portal by item serial, recorded by entering it\n\n`portal <serial>` looks the item up through eq, takes it out of its\ncontainer, holds it in the portal slot, sends `enter`, and stores the\nnext room as a `*` exit with the item's level. The portal and the\nslot's previous item are then restored. The exit is stored as a\nportal-by-serial marker; a walk expands it into the same steps, and the\nrequirement callback blocks it when eq no longer has the item. Text\nportals are unchanged.\n\nThe portal wear slot, whether `enter` alone takes the portal, and the\nrefusal lines other than noportal are still to be confirmed live.\n\nAddresses #175\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: wear a portal where Aardwolf puts it, in the slot or held\n\nThe portal wear location is bought: a character with it wears a portal\nthere, and one without it holds the portal. A plain wear puts it in the\nright place and swaps out what was there. Using a portal by serial now\nsends a plain wear, notes the items in the portal and held slots\nbeforehand, and after the room change puts the portal back and\nre-equips the item from the slot the portal landed in. When eq has not\nseen where it went, the slot whose item changed is restored; when\nnothing can be decided, the portal is put back and a warning is logged.\n\nThe portal-by-serial tests now expect the plain wear with no unequip\nfirst, as approved by the user. FakeEq gains a lands option.\n\nAddresses #175\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T22:05:26Z",
+          "tree_id": "18b948cccf90102e90a311f6e047df5cdee417c0",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/77bff8753c8a7b1d9198006813a077c13c56b6e3"
+        },
+        "date": 1795730770265,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3074179.9367280905,
+            "unit": "iter/sec",
+            "range": "stddev: 4.8488736285345554e-8",
+            "extra": "mean: 325.2900027264895 nsec\nrounds: 198099"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170196.34060619186,
+            "unit": "iter/sec",
+            "range": "stddev: 8.409600547591711e-7",
+            "extra": "mean: 5.875566985977954 usec\nrounds: 176119"
           }
         ]
       }
