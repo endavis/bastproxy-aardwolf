@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795685195117,
+  "lastUpdate": 1795718573155,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3001,6 +3001,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000011084048518610191",
             "extra": "mean: 3.4296362172136488 usec\nrounds: 149926"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d340a4966aeded9d15311f8f20641ccd944887fc",
+          "message": "docs: record small behaviour changes found in the migration audit (merges PR #171, addresses #159)\n\nEach plugin page's changes from the old plugin now records the eight\nchanges the audit found, all kept as intended (the user chose to file\nno fix issue):\n\n- su: add all uses skill.is.practiced (more than 10 percent), not 1.\n- statdb: an existing milestone is skipped without a client message.\n- afk: a queued tell keeps only timestamp, player and msg.\n- connect: no empty line after look and map at first active.\n- mobk and the aardu docstring: a damage line ends in ! or ., no\n  longer | (a literal in the old character class).\n- whois: a stat with an empty label is skipped.\n- a102: a client toggle is used only with flag 1 or 2 and a known\n  option; the old bool() read OFF as on and unknown options raised.\n- itemid: the identify command type regex is ^identify \\d+$.\n\nThe issue said the old itemid regex was .*; it was\n^identify (?P<item>.*)$.\n\nAddresses #159\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T18:42:09Z",
+          "tree_id": "c4c0a24183a7242d03a84e722adfce5c428df484",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/d340a4966aeded9d15311f8f20641ccd944887fc"
+        },
+        "date": 1795718572685,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4888848.5102010425,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7330627388653966e-8",
+            "extra": "mean: 204.54714395698824 nsec\nrounds: 50654"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 264723.018569941,
+            "unit": "iter/sec",
+            "range": "stddev: 5.435055965883612e-7",
+            "extra": "mean: 3.7775332322897173 usec\nrounds: 142512"
           }
         ]
       }
