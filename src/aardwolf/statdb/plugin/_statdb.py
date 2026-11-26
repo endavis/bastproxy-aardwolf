@@ -27,6 +27,7 @@ from ..libs import (
     DB_NAME,
     DB_VERSION,
     DEFAULT_MOBKILL_COUNT,
+    JOURNAL_MODE,
     MAPPER_ROOM_PATH,
     MIGRATIONS,
     SETTING_CHART_AREAS,
@@ -181,7 +182,12 @@ class StatdbPlugin(BasePlugin):
 
         try:
             db = self.api("plugins.core.sqldb:database.add")(
-                self.plugin_id, DB_NAME, TABLES, version=DB_VERSION, migrations=MIGRATIONS
+                self.plugin_id,
+                DB_NAME,
+                TABLES,
+                version=DB_VERSION,
+                migrations=MIGRATIONS,
+                journal_mode=JOURNAL_MODE,
             )
         except (ValueError, sqlite3.Error) as exc:
             log_to(self.plugin_id, logging.ERROR, "could not open the stats database: %s", exc)

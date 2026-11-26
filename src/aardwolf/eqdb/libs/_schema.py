@@ -17,6 +17,7 @@ from ._db import EqDb
 
 DB_NAME = "eqdb"
 DB_VERSION = 2
+JOURNAL_MODE = "wal"
 
 ITEMS_SQL = """CREATE TABLE items(
           serial INTEGER NOT NULL,

@@ -16,6 +16,7 @@ from ._db import StatsDb
 
 DB_NAME = "stats"
 DB_VERSION = 17
+JOURNAL_MODE = "wal"
 
 STATS_SQL = """CREATE TABLE stats(
             stat_id INTEGER NOT NULL PRIMARY KEY autoincrement,

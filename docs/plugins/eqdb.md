@@ -88,8 +88,11 @@ order, so a database from the old plugin opens as it is.
   with its number. A name that is not an object type stays text, and a number is left alone.
 - **The old proxy should not use the upgraded file.** It stored and compared the type name.
   Keep the version 1 backup.
-- **No foreign keys.** The tables declare `FOREIGN KEY` clauses, but bastproxy's core sqldb does
-  not turn foreign key enforcement on, so they are not checked. The old plugin turned them on.
+- **No foreign keys.** The tables declare `FOREIGN KEY` clauses, but the plugin does not turn
+  foreign key enforcement on, so they are not checked. The old plugin turned them on.
+- **WAL mode.** The plugin passes `journal_mode="wal"` to `database.add`, as the old plugin set
+  `journal_mode=WAL`. SQLite then keeps `eqdb.sqlite-wal` and `eqdb.sqlite-shm` beside the file
+  while it is open. Copy or back up the file with them, or after the proxy stops.
 - **No atomic save.** Each statement is atomic, but a save that writes several tables is not one
   transaction. The old save was not either.
 
@@ -161,7 +164,8 @@ and `ev_plugins.aardwolf.eqdb_var_backupinterval_modified`, and to no other even
 | the `trigger_dead` handler, which did nothing | dropped |
 | `countitems`, which nothing called | dropped |
 | `send.msg` logging of every query | dropped |
-| `PRAGMA foreign_keys=On` and WAL mode | the core sqldb's settings |
+| `PRAGMA foreign_keys=On` | not turned on; the `FOREIGN KEY` clauses are not enforced |
+| `PRAGMA journal_mode=WAL` | `journal_mode="wal"` passed to `database.add` |
 | `itype` stored as the type name (`Weapon`) | the `OBJECTTYPES` number; the version 2 step converts old rows |
 
 Bugs fixed in the port:

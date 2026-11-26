@@ -24,6 +24,7 @@ class FakeApi:
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self.db_error: Exception | None = None
+        self.database_add_kwargs: dict[str, object] = {}
         self.settings_added: list[tuple[str, str, object, str]] = []
         self.setting_values: dict[str, object] = {"backupstart": "0300", "backupinterval": 14400}
         self.timers: list[tuple[str, Callable[..., Any], float, dict[str, object]]] = []
@@ -51,7 +52,10 @@ class FakeApi:
     def _database_add(self, owner_id: str, name: str, tables: object, **kwargs: object) -> object:
         if self.db_error is not None:
             raise self.db_error
-        return make_db(self.directory)
+        self.database_add_kwargs = kwargs
+        journal_mode = kwargs.get("journal_mode")
+        assert journal_mode is None or isinstance(journal_mode, str)
+        return make_db(self.directory, journal_mode=journal_mode)
 
     def _timer_exists(self, name: str) -> bool:
         return any(timer[0] == name for timer in self.timers)
@@ -126,6 +130,9 @@ def test_after_load(env: Env) -> None:
     assert kwargs == {"time": "0300", "onetime": True}
     assert func == env.plugin._timer_backup_start
     assert env.plugin.store.db.checktableexists("items")  # type: ignore[attr-defined]
+    assert env.fake.database_add_kwargs["journal_mode"] == "wal"
+    journal = env.plugin.store.db.select("PRAGMA journal_mode")
+    assert next(iter(journal[0].values())) == "wal"
 
 
 def test_registered_events(env: Env) -> None:

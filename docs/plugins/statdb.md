@@ -106,6 +106,10 @@ The core opens the old file as it is, so there is no converter. To use an old da
 
 Keep the old file until the commands show the data you expect.
 
+The plugin opens the database in WAL mode (`journal_mode="wal"` passed to `database.add`), as
+the old plugin did. While it is open, SQLite keeps `stats.sqlite-wal` and `stats.sqlite-shm`
+beside the file, so the web pages can read while the proxy writes.
+
 ## Commands
 
 The commands are `#bp.aardwolf.statdb.<command>`.
@@ -258,6 +262,7 @@ plugin adds no SQL triggers, because the file must stay as the old plugin wrote 
 | timer `stats_backup` at local time | UTC, with a one-time timer that adds the interval timer |
 | plugin version 2, which moved the files from the old `data/db` layout | dropped; copy the file as above |
 | `send.msg` logging of every save | dropped |
+| `PRAGMA journal_mode=WAL` | `journal_mode="wal"` passed to `database.add` |
 
 Bugs fixed in the port:
 
