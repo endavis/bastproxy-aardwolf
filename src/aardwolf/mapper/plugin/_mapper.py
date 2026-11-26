@@ -1069,6 +1069,9 @@ class MapperPlugin(BasePlugin):
         level = args.get("level")
         level = to_int(item.get("level")) if level is None else to_int(level)
         name = self._item_name(serial)
+        exit_dict = {"fromuid": ANYWHERE[0], "dir": portal_marker(serial)}
+        if not self._requirement(portal_requirement(serial, level), exit_dict):
+            return CommandResult(False, [f"Mapper: {name} ({serial}) needs level {level}"])
         touid = args.get("touid")
         if touid:
             if self._known_room(str(touid)) is None:

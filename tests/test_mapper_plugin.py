@@ -751,6 +751,44 @@ def test_portal_item_already_held_is_entered_without_restore(env: Env) -> None:
     assert env.fake.eq.calls == []
 
 
+def test_portal_item_above_level_is_refused(env: Env) -> None:
+    """A portal above the tier-adjusted level is refused at once; nothing is sent or stored."""
+    stock_eq(env)
+    env.fake.gmcp.update({"char.status.level": 29, "char.base.tier": 2})  # counts as 49
+    result = start_portal(env)
+    assert not result.success
+    assert result.message == ["Mapper: a swirling portal (7) needs level 50"]
+    assert env.fake.mud == []
+    assert env.fake.eq.calls == []
+    assert env.plugin._pending_portal is None
+    assert not exits_added(env)
+    start_portal(env, touid="1234")
+    assert not exits_added(env)
+
+
+def test_portal_item_at_level_records(env: Env) -> None:
+    """A portal at the tier-adjusted level records as before."""
+    stock_eq(env)
+    env.fake.gmcp.update({"char.status.level": 30, "char.base.tier": 2})
+    assert start_portal(env).success
+    env.move(ROOM_B)
+    assert exits_added(env) == [("*", portal_marker(7), "1235", 1, {"serial": 7, "level": 50})]
+
+
+def test_portal_item_level_override_is_checked(env: Env) -> None:
+    """-l replaces the item's level for the check as well as the stored requirement."""
+    stock_eq(env)
+    env.fake.gmcp.update({"char.status.level": 10, "char.base.tier": 0})
+    assert not start_portal(env).success
+    assert start_portal(env, level=5).success
+    env.plugin._pending_portal = None
+    assert start_portal(env, level=0).success
+    env.fake.mud.clear()
+    result = start_portal(env, level=60)
+    assert result.message == ["Mapper: a swirling portal (7) needs level 60"]
+    assert env.fake.mud == []
+
+
 def test_portal_item_refusals_send_nothing(env: Env) -> None:
     """An unknown item, a non portal, a recall, a second recording and no eq store nothing."""
     stock_eq(env)
