@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795734814759,
+  "lastUpdate": 1795735831958,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3229,6 +3229,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000029090856476647103",
             "extra": "mean: 3.535411733640464 usec\nrounds: 155280"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "493820119e3b4dd2b5b385bc5dbe39f7ac667a9b",
+          "message": "fix: hide the spellup tag lines the skills plugin reads from the client (merges PR #187, addresses #179)\n\nSet omit on the six skills tag triggers (affon, affoff, recon, recoff,\nskillgain, sfail) so the client no longer sees raw tag lines. The plugin\nand su events still fire. Update the skills plugin docs, and flip the two\nexisting assertions that expected the lines to be shown.\n\nAddresses #179\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T23:29:59Z",
+          "tree_id": "438fa32d41c5542c65c178f6b29bc9526b5906ff",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/493820119e3b4dd2b5b385bc5dbe39f7ac667a9b"
+        },
+        "date": 1795735831625,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3049050.576567949,
+            "unit": "iter/sec",
+            "range": "stddev: 3.895751095135151e-8",
+            "extra": "mean: 327.97094534444 nsec\nrounds: 198531"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 177059.46531209996,
+            "unit": "iter/sec",
+            "range": "stddev: 6.005644544172695e-7",
+            "extra": "mean: 5.647820059985585 usec\nrounds: 186012"
           }
         ]
       }
