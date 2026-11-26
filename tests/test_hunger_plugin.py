@@ -44,6 +44,8 @@ DEHYDRATED = "## You are dehydrated; your healing is greatly reduced."
 EMPTY = "Sacramental Carafe is empty."
 FILLED = "You fill Sacramental Carafe with orange juice."
 DRANK = "You drink some orange juice from Sacramental Carafe."
+GULPED = "You gulp down some orange juice from Sacramental Carafe."
+FULL = "You are now full."
 NOSOURCE = "There is no liquid source here."
 
 
@@ -302,7 +304,7 @@ def test_container_in_a_bag(env: Env) -> None:
     assert TIMER_FETCH in env.fake.timers
     assert not env.reply_on()
     env.taken()
-    assert env.fake.calls[1:] == [("send", f"drink {CARAFE}"), ("put", CARAFE), ("group", True)]
+    assert env.fake.calls[1:] == [("send", f"gulp {CARAFE}"), ("put", CARAFE), ("group", True)]
     assert TIMER_FETCH not in env.fake.timers
     assert TIMER_REPLY in env.fake.timers
     assert env.reply_on()
@@ -313,7 +315,7 @@ def test_container_in_inventory(env: Env) -> None:
     """In the inventory the drink goes out at once, with no fetch and no put."""
     env.fake.items[CARAFE]["container"] = "Inventory"
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
     assert [c for c in env.fake.calls if c[0] in ("fetch", "put")] == []
     assert env.reply_on()
 
@@ -323,7 +325,7 @@ def test_container_without_a_known_place_drinks_at_once(env: Env) -> None:
     env.fake.items[CARAFE]["container"] = None
     env.fake.settings["container"] = str(CARAFE)
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
     assert [c for c in env.fake.calls if c[0] in ("fetch", "put")] == []
 
 
@@ -368,7 +370,7 @@ def test_cooldown(env: Env) -> None:
     env.feed(HUNGRY)
     env.feed(VERY_THIRSTY)
     env.feed(DEHYDRATED)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
     env.feed(DRANK)
     env.clock[0] += 59
     env.feed(HUNGRY)
@@ -425,7 +427,7 @@ def test_setting_change_clears_the_block(env: Env) -> None:
     env.fake.settings["container"] = "Carafe"
     env.plugin._eventcb_container_modified()
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
 
 
 @pytest.mark.parametrize("handler", ["_eventcb_inventory_added", "_eventcb_put", "_eventcb_taken"])
@@ -436,7 +438,7 @@ def test_eq_event_for_the_item_clears_the_block(env: Env, handler: str) -> None:
     env.event(getattr(env.plugin, handler), serial=CARAFE)
     env.clock[0] += 1000
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
 
 
 def test_eq_event_without_the_item_keeps_the_block(env: Env) -> None:
@@ -460,7 +462,7 @@ def test_empty_container(env: Env) -> None:
     assert not env.reply_on()
     env.clock[0] += 1000
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
     assert len(env.notices) == 1
 
 
@@ -472,7 +474,7 @@ def test_empty_stays_blocked_after_the_put_back(env: Env) -> None:
     env.event(env.plugin._eventcb_put, serial=CARAFE)
     env.clock[0] += 1000
     env.feed(HUNGRY)
-    assert env.mud == [f"drink {CARAFE}"]
+    assert env.mud == [f"gulp {CARAFE}"]
 
 
 def test_empty_line_with_reply_triggers_off_does_nothing(env: Env) -> None:
@@ -488,6 +490,34 @@ def test_drank_turns_the_reply_triggers_off(env: Env) -> None:
     assert not env.reply_on()
     assert TIMER_REPLY not in env.fake.timers
     assert not env.plugin._busy()
+
+
+def test_gulp_reply_then_full_ends_the_wait_once(env: Env) -> None:
+    """A gulp answers with one line and then "You are now full."; the wait ends once."""
+    env.fake.items[CARAFE]["container"] = "Inventory"
+    env.feed(HUNGRY)
+    assert env.reply_on()
+    env.feed(GULPED)
+    assert not env.reply_on()
+    assert TIMER_REPLY not in env.fake.timers
+    assert not env.plugin._busy()
+    env.feed(FULL)
+    assert not env.reply_on()
+    assert env.plugin._empty is False
+    assert env.notices == []
+    assert env.mud == [f"gulp {CARAFE}"]
+
+
+def test_empty_after_a_gulp_blocks(env: Env) -> None:
+    """The empty line still blocks drinking when the command was a gulp."""
+    env.fake.items[CARAFE]["container"] = "Inventory"
+    env.feed(HUNGRY)
+    assert env.mud == [f"gulp {CARAFE}"]
+    env.feed(EMPTY)
+    assert env.plugin._empty is True
+    env.clock[0] += 1000
+    env.feed(HUNGRY)
+    assert env.mud == [f"gulp {CARAFE}"]
 
 
 def test_fillsource(env: Env) -> None:
@@ -547,7 +577,7 @@ def test_filled_reply_clears_empty_and_block(env: Env) -> None:
     assert not env.reply_on()
     env.clock[0] += 1000
     env.feed(HUNGRY)
-    assert env.mud[-1] == f"drink {CARAFE}"
+    assert env.mud[-1] == f"gulp {CARAFE}"
 
 
 def test_no_source_keeps_empty_and_tells_the_client(env: Env) -> None:

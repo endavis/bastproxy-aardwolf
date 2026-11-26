@@ -8,6 +8,7 @@ from aardwolf.hunger.libs import (
     DRINK_CMD,
     FILL_CMD,
     FILL_FROM_CMD,
+    GULP_CMD,
     REPLY_TRIGGERS,
     STAGE_TRIGGERS,
     choose_item,
@@ -154,3 +155,23 @@ def test_commands() -> None:
     assert FILL_FROM_CMD.format(item=5, source="fountain") == "fill 5 fountain"
     assert fill_command(5) == "fill 5"
     assert fill_command(5, "fountain") == "fill 5 fountain"
+
+
+def test_gulp_command() -> None:
+    assert GULP_CMD.format(item=5) == "gulp 5"
+
+
+GULP_LINE = "You gulp down some orange juice from Sacramental Carafe."
+
+
+@pytest.mark.parametrize("line", [REPLY_LINES["hunger_drank"], GULP_LINE])
+def test_drank_trigger_matches_drink_and_gulp(line: str) -> None:
+    assert matching(REPLY_TRIGGERS, line) == ["hunger_drank"]
+    drank = re.match(REPLY_TRIGGERS[0].regex, line)
+    assert drank is not None
+    assert drank.group("liquid") == "some orange juice"
+    assert drank.group("container") == "Sacramental Carafe"
+
+
+def test_now_full_line_matches_no_reply_trigger() -> None:
+    assert matching(REPLY_TRIGGERS, "You are now full.") == []
