@@ -113,3 +113,6 @@ Fixes in the port:
 - **Settings.** `instatext` and `instaback` are dropped; nothing used them.
 - **Blessing line.** The old trigger used `priority=99` and `stopevaluating`, which also hid the
   line from every other plugin. A lookahead in `mobk_bonusxp` replaces it.
+- **Changed: damage line ending.** `aardwolf._libs.aardu.parse_damage_line` takes a line ending
+  in `!` or `.`. The old regex, `[!|\.]`, also accepted `|`, because a `|` inside a
+  character class is a literal.

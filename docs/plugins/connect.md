@@ -62,3 +62,8 @@ includes endavis/bastproxy#589; when `uv.lock` pins an older commit, upgrade it 
 | API `connect.firstactive` | `plugins.aardwolf.connect:character.is.first.active`, or bastproxy's `libs.api:character.is.active` |
 | event `firstactive` | `ev_libs.api_character_active` (bastproxy core) |
 | `afterfirstactive()` override in a plugin | `@RegisterPluginHook("character_active")` |
+
+Changes from the old plugin:
+
+- **Changed: no empty line at first active.** The old plugin sent `look`, `map` and then an empty
+  line. The port sends `look` and `map` only.

@@ -101,3 +101,5 @@ Fixes in the port:
 - The event gets a plain copy of the state; the old deep copy of a persistent dict returned the
   live object.
 - A whois sent by another plugin is parsed. The core watch sees only lines a client typed.
+- **Changed:** a stat whose label is empty after spaces are removed is skipped. The old plugin
+  stored it under the key `""`.

@@ -192,6 +192,10 @@ is the room number.
 13. The `send.msg` debug messages and `@timeit` are debug logs.
 14. The `NP` column says 10 percent or less, the limit the skills plugin uses for practiced, where
     the old plugin tested for exactly 1 percent.
+15. Changed: `add all` adds the spellups the skills plugin calls practiced
+    (`plugins.aardwolf.skills:skill.is.practiced`, more than 10 percent). The old plugin added every
+    spellup above 1 percent, so a spell learned at 2 to 10 percent is no longer added by `all`.
+    Name it to add it.
 
 ## Known gaps
 
