@@ -36,6 +36,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
+- [The hunger Plugin](plugins/hunger.md) - Drink from a container when the Aardwolf character is hungry or thirsty
 - [The iceage Plugin](plugins/iceage.md) - Raise events when an Aardwolf Ice Age approaches or the MUD is about to reboot
 - [The idle Plugin](plugins/idle.md) - Keep an idle Aardwolf character from being disconnected
 - [The itemid Plugin](plugins/itemid.md) - Identify an Aardwolf item with invdetails and identify, hand the result to eq and eqdb, and show it as an item box
@@ -134,6 +135,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
+- [The hunger Plugin](plugins/hunger.md) - Drink from a container when the Aardwolf character is hungry or thirsty
 - [The iceage Plugin](plugins/iceage.md) - Raise events when an Aardwolf Ice Age approaches or the MUD is about to reboot
 - [The idle Plugin](plugins/idle.md) - Keep an idle Aardwolf character from being disconnected
 - [The itemid Plugin](plugins/itemid.md) - Identify an Aardwolf item with invdetails and identify, hand the result to eq and eqdb, and show it as an item box
@@ -258,6 +260,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [The eq Plugin](plugins/eq.md) - Keep track of the items an Aardwolf character wears, carries, keeps on the keyring and stores in the vault, and raise the changes as events
 - [The eqdb Plugin](plugins/eqdb.md) - Keep the character's identified items in a database, and give other plugins an API to save and get an item
 - [The gq Plugin](plugins/gq.md) - Follow the global quests of an Aardwolf character and raise their declaration, mobs left and end as events
+- [The hunger Plugin](plugins/hunger.md) - Drink from a container when the Aardwolf character is hungry or thirsty
 - [The iceage Plugin](plugins/iceage.md) - Raise events when an Aardwolf Ice Age approaches or the MUD is about to reboot
 - [The idle Plugin](plugins/idle.md) - Keep an idle Aardwolf character from being disconnected
 - [The itemid Plugin](plugins/itemid.md) - Identify an Aardwolf item with invdetails and identify, hand the result to eq and eqdb, and show it as an item box
