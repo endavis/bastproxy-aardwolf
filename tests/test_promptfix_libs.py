@@ -277,3 +277,49 @@ def test_trailing_value_stops_at_the_flags() -> None:
     assert regex is not None
     assert is_prompt_text("Hp: 201 *[NOEXP]*", [regex])
     assert is_prompt_text("Hp: 201", [regex])
+
+
+COMBAT = "[Combat: %hhp %b ]>%c"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[Combat: 5hp Enemy: 100% ]>",
+        "[Combat: 5hp Enemy: 100% ]>*[NOEXP]*",
+        "[Combat: 5hp  ]>",
+        "[Combat: 5hp ]>",
+        "[Combat: 5hp Enemy: 100%]>",
+    ],
+)
+def test_value_with_spaces_before_blank_led_text_matches(text: str) -> None:
+    """A value may hold spaces when the fixed text after it starts with a blank."""
+    assert is_prompt_text(text, [pattern(COMBAT)])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[Combat: 5hp Enemy: 100% >",
+        "[Combat: 5hp Enemy: 100% ]> trailing",
+        "[Combat: 5hp Enemy: ]x 100% ]>",
+    ],
+)
+def test_blank_led_text_still_rejects_other_lines(text: str) -> None:
+    """No ``]>``, trailing text, or a value holding the stop character is not a prompt."""
+    assert not is_prompt_text(text, [pattern(COMBAT)])
+
+
+def test_blank_only_text_between_values_still_needs_its_space() -> None:
+    """Fixed text that is only a blank keeps the old behaviour."""
+    regex = pattern("[%h %m] >%c")
+    assert is_prompt_text("[5 6] >", [regex])
+    assert not is_prompt_text("[56] >", [regex])
+
+
+def test_near_miss_with_blank_led_text_fails_fast() -> None:
+    """A near-miss line for blank-led text fails in linear time."""
+    regex = pattern("[" + " ".join(["%h"] * 12) + " ]>%c")
+    start = time.perf_counter()
+    assert not regex.search("[" + " " * 300 + "!")
+    assert time.perf_counter() - start < 1.0

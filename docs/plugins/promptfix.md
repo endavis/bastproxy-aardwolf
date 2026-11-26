@@ -55,7 +55,9 @@ on the [connect plugin](connect.md).
   them.
 - **Matching limits.** Every MUD line is tested, so a pattern is built to fail fast: each code's
   value runs up to the first character of the fixed text after it, without backtracking, and
-  adjacent codes count as one value. A value that contains that character (for example a value
+  adjacent codes count as one value. When that fixed text starts with a blank and has more text
+  (` ]>`), the value runs up to its first non-blank character, so a value can hold spaces
+  (`Enemy: 100%`). A value that contains that character (for example a value
   holding `h` before the fixed text `hp`) leaves the line unmarked. A line longer than 400
   characters is never tested.
 - **What marking does.** Marked prompts reach triggers, `on_prompt` triggers and line waiters as real

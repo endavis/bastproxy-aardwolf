@@ -180,6 +180,11 @@ def build_prompt_pattern(template: str) -> PromptPattern:
     )
 
 
+def _blank_led(text: str) -> bool:
+    """Return True when the text starts with a blank and has other text after it."""
+    return text[:1].isspace() and bool(text.strip())
+
+
 def _pattern_body(pieces: list[tuple[bool, str]]) -> str:
     """Turn the pieces of a prompt line into regex text that cannot backtrack badly.
 
@@ -187,6 +192,10 @@ def _pattern_body(pieces: list[tuple[bool, str]]) -> str:
     is possessive, so a line that almost matches fails in linear time instead of trying every
     split between several wildcards. Adjacent codes are one value. A value that contains the
     first character of the text after it does not match, which leaves that line unmarked.
+
+    When the text after a value starts with blanks and has other text (`` ]>``), the value
+    runs up to the first non-blank character of that text and the blanks match as ``\\s*``,
+    so a value that holds spaces (``Enemy: 100%``) still matches.
     """
     merged: list[tuple[bool, str]] = []
     for wild, text in pieces:
@@ -196,9 +205,14 @@ def _pattern_body(pieces: list[tuple[bool, str]]) -> str:
     parts: list[str] = []
     for index, (wild, text) in enumerate(merged):
         if not wild:
-            parts.append(re.escape(text))
+            if index and _blank_led(text):
+                parts.append(r"\s*" + re.escape(text.lstrip()))
+            else:
+                parts.append(re.escape(text))
         elif index + 1 < len(merged):
-            parts.append(f"[^{re.escape(merged[index + 1][1][0])}]*+")
+            following = merged[index + 1][1]
+            stop = following.lstrip()[0] if _blank_led(following) else following[0]
+            parts.append(f"[^{re.escape(stop)}]*+")
         else:
             # the last value runs to the trailing flags; it cannot contain their "*["
             parts.append(r"(?:[^*]|\*(?!\[))*+")
