@@ -43,6 +43,7 @@ VERY_THIRSTY = "## You are very thirsty; your healing is reduced."
 DEHYDRATED = "## You are dehydrated; your healing is greatly reduced."
 EMPTY = "Sacramental Carafe is empty."
 FILLED = "You fill Sacramental Carafe with orange juice."
+ALREADY_FULL = "Sacramental Carafe is already full."
 DRANK = "You drink some orange juice from Sacramental Carafe."
 GULPED = "You gulp down some orange juice from Sacramental Carafe."
 FULL = "You are now full."
@@ -572,6 +573,22 @@ def test_filled_reply_clears_empty_and_block(env: Env) -> None:
     fill_setup(env)
     env.command(env.plugin._command_fill)
     env.feed(FILLED)
+    assert env.plugin._empty is False
+    assert env.plugin._blocked is None
+    assert not env.reply_on()
+    env.clock[0] += 1000
+    env.feed(HUNGRY)
+    assert env.mud[-1] == f"gulp {CARAFE}"
+
+
+def test_already_full_reply_clears_empty_and_block(env: Env) -> None:
+    env.fake.items[CARAFE]["container"] = "Inventory"
+    env.feed(HUNGRY)
+    env.feed(EMPTY)
+    fill_setup(env)
+    env.command(env.plugin._command_fill)
+    assert env.reply_on()
+    env.feed(ALREADY_FULL)
     assert env.plugin._empty is False
     assert env.plugin._blocked is None
     assert not env.reply_on()

@@ -53,6 +53,7 @@ from ..libs import (
     TRIGGER_DRANK,
     TRIGGER_EMPTY,
     TRIGGER_FILLED,
+    TRIGGER_FULL,
     TRIGGER_NOSOURCE,
     WALK_BUSY_STATES,
     TriggerSpec,
@@ -131,6 +132,7 @@ class HungerPlugin(BasePlugin):
             TRIGGER_DRANK: self._trigger_drank,
             TRIGGER_EMPTY: self._trigger_empty,
             TRIGGER_FILLED: self._trigger_filled,
+            TRIGGER_FULL: self._trigger_full,
             TRIGGER_NOSOURCE: self._trigger_nosource,
         }
         for spec in REPLY_TRIGGERS:
@@ -349,6 +351,11 @@ class HungerPlugin(BasePlugin):
 
     def _trigger_filled(self) -> None:
         """The container was filled."""
+        self._finish_reply()
+        self._unblock()
+
+    def _trigger_full(self) -> None:
+        """The container was already full: it has liquid, so the fill is done."""
         self._finish_reply()
         self._unblock()
 
