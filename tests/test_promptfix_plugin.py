@@ -271,6 +271,14 @@ def test_patterns_mark_matching_mud_lines(env: Env) -> None:
     assert not mark(env, "Some other line")
 
 
+def test_battle_line_with_a_spaced_value_is_marked(env: Env) -> None:
+    """A battle template whose value holds spaces still marks its line (#178)."""
+    env.prompts(main=TEMPLATE_MAIN, battle="[Combat: %hhp %b ]>%c")
+    assert mark(env, "[Combat: 5hp Enemy: 100% ]>")
+    assert mark(env, "[5/10hp] >")
+    assert not mark(env, "Some other line")
+
+
 def test_internal_and_client_lines_are_never_marked(env: Env) -> None:
     """Only lines from the mud are marked."""
     env.prompts(main=TEMPLATE_MAIN)
