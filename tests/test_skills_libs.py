@@ -321,3 +321,21 @@ def test_the_spellup_command_regex_matches_only_the_spellup_slist() -> None:
     assert not re.search(CMD_SPELLUP_REGEX, "slist noprompt")
     assert not re.search(CMD_SPELLUP_REGEX, "slist learned noprompt")
     assert re.search(CMD_REGEX, "slist noprompt")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "skills_affoff",
+        "skills_affon",
+        "skills_recoff",
+        "skills_recon",
+        "skills_skillgain",
+        "skills_sfail",
+    ],
+)
+def test_tag_triggers_are_omitted(name: str) -> None:
+    """Each tag trigger omits its line, so the tag never reaches the client."""
+    spec = next(s for s in TRIGGERS if s.name == name)
+    assert spec.enabled
+    assert spec.omit
