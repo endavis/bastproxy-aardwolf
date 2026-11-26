@@ -607,3 +607,60 @@ def test_portalpurge(mapped: Env) -> None:
     assert len(mapped.fake.exits) == count
     assert mapped.run("portalpurge", confirm=True).success
     assert {f for f, _ in mapped.fake.exits} == {"1", "3", "9"}
+
+
+def item_portal(env: Env, serial: int = 7, *, touid: str = "2", level: int | None = None) -> None:
+    """Record the item portal with this serial straight to a room, with the item in eq."""
+    if serial not in env.fake.eq.items:
+        env.fake.eq.add(serial, "a swirling portal", level=50)
+    result = env.run("portal", command=[str(serial)], level=level, touid=touid, recall=False)
+    assert result.success
+
+
+def test_item_portal_listing_and_references(mapped: Env) -> None:
+    """The item name and serial show in the command column; a bare serial names the portal."""
+    item_portal(mapped, level=30)
+    assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7, "level": 30}
+    row = mapped.run("portals", filter="").message[2]
+    assert row == "#1 | portal | a | Room 2 | 2 | a swirling portal (7) | 30"
+    del mapped.fake.eq.items[7]
+    assert mapped.run("portals", filter="").message[2].endswith("| item 7 (not carried) | 30")
+    mapped.fake.eq.present = False
+    assert mapped.run("portals", filter="").message[2].endswith("| item 7 (not carried) | 30")
+    assert mapped.run("portallevel", ref="7", level=0).success
+    assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7}
+    assert mapped.run("portallevel", ref="#1", level=45).success
+    assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7, "level": 45}
+    assert not mapped.run("portaldel", ref="8").success
+    assert mapped.run("portaldel", ref="7").success
+    assert ("*", "eqportal:7") not in mapped.fake.exits
+
+
+def test_item_portal_edits(mapped: Env) -> None:
+    """portalchange applies the serial rule and keeps the level; recall is refused."""
+    item_portal(mapped, level=30)
+    assert not mapped.run("portalrecall", ref="#1").success
+    assert mapped.fake.exits[("*", "eqportal:7")]["fromuid"] == "*"
+    assert mapped.run("portalchange", ref="#1", command=["hold", "5;enter"]).success
+    assert ("*", "eqportal:7") not in mapped.fake.exits
+    assert mapped.fake.exits[("*", "hold 5;enter")]["requirement"] == {"level": 30}
+    assert mapped.run("portalchange", ref="hold 5;enter", command=["9"]).success
+    assert mapped.fake.exits[("*", "eqportal:9")]["requirement"] == {"serial": 9, "level": 30}
+    assert mapped.fake.exits[("*", "eqportal:9")]["touid"] == "2"
+
+
+def test_lockexit_keeps_the_serial(mapped: Env) -> None:
+    """Locking an item portal's exit keeps its serial in the requirement."""
+    item_portal(mapped, level=30)
+    mapped.fake.rooms["*"] = room("*", "a")
+    result = mapped.run("lockexit", exit=["eqportal:7"], room="*", level=60)
+    assert result.success
+    assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7, "level": 60}
+
+
+def test_item_portalpurge(mapped: Env) -> None:
+    """The purge removes item portals with the others."""
+    item_portal(mapped)
+    add_portals(mapped)
+    assert mapped.run("portalpurge", confirm=True).success
+    assert not [key for key in mapped.fake.exits if key[0] in ("*", "**")]

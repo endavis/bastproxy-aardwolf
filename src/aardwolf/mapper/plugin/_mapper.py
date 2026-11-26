@@ -4,7 +4,8 @@ import asyncio
 import logging
 import sqlite3
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,12 @@ from aardwolf._libs.validate import int_validator
 
 from ..libs import (
     ANYWHERE,
+    API_EQ,
+    API_EQ_ITEM_EQUIP,
+    API_EQ_ITEM_GET,
+    API_EQ_ITEM_PUT,
+    API_EQ_ITEM_UNEQUIP,
+    API_EQ_WORN_GET,
     CEXIT_COLUMNS,
     CEXIT_MAX_TIMEOUT,
     CEXIT_MIN_TIMEOUT,
@@ -46,12 +53,15 @@ from ..libs import (
     PLACE_COLUMNS,
     PLACE_KINDS,
     PORTAL_COLUMNS,
+    PORTAL_ITYPE,
+    PORTAL_WEARLOC,
     SEARCHES,
     SETTING_CEXIT_TIMEOUT,
     WEB_ROUTE_ADD,
     WEB_ROUTE_REMOVE,
     MushDbError,
     MushMap,
+    PortalStep,
     WebRequest,
     area_arg,
     area_from_gmcp,
@@ -61,8 +71,11 @@ from ..libs import (
     is_cexit,
     is_recall_command,
     mismatch_lines,
-    movement_chunks,
+    movement_plan,
     parse_command,
+    portal_marker,
+    portal_requirement,
+    portal_serial,
     portal_sort_key,
     read_mush_db,
     requirement_allowed,
@@ -74,6 +87,7 @@ from ..libs import (
     room_link,
     room_uid,
     search_lines,
+    serial_arg,
     table_lines,
     table_view,
     to_int,
@@ -100,6 +114,15 @@ def _chunks(items: list[Any], rows: Callable[[Any], int]) -> Iterator[list[Any]]
         yield chunk
 
 
+@dataclass
+class _TakenPortal:
+    """A portal item taken for a use: where it came from and what its slot held."""
+
+    serial: int
+    container: str | None
+    previous: int | None
+
+
 class MapperPlugin(BasePlugin):
     """Give the core mapper the rooms, areas and walking rules of Aardwolf."""
 
@@ -113,6 +136,9 @@ class MapperPlugin(BasePlugin):
         self._pending_cexit: tuple[str, str, dict[str, Any] | None, int] | None = None
         self._send_token = 0
         self._cexit_token = 0
+        self._pending_portal: tuple[int, int, int] | None = None
+        self._portal_token = 0
+        self._taken: _TakenPortal | None = None
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -192,6 +218,8 @@ class MapperPlugin(BasePlugin):
             return
         self._store_room(uid, info)
         self._finish_cexit(uid)
+        self._finish_portal(uid)
+        self._restore_portal()
         self._mapper_api("room.current.set")(uid)
         self._current = uid
         self._check_area(info.get("zone"))
@@ -247,8 +275,9 @@ class MapperPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=EVENT_WALK_FAILED)
     def _eventcb_walk_failed(self) -> None:
-        """The walk stopped or failed: drop the commands still waiting to be sent."""
+        """The walk stopped or failed: drop the commands still waiting, put the portal back."""
         self._send_token += 1
+        self._restore_portal()
 
     @RegisterToEvent(event_name=EVENT_ROOM_MISMATCH)
     def _eventcb_room_mismatch(self) -> None:
@@ -261,8 +290,14 @@ class MapperPlugin(BasePlugin):
     # room flags
 
     def _trigger_noportal(self) -> None:
-        """The room does not allow portals."""
+        """The room does not allow portals; a portal being recorded is dropped."""
         self._set_flag(FLAG_NOPORTAL)
+        pending = self._pending_portal
+        if pending is not None:
+            self._pending_portal = None
+            self._portal_token += 1
+            self._client([f"Mapper: the portal {pending[0]} was refused; it was not stored"])
+            self._restore_portal()
 
     def _trigger_norecall(self) -> None:
         """The room does not allow recall."""
@@ -300,6 +335,12 @@ class MapperPlugin(BasePlugin):
         """Say whether the character may use an exit, from its level and tier."""
         level = self._gmcp(GMCP_LEVEL)
         tier = self._gmcp(GMCP_TIER)
+        serial = (
+            portal_serial(exit_dict.get("dir")) if exit_dict.get("fromuid") in ANYWHERE else None
+        )
+        if serial is not None and self._eq_item(serial) is None:
+            self._debug("exit %s blocked: eq does not have item %s", exit_dict, serial)
+            return False
         allowed = requirement_allowed(
             requirement,
             exit_dict,
@@ -312,35 +353,63 @@ class MapperPlugin(BasePlugin):
 
     def _movement(self, steps: list[dict[str, Any]]) -> list[str]:
         """Turn walk steps into commands; the commands after a wait are sent later."""
-        chunks = movement_chunks(steps)
+        plan = movement_plan(steps)
         self._send_token += 1
-        if not chunks:
+        while plan:
+            head = plan[0]
+            if not isinstance(head, PortalStep):
+                break
+            plan.pop(0)
+            if not self._walk_portal(head):
+                return []
+        if not plan:
             return []
-        self._send_rest(chunks[1:], self._send_token)
-        return chunks[0][1]
+        first = plan[0]
+        self._send_rest(plan[1:], self._send_token)
+        return first[1] if isinstance(first, tuple) else []
+
+    def _walk_portal(self, step: PortalStep) -> bool:
+        """Use a portal item of a walk; report and return False when it cannot be used."""
+        failure = self._use_portal(step.serial)
+        if failure is not None:
+            self._client([f"Mapper: {failure}; the walk stops"])
+            return False
+        return True
 
     def _cancel_walk(self) -> None:
-        """Drop the commands waiting to be sent and any custom exit being recorded."""
+        """Drop the commands waiting to be sent, and any custom exit or portal being recorded."""
         self._send_token += 1
         self._cexit_token += 1
         self._pending_cexit = None
+        self._portal_token += 1
+        self._pending_portal = None
+        self._taken = None
 
     def _mud(self, commands: list[str]) -> None:
         """Send commands to the MUD."""
         SendDataDirectlyToMud(NetworkData(commands, owner_id=f"{self.plugin_id}:walk"))()
 
-    def _send_rest(self, chunks: list[tuple[float, list[str]]], token: int) -> None:
+    def _send_rest(
+        self, chunks: Sequence[tuple[float, list[str]] | PortalStep], token: int
+    ) -> None:
         """Queue the chunks that follow a wait."""
         if chunks:
             self.api("libs.asynch:task.add")(
                 self._send_later(chunks, token), f"{self.plugin_id}:walk"
             )
 
-    async def _send_later(self, chunks: list[tuple[float, list[str]]], token: int) -> None:
+    async def _send_later(
+        self, chunks: Sequence[tuple[float, list[str]] | PortalStep], token: int
+    ) -> None:
         """Send each chunk after its delay, unless a newer walk or a cancel came first."""
-        for delay, commands in chunks:
+        for chunk in chunks:
             if token != self._send_token:
                 return
+            if isinstance(chunk, PortalStep):
+                if not self._walk_portal(chunk):
+                    return
+                continue
+            delay, commands = chunk
             if delay:
                 self._client([f"Mapper: waiting {delay:g} seconds"])
                 await asyncio.sleep(delay)
@@ -348,6 +417,102 @@ class MapperPlugin(BasePlugin):
                     return
             if commands:
                 self._mud(commands)
+
+    # portal items
+
+    def _eq_ready(self) -> bool:
+        """Return True when every eq API a portal item needs exists."""
+        exists = self.api("libs.api:api.exists")
+        return all(bool(exists(name)) for name in API_EQ)
+
+    def _eq_item(self, serial: int) -> dict[str, Any] | None:
+        """Return the eq item with this serial, or None when eq or the item is missing."""
+        if not self._eq_ready():
+            return None
+        item: dict[str, Any] | None = self.api(API_EQ_ITEM_GET)(serial)
+        return item
+
+    def _item_name(self, serial: int) -> str:
+        """Return the escaped name of a portal item, or its serial when eq does not know it."""
+        item = self._eq_item(serial)
+        name = str(item.get("name") or "") if item else ""
+        return self._escape(name) if name else str(serial)
+
+    def _use_portal(self, serial: int) -> str | None:
+        """Take a portal item, hold it and send enter; return why it cannot, else None.
+
+        What the portal slot held is taken off first; `_restore_portal` puts everything back.
+        """
+        self._restore_portal()
+        if not self._eq_ready():
+            return "the eq plugin is not loaded"
+        item = self._eq_item(serial)
+        if item is None:
+            return f"eq does not know item {serial}"
+        worn: dict[str, Any] | None = self.api(API_EQ_WORN_GET)(PORTAL_WEARLOC)
+        previous = to_int(worn.get("serial")) if worn else None
+        if previous == serial or item.get("container") == "Worn":
+            self._mud(["enter"])
+            return None
+        if previous:
+            self.api(API_EQ_ITEM_UNEQUIP)(previous)
+        self.api(API_EQ_ITEM_EQUIP)(serial, PORTAL_WEARLOC)
+        container = item.get("container")
+        self._taken = _TakenPortal(serial, str(container) if container else None, previous or None)
+        self._mud(["enter"])
+        return None
+
+    def _restore_portal(self) -> None:
+        """Put the taken portal back where it came from and wear what its slot held."""
+        taken = self._taken
+        if taken is None:
+            return
+        self._taken = None
+        if not self._eq_ready():
+            return
+        if taken.container:
+            self.api(API_EQ_ITEM_PUT)(taken.serial, taken.container)
+        if taken.previous:
+            self.api(API_EQ_ITEM_EQUIP)(taken.previous, PORTAL_WEARLOC)
+
+    def _finish_portal(self, uid: str) -> None:
+        """Store the portal being recorded when the new room arrives."""
+        pending = self._pending_portal
+        if pending is None:
+            return
+        serial, level, _ = pending
+        self._pending_portal = None
+        self._portal_token += 1
+        self._put_portal(
+            ANYWHERE[0],
+            {
+                "fromuid": ANYWHERE[0],
+                "dir": portal_marker(serial),
+                "touid": uid,
+                "cost": 1,
+                "requirement": None,
+            },
+            requirement=portal_requirement(serial, level),
+        )
+        self._client([f"Mapper: portal {self._item_name(serial)} ({serial}) -> {uid}"])
+
+    async def _portal_timeout(self, token: int, seconds: float) -> None:
+        """Stop recording a portal when no new room arrives in time."""
+        await asyncio.sleep(seconds)
+        pending = self._pending_portal
+        if token != self._portal_token or pending is None:
+            return
+        self._pending_portal = None
+        self._client([f"Mapper: no new room after using portal {pending[0]}; it was not stored"])
+        self._restore_portal()
+
+    def _requirement_for(self, direction: str, level: object) -> dict[str, Any] | None:
+        """Return the requirement of an exit with this direction and level; an item portal
+        keeps its serial in it."""
+        serial = portal_serial(direction)
+        if serial is None:
+            return requirement_from_level(level)
+        return portal_requirement(serial, to_int(level))
 
     # commands
 
@@ -791,7 +956,7 @@ class MapperPlugin(BasePlugin):
             shown = requirement_level(found["requirement"])
             return CommandResult(True, [f"Mapper: exit {text} of {uid} needs level {shown}"])
         self._mapper_api("exit.add")(
-            uid, text, found["touid"], found["cost"], requirement_from_level(level)
+            uid, text, found["touid"], found["cost"], self._requirement_for(text, level)
         )
         return CommandResult(True, [f"Mapper: exit {text} of {uid} needs level {max(level, 0)}"])
 
@@ -808,7 +973,9 @@ class MapperPlugin(BasePlugin):
 
     def _portal_arg(self, ref: object) -> tuple[dict[str, Any] | None, CommandResult | None]:
         """Return the portal a reference names, or a failure result."""
-        portal = resolve_portal(self._portals(), str(ref))
+        text = str(ref).strip()
+        serial = serial_arg(text)
+        portal = resolve_portal(self._portals(), portal_marker(serial) if serial else text)
         if portal is None:
             return None, CommandResult(False, [f"Mapper: no portal {ref}"])
         return dict(portal), None
@@ -826,14 +993,27 @@ class MapperPlugin(BasePlugin):
 
     @AddCommand()
     @AddParser(description="add a portal, or a recall, that leads to a room")
-    @AddArgument("command", help="the command that takes the portal", nargs="+")
-    @AddArgument("-l", "--level", help="the level needed", type=int, default=0)
+    @AddArgument(
+        "command",
+        help="the command that takes the portal, or the serial of a portal item to use and record",
+        nargs="+",
+    )
+    @AddArgument(
+        "-l",
+        "--level",
+        help="the level needed; an item portal defaults to the item's level, 0 for none",
+        type=int,
+        default=None,
+    )
     @AddArgument("-t", "--touid", help="the room it leads to; the current room", default=None)
     @AddArgument("-r", "--recall", help="store it as a recall", action="store_true")
     def _command_portal(self) -> CommandResult:
-        """Add a portal; recall, home and hom are stored as recalls."""
+        """Add a portal; recall, home and hom are stored as recalls. A serial uses the item."""
         args = self._args()
         text = " ".join(str(word) for word in args.get("command") or []).strip()
+        serial = serial_arg(text)
+        if serial is not None:
+            return self._portal_item(serial, args)
         if parse_command(text) is None:
             return CommandResult(
                 False, ["Mapper: the command is empty or a wait(N) is not 0 < N <= 40"]
@@ -848,6 +1028,51 @@ class MapperPlugin(BasePlugin):
             requirement=requirement_from_level(args.get("level")),
         )
         return CommandResult(True, [f"Mapper: {self._kind_name(kind)} {text} -> {touid}"])
+
+    def _portal_item(self, serial: int, args: dict[str, Any]) -> CommandResult:
+        """Record a portal item: use it and store the room it leads to, or with -t store it."""
+        if args.get("recall"):
+            return CommandResult(False, ["Mapper: a portal item cannot be a recall"])
+        if not self._eq_ready():
+            return CommandResult(False, ["Mapper: the eq plugin is not loaded"])
+        item = self._eq_item(serial)
+        if item is None:
+            return CommandResult(False, [f"Mapper: eq does not know item {serial}"])
+        if to_int(item.get("itype")) != PORTAL_ITYPE:
+            return CommandResult(False, [f"Mapper: item {serial} is not a portal"])
+        level = args.get("level")
+        level = to_int(item.get("level")) if level is None else to_int(level)
+        name = self._item_name(serial)
+        touid = args.get("touid")
+        if touid:
+            if self._known_room(str(touid)) is None:
+                return CommandResult(False, ["Mapper: the room is not known"])
+            self._put_portal(
+                ANYWHERE[0],
+                {
+                    "fromuid": ANYWHERE[0],
+                    "dir": portal_marker(serial),
+                    "touid": str(touid),
+                    "cost": 1,
+                    "requirement": None,
+                },
+                requirement=portal_requirement(serial, level),
+            )
+            return CommandResult(True, [f"Mapper: portal {name} ({serial}) -> {touid}"])
+        if self._pending_cexit is not None or self._pending_portal is not None:
+            return CommandResult(
+                False, ["Mapper: a custom exit or portal is already being recorded"]
+            )
+        failure = self._use_portal(serial)
+        if failure is not None:
+            return CommandResult(False, [f"Mapper: {failure}"])
+        self._portal_token += 1
+        self._pending_portal = (serial, level, self._portal_token)
+        timeout = int(str(self._setting(SETTING_CEXIT_TIMEOUT)))
+        self.api("libs.asynch:task.add")(
+            self._portal_timeout(self._portal_token, timeout), f"{self.plugin_id}:portal"
+        )
+        return CommandResult(True, [f"Mapper: recording portal {name} ({serial}) by entering it"])
 
     @staticmethod
     def _kind_name(kind: str) -> str:
@@ -882,11 +1107,21 @@ class MapperPlugin(BasePlugin):
                     area,
                     self._escape(str(room.get("name") or "")) if room else "",
                     str(portal["touid"]),
-                    self._escape(str(portal["dir"])),
+                    self._portal_label(str(portal["dir"])),
                     str(requirement_level(portal["requirement"])),
                 )
             )
         return rows
+
+    def _portal_label(self, direction: str) -> str:
+        """Return what the command column shows: the command, or the name of a portal item."""
+        serial = portal_serial(direction)
+        if serial is None:
+            return self._escape(direction)
+        item = self._eq_item(serial)
+        if item is None:
+            return f"item {serial} (not carried)"
+        return f"{self._item_name(serial)} ({serial})"
 
     @AddCommand()
     @AddParser(description="change the command of a portal")
@@ -899,12 +1134,17 @@ class MapperPlugin(BasePlugin):
         if portal is None:
             return failure or CommandResult(False, ["Mapper: no such portal"])
         text = " ".join(str(word) for word in args.get("command") or []).strip()
-        if parse_command(text) is None:
+        serial = serial_arg(text)
+        if serial is None and parse_command(text) is None:
             return CommandResult(
                 False, ["Mapper: the command is empty or a wait(N) is not 0 < N <= 40"]
             )
-        self._put_portal(portal["fromuid"], portal, dir=text)
-        return CommandResult(True, [f"Mapper: portal {portal['dir']} is now {text}"])
+        new = portal_marker(serial) if serial is not None else text
+        level = requirement_level(portal["requirement"])
+        self._put_portal(
+            portal["fromuid"], portal, dir=new, requirement=self._requirement_for(new, level)
+        )
+        return CommandResult(True, [f"Mapper: portal {portal['dir']} is now {new}"])
 
     @AddCommand()
     @AddParser(description="set the level needed for a portal")
@@ -917,7 +1157,11 @@ class MapperPlugin(BasePlugin):
         if portal is None:
             return failure or CommandResult(False, ["Mapper: no such portal"])
         level = to_int(args.get("level"))
-        self._put_portal(portal["fromuid"], portal, requirement=requirement_from_level(level))
+        self._put_portal(
+            portal["fromuid"],
+            portal,
+            requirement=self._requirement_for(str(portal["dir"]), level),
+        )
         return CommandResult(True, [f"Mapper: portal {portal['dir']} needs level {max(level, 0)}"])
 
     @AddCommand()
@@ -928,6 +1172,8 @@ class MapperPlugin(BasePlugin):
         portal, failure = self._portal_arg(self._args().get("ref"))
         if portal is None:
             return failure or CommandResult(False, ["Mapper: no such portal"])
+        if portal_serial(portal["dir"]) is not None:
+            return CommandResult(False, ["Mapper: a portal item cannot be a recall"])
         kind = ANYWHERE[0] if portal["fromuid"] == ANYWHERE[1] else ANYWHERE[1]
         self._put_portal(kind, portal, fromuid=kind)
         return CommandResult(True, [f"Mapper: {portal['dir']} is now a {self._kind_name(kind)}"])

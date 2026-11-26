@@ -9,7 +9,9 @@ from aardwolf.mapper.libs import (
     MAX_AREA_ARG,
     NORECALL_REGEX,
     PLACE_KINDS,
+    PORTAL_PREFIX,
     SEARCHES,
+    PortalStep,
     area_arg,
     area_from_gmcp,
     area_link,
@@ -18,7 +20,11 @@ from aardwolf.mapper.libs import (
     is_recall_command,
     mismatch_lines,
     movement_chunks,
+    movement_plan,
     parse_command,
+    portal_marker,
+    portal_requirement,
+    portal_serial,
     portal_sort_key,
     requirement_allowed,
     requirement_level,
@@ -27,6 +33,7 @@ from aardwolf.mapper.libs import (
     room_link,
     room_uid,
     search_lines,
+    serial_arg,
     split_command,
     steps_to_commands,
     table_lines,
@@ -490,3 +497,59 @@ def test_table_view_pages() -> None:
     assert [r[0] for r in rows] == ["2", "3"]
     assert total == 4
     assert view(offset=10) == ([], 4)
+
+
+@pytest.mark.parametrize(
+    ("text", "serial"),
+    [("1234", 1234), (" 7 ", 7), ("0", None), ("-5", None), ("12 34", None), ("enter", None),
+     ("hold 5", None), ("", None), ("\u0663", None), (5, None)],
+)  # fmt: skip
+def test_serial_arg(text: object, serial: int | None) -> None:
+    """A single word of ascii digits above 0 is a serial."""
+    assert serial_arg(text) == serial
+
+
+def test_portal_marker_round_trip() -> None:
+    """The marker holds the serial and reads back; other directions have none."""
+    assert portal_marker(1234) == f"{PORTAL_PREFIX}1234"
+    assert portal_serial(portal_marker(1234)) == 1234
+    for direction in ("n", "enter portal", f"{PORTAL_PREFIX}x", f"{PORTAL_PREFIX}0", None):
+        assert portal_serial(direction) is None
+
+
+def test_portal_requirement() -> None:
+    """The serial is always in the requirement; the level only above 0."""
+    assert portal_requirement(5, 40) == {"serial": 5, "level": 40}
+    assert portal_requirement(5, 0) == {"serial": 5}
+    assert portal_requirement(5, -3) == {"serial": 5}
+
+
+def test_requirement_allowed_ignores_serial() -> None:
+    """The serial key does not change the level check."""
+    anywhere = {"fromuid": "*", "dir": portal_marker(5)}
+    assert requirement_allowed({"serial": 5}, anywhere, 1, 0)
+    assert requirement_allowed({"serial": 5, "level": 40}, anywhere, 40, 0)
+    assert not requirement_allowed({"serial": 5, "level": 40}, anywhere, 39, 0)
+
+
+def test_movement_plan() -> None:
+    """Item portal steps split the chunks; no item portal gives the movement chunks."""
+    walk = [{"fromuid": "1", "dir": "n"}, {"fromuid": "1", "dir": "n"}]
+    assert movement_plan(walk) == movement_chunks(walk)
+    assert movement_plan([]) == []
+    marker = portal_marker(9)
+    steps = [
+        {"fromuid": "1", "dir": "n"},
+        {"fromuid": "*", "dir": marker},
+        {"fromuid": "2", "dir": "e"},
+        {"fromuid": "2", "dir": "open;wait(2);w"},
+    ]
+    assert movement_plan(steps) == [
+        (0.0, ["n"]),
+        PortalStep(9),
+        (0.0, ["e", "open"]),
+        (2.0, ["w"]),
+    ]
+    assert movement_plan(steps[1:2]) == [PortalStep(9)]
+    # a marker that is not from * is a plain command
+    assert movement_plan([{"fromuid": "1", "dir": marker}]) == [(0.0, [marker])]
