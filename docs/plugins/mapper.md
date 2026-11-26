@@ -87,6 +87,8 @@ core `plugins.client.mapper`, so loading it loads them too.
     the `portal` or `hold` slot is just entered, with nothing restored. One recording (cexit or
     portal) runs at a time, and `-r` is refused.
   - *Level.* The requirement takes the item's level; `-l N` overrides it and `-l 0` stores none.
+    Before anything is sent or stored the level is checked as a walk would (tier adjusted, from GMCP);
+    a portal above the character's level is refused at once with `Mapper: <name> (<serial>) needs level <N>`.
   - *Stored form.* The exit from `*` has the direction `eqportal:<serial>` and the requirement
     `{"serial": S, "level": L}` (`level` left out when 0). The serial is in the requirement because
     the core mapper asks the requirement callback only for an exit that has one. `portallevel`,
