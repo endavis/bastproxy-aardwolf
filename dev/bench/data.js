@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795735831958,
+  "lastUpdate": 1795736162985,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3267,6 +3267,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 6.005644544172695e-7",
             "extra": "mean: 5.647820059985585 usec\nrounds: 186012"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "15c4d77c5aac0244e3fef7ed05df7d3bf407d98f",
+          "message": "fix: treat an already-full container as a finished fill in the hunger plugin (merges PR #188, addresses #186)\n\nAdd a reply trigger for \"<container> is already full.\" that ends the\nawaited fill reply and clears the empty mark and block, as \"You fill ...\"\ndoes. Previously the plugin waited out PENDING_TIMEOUT and left the empty\nmark set.\n\nAddresses #186\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T23:35:31Z",
+          "tree_id": "ca6576cb4df0923aa82dda3eab971a0bc36ac4e1",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/15c4d77c5aac0244e3fef7ed05df7d3bf407d98f"
+        },
+        "date": 1795736162593,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2992298.742307587,
+            "unit": "iter/sec",
+            "range": "stddev: 4.6326117298584436e-8",
+            "extra": "mean: 334.1912309293104 nsec\nrounds: 192345"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 170063.8396941017,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010164183155975552",
+            "extra": "mean: 5.8801447844452195 usec\nrounds: 177305"
           }
         ]
       }
