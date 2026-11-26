@@ -43,6 +43,7 @@ from ._report import (
 from ._schema import (
     DB_NAME,
     DB_VERSION,
+    JOURNAL_MODE,
     MIGRATIONS,
     TABLES,
     init_classes,
@@ -93,6 +94,7 @@ __all__ = [
     "DB_VERSION",
     "DEFAULT_MOBKILL_COUNT",
     "FIELDSTOCOMP",
+    "JOURNAL_MODE",
     "LINK_QUERY_KEYS",
     "MAPPER_ROOM_PATH",
     "MIGRATIONS",

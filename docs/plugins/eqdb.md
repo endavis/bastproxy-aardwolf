@@ -75,15 +75,24 @@ is not available".
 
 The database is `eqdb.sqlite` in the plugin's data directory,
 `<BASTPROXY_HOME>/data/plugins/plugins.aardwolf.eqdb/`. It is opened through bastproxy's
-`plugins.core.sqldb:database.add` and its `user_version` is 1, the old plugin's version.
+`plugins.core.sqldb:database.add` and its `user_version` is 2. Version 1 is the old
+plugin's. An old version 1 file is upgraded on the first open, after the core writes `archive/eqdb_1.sqlite.zip` as a backup.
 
 The tables are `items`, `identifier`, `statmod`, `resistmod`, `skillmod`, `affectmod`, `enchant`,
 `notes`, `addednotes`, `reward`, `weapon`, `container`, `spells`, `food`, `drink`, `furniture`,
 `light` and `portal`. The CREATE statements are the old text, word for word and in the same column
 order, so a database from the old plugin opens as it is.
 
-- **No foreign keys.** The tables declare `FOREIGN KEY` clauses, but bastproxy's core sqldb does
-  not turn foreign key enforcement on, so they are not checked. The old plugin turned them on.
+- **`itype` is a number.** It is the `OBJECTTYPES` number (`5` for a weapon). The version 2 step
+  finds every `items` row whose `itype` is text and replaces the name, stripped and lower-cased,
+  with its number. A name that is not an object type stays text, and a number is left alone.
+- **The old proxy should not use the upgraded file.** It stored and compared the type name.
+  Keep the version 1 backup.
+- **No foreign keys.** The tables declare `FOREIGN KEY` clauses, but the plugin does not turn
+  foreign key enforcement on, so they are not checked. The old plugin turned them on.
+- **WAL mode.** The plugin passes `journal_mode="wal"` to `database.add`, as the old plugin set
+  `journal_mode=WAL`. SQLite then keeps `eqdb.sqlite-wal` and `eqdb.sqlite-shm` beside the file
+  while it is open. Copy or back up the file with them, or after the proxy stops.
 - **No atomic save.** Each statement is atomic, but a save that writes several tables is not one
   transaction. The old save was not either.
 
@@ -155,14 +164,18 @@ and `ev_plugins.aardwolf.eqdb_var_backupinterval_modified`, and to no other even
 | the `trigger_dead` handler, which did nothing | dropped |
 | `countitems`, which nothing called | dropped |
 | `send.msg` logging of every query | dropped |
-| `PRAGMA foreign_keys=On` and WAL mode | the core sqldb's settings |
+| `PRAGMA foreign_keys=On` | not turned on; the `FOREIGN KEY` clauses are not enforced |
+| `PRAGMA journal_mode=WAL` | `journal_mode="wal"` passed to `database.add` |
+| `itype` stored as the type name (`Weapon`) | the `OBJECTTYPES` number; the version 2 step converts old rows |
 
 Bugs fixed in the port:
 
-1. **Type details were never saved.** The old `saveitemdetails` compared `item.itype` with
-   `'Weapon'`, `'Light'` and so on, but `itype` is the number from the item header, so the weapon,
-   light, portal, furniture, container, drink, food and spells rows were never written. (`'Spells'`
-   is not an object type at all.) They are saved whenever their key is present.
+1. **`itype` was not converted to a number.** The old `itemu.dataparse` checked
+   `name == 'type'`, but the field is called `itype`, so the conversion never ran and `itype`
+   stayed the name the MUD sent, for example `Weapon`. The old `saveitemdetails` compared
+   `item.itype` with `i.capitalize()`, so it did save the weapon, light, portal, furniture,
+   container, drink and food rows. Only `spells` was never saved, because no object type is
+   called "Spells". The port stores the number, and the version 2 step converts old rows.
 2. **Backup setting changes were ignored.** The old plugin listened for `statdb_backupstart` and
    the misspelt `statdb_backupinternval`. Neither was raised, so a change to eqdb's own backup
    settings did not reschedule the timer. The plugin listens to its own settings.

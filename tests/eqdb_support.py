@@ -14,13 +14,24 @@ if TYPE_CHECKING:
 OWNER = "plugins.aardwolf.eqdb"
 
 
-def make_db(directory: Path) -> "Sqldb":
-    """Open the eqdb database in a directory the way ``database.add`` does."""
+def make_db(directory: Path, *, journal_mode: str | None = None) -> "Sqldb":
+    """Open the eqdb database in a directory the way ``database.add`` does.
+
+    ``journal_mode`` is passed on as ``database.add`` gets it; None leaves sqlite's default.
+    """
     from bastproxy.plugins.core.sqldb.libs._sqlite import create_database
 
-    from aardwolf.eqdb.libs import DB_NAME, DB_VERSION, TABLES
+    from aardwolf.eqdb.libs import DB_NAME, DB_VERSION, MIGRATIONS, TABLES
 
-    return create_database(OWNER, DB_NAME, TABLES, version=DB_VERSION, directory=directory)
+    return create_database(
+        OWNER,
+        DB_NAME,
+        TABLES,
+        version=DB_VERSION,
+        migrations=MIGRATIONS,
+        directory=directory,
+        journal_mode=journal_mode,
+    )
 
 
 def sample_item(serial: int = 1001) -> dict[str, Any]:
