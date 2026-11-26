@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795731992114,
+  "lastUpdate": 1795733128170,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3153,6 +3153,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.450615147769743e-7",
             "extra": "mean: 3.2150359662519756 usec\nrounds: 156202"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "734e25c49716e6b7cdfa103006e77c68f92cf1c8",
+          "message": "feat: gulp instead of drink in the hunger plugin (merges PR #183, addresses #180)\n\nAn automatic drink now sends gulp <serial>. Aardwolf's gulp drinks until\nthe container is empty, the character is drunk, thirst is quenched or\nthe character is full, so one hunger or thirst line usually leaves the\ncharacter full instead of needing several drinks.\n\nA gulp answers with one line, \"You gulp down <liquid> from <container>.\",\nfollowed by \"You are now full.\". The drank trigger now matches it as\nwell as the drink line, so the reply wait ends on it. The empty-container\nhandling is unchanged.\n\nThe 11 existing plugin test expectations of \"drink <serial>\" now expect\n\"gulp <serial>\", as approved by the user.\n\nAddresses #180\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T22:44:51Z",
+          "tree_id": "6182a8dfecd061926602e6024871e3ebde83d35e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/734e25c49716e6b7cdfa103006e77c68f92cf1c8"
+        },
+        "date": 1795733127377,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3825476.189336654,
+            "unit": "iter/sec",
+            "range": "stddev: 3.97234544945326e-8",
+            "extra": "mean: 261.40536511178817 nsec\nrounds: 196967"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 220429.81466553692,
+            "unit": "iter/sec",
+            "range": "stddev: 8.547507644882516e-7",
+            "extra": "mean: 4.536591393125845 usec\nrounds: 115036"
           }
         ]
       }
