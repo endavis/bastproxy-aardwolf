@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795650172017,
+  "lastUpdate": 1795678987900,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2925,6 +2925,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.703139365689742e-7",
             "extra": "mean: 3.433561169585995 usec\nrounds: 152208"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c06fada82f131e7d3b905654c0b8d4964d12cb02",
+          "message": "fix: eq bags, death, container refresh, optional items, and itemkeep forgetting (#146, #147, #148, #149, #152) (merges PR #169, addresses #146, #147, #148, #149, #152)\n\n* fix: give bags worn, on the keyring or in the vault their own container\n\nEqState.commit only made a container for a bag seen in the inventory or\nin another bag, so a worn bag, a keyring bag or a vault bag had no\ncontainer and no read, and inv <serial> said it did not exist. A bag\n(item type 11) now gets a container and a read the first time it is seen\nin any block. It still goes when it leaves the inventory.\n\nDocs: eq plugin page (Bags, and the new-bag note).\n\nAddresses #146\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: forget what is carried when the character dies and read it again\n\nAardwolf leaves the worn and carried items in the corpse. eq now has its\nown ^You die\\.$ trigger (eq_dead; the line is still shown).\nEqState.reset_carried forgets Worn, Inventory, Keyring, the bags and\ntheir items, and keeps the vault, its counts, whether it was read and\nthe bags in it. The plugin then drops a block being read, removes the\ntypes of the dropped bags and queues the same reads as refresh.\n\nApproved existing-test edit: test_after_load's trigger set gains eq_dead.\n\nDocs: eq plugin page (Death, MUD output, old-plugin table, changes).\n\nAddresses #147\nGrouped under #146: one PR for #146, #147, #148, #149 and #152, as asked.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: add the container.refresh API to read one container\n\nplugins.aardwolf.eq:container.refresh(cid) queues the read of Worn,\nInventory, Keyring, Vault (names not case sensitive) or a bag serial,\nint or text, and returns True when it was queued. It returns False for\nan unknown container, or for the vault outside a bank. _queue now\nreturns whether it queued. This is the port of the old\neq.getcontainer refresh().\n\nDocs: eq plugin page (API table, old-plugin table).\n\nAddresses #148\nGrouped under #146: one PR for #146, #147, #148, #149 and #152, as asked.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: let icache, get and put run without an item\n\nThe item argument of icache, get and put is now optional. A bare get or\nput sends exactly get or put, with no trailing space, and a bare icache\nsays how many items are in the cache.\n\nDocs: eq plugin page (command table).\n\nAddresses #149\nGrouped under #146: one PR for #146, #147, #148, #149 and #152, as asked.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: forget a kept item once it leaves the inventory\n\nitemkeep remembered every serial it kept, so an item that left (given,\nsold, left in a corpse) and came back without its K was not kept again.\nIt now listens to eq_inventory_removed and forgets that serial, so the\nitem is kept again when it returns.\n\nDocs: itemkeep plugin page.\n\nAddresses #152\nGrouped under #146: one PR for #146, #147, #148, #149 and #152, as asked.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T07:42:33Z",
+          "tree_id": "1440cba64d08852c360af68ef746687791e3277e",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/c06fada82f131e7d3b905654c0b8d4964d12cb02"
+        },
+        "date": 1795678987393,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5797429.370101309,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1988861189968774e-8",
+            "extra": "mean: 172.49024285784876 nsec\nrounds: 59542"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 289126.2531507253,
+            "unit": "iter/sec",
+            "range": "stddev: 4.168366487753935e-7",
+            "extra": "mean: 3.4586966389340192 usec\nrounds: 149032"
           }
         ]
       }
