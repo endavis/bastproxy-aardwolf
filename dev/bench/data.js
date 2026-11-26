@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795678987900,
+  "lastUpdate": 1795685195117,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -2963,6 +2963,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.168366487753935e-7",
             "extra": "mean: 3.4586966389340192 usec\nrounds: 149032"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "440027f573e9b134ca8016eae102828298280032",
+          "message": "fix: eqdb itype as a number for old rows, and WAL mode for statdb and eqdb (#150, #151) (merges PR #170, addresses #150, #151)\n\n* fix: store eqdb itype as the object type number for old rows too\n\nThe old proxy stored items.itype as the type name the MUD sent\n(Weapon); the new parser stores the OBJECTTYPES number, so item.get\nreturned text for old rows and an int for new ones. eqdb's schema goes\nto version 2: its migration maps every text itype through\nOBJECTTYPESREV (stripped, case ignored) and leaves unknown names and\nnumbers as they are. The core backs the version 1 file up first.\n\nDocs: eqdb (version 2, itype, the old proxy should not use the upgraded\nfile, and the \"Bugs fixed\" note on type details corrected: only spells\nrows were never saved) and eq (unique is now a bool).\n\nApproved existing-test edit: test_tables_are_the_old_ones and\ntest_database_is_created expect version 2.\n\nAddresses #150\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* feat: open the statdb and eqdb databases in WAL mode\n\nThe old plugins set journal_mode=WAL; the new ones set no journal mode,\nso statdb's web pages, which read while the proxy writes, and the\nwriter block each other. Both plugins now pass journal_mode=\"wal\" to\nplugins.core.sqldb:database.add (endavis/bastproxy#829), and uv.lock\nmoves to core d3e4d509, which adds that option.\n\nDocs: eqdb (the pragma row split in two: foreign keys stay off, WAL is\npassed to database.add; the -wal and -shm files) and statdb.\n\nAddresses #151\nGrouped under #150: one PR for #150 and #151, as asked.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-26T09:25:56Z",
+          "tree_id": "82612e805df71f396b4dd2c6629ef989c8c0a3f5",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/440027f573e9b134ca8016eae102828298280032"
+        },
+        "date": 1795685193837,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5731054.272721199,
+            "unit": "iter/sec",
+            "range": "stddev: 1.631285528345609e-8",
+            "extra": "mean: 174.4879654621005 nsec\nrounds: 58942"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 291576.1138108209,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000011084048518610191",
+            "extra": "mean: 3.4296362172136488 usec\nrounds: 149926"
           }
         ]
       }
