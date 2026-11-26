@@ -30,6 +30,15 @@ class FakeEq:
         self.items: dict[int, dict[str, Any]] = {}
         self.worn: dict[str, int] = {}
         self.calls: list[tuple[Any, ...]] = []
+        # the slot a plain wear puts an item in; None means eq has not seen it move yet
+        self.lands: str | None = None
+
+    def _equip(self, *args: int | str) -> None:
+        self.calls.append(("equip", *args))
+        serial = args[0]
+        if len(args) == 1 and isinstance(serial, int) and self.lands is not None:
+            self.worn[self.lands] = serial
+            self.items[serial]["container"] = "Worn"
 
     def add(
         self,
@@ -55,7 +64,7 @@ class FakeEq:
             f"{EQ}:item.get": lambda serial: copy.deepcopy(self.items.get(int(serial))),
             f"{EQ}:eq.worn.get": self._worn_get,
             f"{EQ}:item.put": lambda *a: self.calls.append(("put", *a)),
-            f"{EQ}:item.equip": lambda *a: self.calls.append(("equip", *a)),
+            f"{EQ}:item.equip": self._equip,
             f"{EQ}:item.unequip": lambda *a: self.calls.append(("unequip", *a)),
         }
 

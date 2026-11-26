@@ -22,8 +22,10 @@ NOPORTAL_REGEX = r"^Magic walls bounce you back\.$"
 NORECALL_REGEX = r"^You cannot (recall|return home) from this room\."
 # the direction of an exit from * that uses a portal item, followed by the item serial
 PORTAL_PREFIX = "eqportal:"
-# the wear slot a portal item is worn in; eq knows it, to be confirmed live
+# the wear slot of a portal item the character has bought, and the one a portal is held in
+# otherwise; a plain wear puts the portal in the right one. Both are eq's wear location names.
 PORTAL_WEARLOC = "portal"
+HELD_WEARLOC = "hold"
 PORTAL_ITYPE = OBJECTTYPESREV["portal"]
 # the eq plugin is a soft dependency: its APIs are used by name, and only when they exist
 API_EQ_ITEM_GET = "plugins.aardwolf.eq:item.get"

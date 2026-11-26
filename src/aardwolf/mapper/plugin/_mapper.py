@@ -28,7 +28,6 @@ from ..libs import (
     API_EQ_ITEM_EQUIP,
     API_EQ_ITEM_GET,
     API_EQ_ITEM_PUT,
-    API_EQ_ITEM_UNEQUIP,
     API_EQ_WORN_GET,
     CEXIT_COLUMNS,
     CEXIT_MAX_TIMEOUT,
@@ -45,6 +44,7 @@ from ..libs import (
     GMCP_LEVEL,
     GMCP_ROOM,
     GMCP_TIER,
+    HELD_WEARLOC,
     IMPORT_BATCH,
     IMPORT_SLICE,
     MAPPER,
@@ -116,11 +116,11 @@ def _chunks(items: list[Any], rows: Callable[[Any], int]) -> Iterator[list[Any]]
 
 @dataclass
 class _TakenPortal:
-    """A portal item taken for a use: where it came from and what its slot held."""
+    """A portal item taken for a use: where it came from and what the portal and held slots held."""
 
     serial: int
     container: str | None
-    previous: int | None
+    previous: dict[str, int | None]
 
 
 class MapperPlugin(BasePlugin):
@@ -438,10 +438,17 @@ class MapperPlugin(BasePlugin):
         name = str(item.get("name") or "") if item else ""
         return self._escape(name) if name else str(serial)
 
-    def _use_portal(self, serial: int) -> str | None:
-        """Take a portal item, hold it and send enter; return why it cannot, else None.
+    def _worn_serial(self, location: str) -> int | None:
+        """Return the serial of the item eq lists in a wear location, or None."""
+        worn: dict[str, Any] | None = self.api(API_EQ_WORN_GET)(location)
+        return to_int(worn.get("serial")) if worn else None
 
-        What the portal slot held is taken off first; `_restore_portal` puts everything back.
+    def _use_portal(self, serial: int) -> str | None:
+        """Take a portal item, wear it and send enter; return why it cannot, else None.
+
+        A plain wear puts the portal in the portal slot when the character has bought it and
+        holds it otherwise. The items of both slots are noted so `_restore_portal` can wear
+        back the one the portal displaced.
         """
         self._restore_portal()
         if not self._eq_ready():
@@ -449,31 +456,50 @@ class MapperPlugin(BasePlugin):
         item = self._eq_item(serial)
         if item is None:
             return f"eq does not know item {serial}"
-        worn: dict[str, Any] | None = self.api(API_EQ_WORN_GET)(PORTAL_WEARLOC)
-        previous = to_int(worn.get("serial")) if worn else None
-        if previous == serial or item.get("container") == "Worn":
+        previous = {loc: self._worn_serial(loc) for loc in (PORTAL_WEARLOC, HELD_WEARLOC)}
+        if serial in previous.values() or item.get("container") == "Worn":
             self._mud(["enter"])
             return None
-        if previous:
-            self.api(API_EQ_ITEM_UNEQUIP)(previous)
-        self.api(API_EQ_ITEM_EQUIP)(serial, PORTAL_WEARLOC)
+        self.api(API_EQ_ITEM_EQUIP)(serial)
         container = item.get("container")
-        self._taken = _TakenPortal(serial, str(container) if container else None, previous or None)
+        self._taken = _TakenPortal(serial, str(container) if container else None, previous)
         self._mud(["enter"])
         return None
 
+    def _displaced_slots(self, taken: _TakenPortal) -> list[str]:
+        """Return the wear locations whose previous item the portal replaced.
+
+        The slot eq lists the portal in is the one. When eq has not yet seen where the portal
+        went, every slot whose item changed since it was noted is returned.
+        """
+        for loc in taken.previous:
+            if self._worn_serial(loc) == taken.serial:
+                return [loc]
+        return [loc for loc, was in taken.previous.items() if self._worn_serial(loc) != was]
+
     def _restore_portal(self) -> None:
-        """Put the taken portal back where it came from and wear what its slot held."""
+        """Put the taken portal back where it came from and wear what it displaced."""
         taken = self._taken
         if taken is None:
             return
         self._taken = None
         if not self._eq_ready():
             return
+        slots = self._displaced_slots(taken)
         if taken.container:
             self.api(API_EQ_ITEM_PUT)(taken.serial, taken.container)
-        if taken.previous:
-            self.api(API_EQ_ITEM_EQUIP)(taken.previous, PORTAL_WEARLOC)
+        if not slots:
+            log_to(
+                self.plugin_id,
+                logging.WARNING,
+                "portal %s was put back but eq has not seen which slot it took; nothing re-worn",
+                taken.serial,
+            )
+            return
+        for loc in slots:
+            was = taken.previous[loc]
+            if was:
+                self.api(API_EQ_ITEM_EQUIP)(was, loc)
 
     def _finish_portal(self, uid: str) -> None:
         """Store the portal being recorded when the new room arrives."""

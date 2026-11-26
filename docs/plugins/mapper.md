@@ -75,12 +75,17 @@ core `plugins.client.mapper`, so loading it loads them too.
   portal-list reference. The item must be known to the eq plugin (`plugins.aardwolf.eq:item.get`)
   and be a portal (`itype`); otherwise nothing is sent. eq is a soft dependency, reached only
   through its APIs when they exist, so text portals work without it.
-  - *Recording.* The item in the `portal` wear slot is taken off, the portal is taken out of its
-    container and worn there, and `enter` is sent. The next room change is stored as an exit from
-    `*` and the portal goes back where it came from and the item that was in the slot is worn again.
+  - *Recording.* The portal is taken out of its container and worn with a plain `wear <serial>`,
+    which puts it in the `portal` wear slot when the character has bought that slot and holds it
+    otherwise. Before the wear the items eq lists in the `portal` and `hold` slots are noted, and
+    `enter` is sent. The next room change is stored as an exit from `*` and the portal goes back
+    where it came from; the item that was in the slot the portal took (the slot eq lists it in, or
+    else the noted slot whose item changed) is worn there again. If neither can be told, the portal
+    is put back, nothing is re-worn and the plugin logs it.
     With no room change before the `cexittimeout` setting runs out, or after the `noportal` line,
-    the client is told, nothing is stored and everything is put back. A portal already in the slot
-    is just entered. One recording (cexit or portal) runs at a time, and `-r` is refused.
+    the client is told, nothing is stored and everything is put back. A portal that eq lists in
+    the `portal` or `hold` slot is just entered, with nothing restored. One recording (cexit or
+    portal) runs at a time, and `-r` is refused.
   - *Level.* The requirement takes the item's level; `-l N` overrides it and `-l 0` stores none.
   - *Stored form.* The exit from `*` has the direction `eqportal:<serial>` and the requirement
     `{"serial": S, "level": L}` (`level` left out when 0). The serial is in the requirement because
@@ -106,7 +111,7 @@ core `plugins.client.mapper`, so loading it loads them too.
 
 ### Limitations
 
-- Portal items: the wear slot (`portal`), that `enter` alone takes the worn portal, and the lines
+- Portal items: the wear slots (`portal` and `hold`), that `enter` alone takes the worn portal, and the lines
   Aardwolf prints when it refuses a portal are still to be confirmed against the live MUD. Only the
   `noportal` line is a trigger; any other refusal ends as a timeout. The put-back sends its
   commands on the room change, so a portal that eq has not yet seen moved is not moved back.

@@ -620,6 +620,7 @@ def stock_eq(env: Env, *, previous: bool = True) -> None:
     """Item 7 is a portal in bag 1000; the portal slot holds item 3 when `previous`."""
     env.fake.eq.add(7, "a swirling portal", level=50, container="1000")
     env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.lands = "portal"  # eq sees the portal land in the portal slot
     if previous:
         env.fake.eq.worn["portal"] = 3
 
@@ -644,12 +645,12 @@ def test_portal_item_records_on_arrival(env: Env) -> None:
     result = start_portal(env)
     assert result.success
     assert env.fake.mud == [ENTER]
-    assert env.fake.eq.calls == [("unequip", 3), ("equip", 7, "portal")]
+    assert env.fake.eq.calls == [("equip", 7)]
     assert env.plugin._portal_token == 1
     env.move(ROOM_B)
     assert exits_added(env) == [("*", portal_marker(7), "1235", 1, {"serial": 7, "level": 50})]
     assert env.sent[-1] == ["Mapper: portal a swirling portal (7) -> 1235"]
-    assert env.fake.eq.calls[2:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
     assert env.plugin._pending_portal is None
     assert env.plugin._taken is None
 
@@ -685,9 +686,69 @@ def test_portal_item_from_inventory_with_an_empty_slot(env: Env) -> None:
     stock_eq(env, previous=False)
     env.fake.eq.items[7]["container"] = "Inventory"
     start_portal(env)
-    assert env.fake.eq.calls == [("equip", 7, "portal")]
+    assert env.fake.eq.calls == [("equip", 7)]
     env.move(ROOM_B)
     assert env.fake.eq.calls[1:] == [("put", 7, "Inventory")]
+
+
+@pytest.mark.parametrize(("lands", "other"), [("portal", "hold"), ("hold", "portal")])
+@pytest.mark.parametrize("walk", [False, True])
+def test_portal_item_wear_lands_in_the_bought_or_held_slot(
+    env: Env, lands: str, other: str, walk: bool
+) -> None:
+    """A plain wear is sent; the item the portal displaced is worn back at that slot only."""
+    stock_eq(env, previous=False)
+    env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.add(4, "a lamp", itype=7, container="Worn")
+    env.fake.eq.worn[lands] = 3
+    env.fake.eq.worn[other] = 4
+    env.fake.eq.lands = lands
+    if walk:
+        assert env.plugin._use_portal(7) is None
+        env.plugin._restore_portal()
+    else:
+        start_portal(env)
+        env.plugin._pending_portal = None
+        env.plugin._portal_token += 1
+        env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000"), ("equip", 3, lands)]
+
+
+@pytest.mark.parametrize("walk", [False, True])
+def test_portal_item_unseen_move_restores_the_changed_slot(env: Env, walk: bool) -> None:
+    """When eq has not seen the portal move, the slot whose item changed is restored."""
+    stock_eq(env, previous=False)
+    env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.worn["hold"] = 3
+    env.fake.eq.lands = None
+    if walk:
+        assert env.plugin._use_portal(7) is None
+    else:
+        start_portal(env)
+    env.fake.eq.worn["hold"] = 5  # eq now lists a different item there
+    env.fake.eq.add(5, "a stick", itype=7, container="Worn")
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000"), ("equip", 3, "hold")]
+
+
+def test_portal_item_nothing_decided_puts_the_portal_back(env: Env) -> None:
+    """With no slot seen to change the portal is put back and nothing is worn."""
+    stock_eq(env)
+    env.fake.eq.lands = None
+    assert env.plugin._use_portal(7) is None
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000")]
+
+
+def test_portal_item_already_held_is_entered_without_restore(env: Env) -> None:
+    """An item eq lists in the held slot is entered and nothing is moved or restored."""
+    stock_eq(env, previous=False)
+    env.fake.eq.items[7]["container"] = "Worn"
+    env.fake.eq.worn["hold"] = 7
+    assert start_portal(env).success
+    assert env.plugin._taken is None
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == []
 
 
 def test_portal_item_refusals_send_nothing(env: Env) -> None:
@@ -719,7 +780,7 @@ def test_portal_item_timeout(env: Env, delays: list[float]) -> None:
     assert delays == [CEXIT_TIMEOUT]
     assert "no new room" in env.sent[-1][0]
     assert not exits_added(env)
-    assert env.fake.eq.calls[2:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
     assert env.plugin._pending_portal is None
 
 
@@ -730,7 +791,7 @@ def test_portal_item_refused_by_the_room(env: Env, delays: list[float]) -> None:
     env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
     env.fake.trigger_regs["noportal"]()
     assert "refused" in env.sent[-1][0]
-    assert env.fake.eq.calls[2:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
     env.run_tasks()
     assert not exits_added(env)
     assert not any("no new room" in line for chunk in env.sent for line in chunk)
@@ -787,9 +848,9 @@ def test_walk_uses_the_portal_first(env: Env) -> None:
     stock_eq(env)
     assert item_walk(env, PORTAL_STEP, {"fromuid": "1235", "dir": "e"}) == ["e"]
     assert env.fake.mud == [ENTER]
-    assert env.fake.eq.calls == [("unequip", 3), ("equip", 7, "portal")]
+    assert env.fake.eq.calls == [("equip", 7)]
     env.move(ROOM_B)
-    assert env.fake.eq.calls[2:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
 
 
 def test_walk_failed_puts_the_portal_back(env: Env) -> None:
@@ -797,9 +858,9 @@ def test_walk_failed_puts_the_portal_back(env: Env) -> None:
     stock_eq(env)
     item_walk(env, PORTAL_STEP)
     env.plugin._eventcb_walk_failed()
-    assert env.fake.eq.calls[2:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
     env.plugin._eventcb_walk_failed()
-    assert len(env.fake.eq.calls) == 4
+    assert len(env.fake.eq.calls) == 3
 
 
 def test_walk_mid_path_portal(env: Env) -> None:
@@ -810,7 +871,7 @@ def test_walk_mid_path_portal(env: Env) -> None:
     assert env.fake.mud == []
     env.run_tasks()
     assert env.fake.mud == [ENTER, ["e"]]
-    assert env.fake.eq.calls == [("unequip", 3), ("equip", 7, "portal")]
+    assert env.fake.eq.calls == [("equip", 7)]
 
 
 def test_walk_mid_path_portal_is_cancelled(env: Env) -> None:
@@ -838,7 +899,7 @@ def test_disconnect_drops_the_taken_portal(env: Env) -> None:
     item_walk(env, PORTAL_STEP)
     env.plugin._eventcb_disconnect()
     env.move(ROOM_B)
-    assert len(env.fake.eq.calls) == 2
+    assert len(env.fake.eq.calls) == 1
 
 
 def test_requirement_blocks_a_missing_item(env: Env) -> None:
