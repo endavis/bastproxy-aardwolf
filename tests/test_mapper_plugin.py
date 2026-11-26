@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
+from mapper_support import FakeEq
 
 import aardwolf
 from aardwolf.mapper.libs import (
@@ -19,6 +20,7 @@ from aardwolf.mapper.libs import (
     NORECALL_REGEX,
     PLACE_COLUMNS,
     PORTAL_COLUMNS,
+    portal_marker,
 )
 
 if TYPE_CHECKING:
@@ -59,6 +61,7 @@ class FakeApi:
         self.tasks: list[Coroutine[Any, Any, None]] = []
         self.mud: list[list[str]] = []
         self.web = True
+        self.eq = FakeEq()
         self.routes: dict[str, tuple[Callable[..., Any], str, list[dict[str, str]]]] = {}
         self.route_result: str | None = "/aardwolf/mapper"
         self.removed: list[str] = []
@@ -93,6 +96,7 @@ class FakeApi:
             f"{MAPPER}:room.current.set": self._set_current,
             f"{MAPPER}:room.current.get": lambda: self.current,
             f"{MAPPER}:exit.add": lambda *args: True,
+            f"{MAPPER}:exit.remove": lambda *args: True,
             "libs.asynch:task.add": lambda coro, name: self.tasks.append(coro),
             "plugins.core.commands:command.current.args.get": lambda: self.args,
             "plugins.core.settings:setting.add": self._setting_add,
@@ -103,7 +107,10 @@ class FakeApi:
             f"{MAPPER}:requirement.unregister": lambda owner: None,
             f"{MAPPER}:movement.register": self._register("movement"),
             f"{MAPPER}:movement.unregister": lambda owner: None,
-            "libs.api:api.exists": lambda name: self.web and name.startswith(WEB),
+            "libs.api:api.exists": lambda name: (
+                (self.web and name.startswith(WEB)) or (self.eq.present and name in self.eq.table())
+            ),
+            **self.eq.table(),
             f"{WEB}:web.route.add": self._route_add,
             f"{WEB}:web.route.remove": lambda owner: self.removed.append(owner),
             "plugins.core.events:event.current.record.get": lambda: self.record,
@@ -601,3 +608,311 @@ def test_web_dependency() -> None:
     import aardwolf.mapper as package
 
     assert "plugins.core.web" in package.PLUGIN_DEPENDENCIES
+
+
+# portal items
+
+PORTAL_ARGS: dict[str, Any] = {"command": ["7"], "level": None, "touid": None, "recall": False}
+ENTER = ["enter"]
+
+
+def stock_eq(env: Env, *, previous: bool = True) -> None:
+    """Item 7 is a portal in bag 1000; the portal slot holds item 3 when `previous`."""
+    env.fake.eq.add(7, "a swirling portal", level=50, container="1000")
+    env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.lands = "portal"  # eq sees the portal land in the portal slot
+    if previous:
+        env.fake.eq.worn["portal"] = 3
+
+
+def start_portal(env: Env, **args: object) -> "CommandResult":
+    """Stand in room A with the portal in a bag, and run the portal command on it."""
+    env.move(ROOM_A)
+    env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
+    env.fake.args = {**PORTAL_ARGS, **args}
+    result: CommandResult = env.plugin._command_portal()
+    return result
+
+
+def exits_added(env: Env) -> list[tuple[Any, ...]]:
+    """Return the arguments of each exit.add call."""
+    return env.fake.called(f"{MAPPER}:exit.add")
+
+
+def test_portal_item_records_on_arrival(env: Env) -> None:
+    """The portal is held in place of the ring, entered, stored on arrival and put back."""
+    stock_eq(env)
+    result = start_portal(env)
+    assert result.success
+    assert env.fake.mud == [ENTER]
+    assert env.fake.eq.calls == [("equip", 7)]
+    assert env.plugin._portal_token == 1
+    env.move(ROOM_B)
+    assert exits_added(env) == [("*", portal_marker(7), "1235", 1, {"serial": 7, "level": 50})]
+    assert env.sent[-1] == ["Mapper: portal a swirling portal (7) -> 1235"]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.plugin._pending_portal is None
+    assert env.plugin._taken is None
+
+
+def test_portal_item_level_override(env: Env) -> None:
+    """-l replaces the item's level; -l 0 stores no level."""
+    stock_eq(env)
+    start_portal(env, level=20)
+    env.move(ROOM_B)
+    assert exits_added(env)[0][4] == {"serial": 7, "level": 20}
+    env.plugin._pending_portal = None
+    env.plugin._current = None
+    start_portal(env, level=0)
+    env.move(ROOM_B)
+    assert exits_added(env)[1][4] == {"serial": 7}
+
+
+def test_portal_item_already_in_the_slot(env: Env) -> None:
+    """A portal already held is entered and nothing is moved or restored."""
+    stock_eq(env, previous=False)
+    env.fake.eq.items[7]["container"] = "Worn"
+    env.fake.eq.worn["portal"] = 7
+    assert start_portal(env).success
+    assert env.fake.mud == [ENTER]
+    assert env.fake.eq.calls == []
+    env.move(ROOM_B)
+    assert len(exits_added(env)) == 1
+    assert env.fake.eq.calls == []
+
+
+def test_portal_item_from_inventory_with_an_empty_slot(env: Env) -> None:
+    """With nothing in the slot only the portal is held, then put back to the inventory."""
+    stock_eq(env, previous=False)
+    env.fake.eq.items[7]["container"] = "Inventory"
+    start_portal(env)
+    assert env.fake.eq.calls == [("equip", 7)]
+    env.move(ROOM_B)
+    assert env.fake.eq.calls[1:] == [("put", 7, "Inventory")]
+
+
+@pytest.mark.parametrize(("lands", "other"), [("portal", "hold"), ("hold", "portal")])
+@pytest.mark.parametrize("walk", [False, True])
+def test_portal_item_wear_lands_in_the_bought_or_held_slot(
+    env: Env, lands: str, other: str, walk: bool
+) -> None:
+    """A plain wear is sent; the item the portal displaced is worn back at that slot only."""
+    stock_eq(env, previous=False)
+    env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.add(4, "a lamp", itype=7, container="Worn")
+    env.fake.eq.worn[lands] = 3
+    env.fake.eq.worn[other] = 4
+    env.fake.eq.lands = lands
+    if walk:
+        assert env.plugin._use_portal(7) is None
+        env.plugin._restore_portal()
+    else:
+        start_portal(env)
+        env.plugin._pending_portal = None
+        env.plugin._portal_token += 1
+        env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000"), ("equip", 3, lands)]
+
+
+@pytest.mark.parametrize("walk", [False, True])
+def test_portal_item_unseen_move_restores_the_changed_slot(env: Env, walk: bool) -> None:
+    """When eq has not seen the portal move, the slot whose item changed is restored."""
+    stock_eq(env, previous=False)
+    env.fake.eq.add(3, "a ring", itype=7, container="Worn")
+    env.fake.eq.worn["hold"] = 3
+    env.fake.eq.lands = None
+    if walk:
+        assert env.plugin._use_portal(7) is None
+    else:
+        start_portal(env)
+    env.fake.eq.worn["hold"] = 5  # eq now lists a different item there
+    env.fake.eq.add(5, "a stick", itype=7, container="Worn")
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000"), ("equip", 3, "hold")]
+
+
+def test_portal_item_nothing_decided_puts_the_portal_back(env: Env) -> None:
+    """With no slot seen to change the portal is put back and nothing is worn."""
+    stock_eq(env)
+    env.fake.eq.lands = None
+    assert env.plugin._use_portal(7) is None
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == [("equip", 7), ("put", 7, "1000")]
+
+
+def test_portal_item_already_held_is_entered_without_restore(env: Env) -> None:
+    """An item eq lists in the held slot is entered and nothing is moved or restored."""
+    stock_eq(env, previous=False)
+    env.fake.eq.items[7]["container"] = "Worn"
+    env.fake.eq.worn["hold"] = 7
+    assert start_portal(env).success
+    assert env.plugin._taken is None
+    env.plugin._restore_portal()
+    assert env.fake.eq.calls == []
+
+
+def test_portal_item_refusals_send_nothing(env: Env) -> None:
+    """An unknown item, a non portal, a recall, a second recording and no eq store nothing."""
+    stock_eq(env)
+    assert not start_portal(env, command=["99"]).success
+    assert not start_portal(env, command=["3"]).success
+    assert not start_portal(env, recall=True).success
+    env.fake.eq.present = False
+    assert not start_portal(env).success
+    env.fake.eq.present = True
+    env.plugin._pending_cexit = ("1234", "go", None, 1)
+    assert not start_portal(env).success
+    env.plugin._pending_cexit = None
+    assert start_portal(env).success
+    env.fake.mud.clear()
+    env.fake.eq.calls.clear()
+    assert not start_portal(env).success
+    assert env.fake.mud == []
+    assert env.fake.eq.calls == []
+    assert not exits_added(env)
+
+
+def test_portal_item_timeout(env: Env, delays: list[float]) -> None:
+    """With no new room the exit is not stored and the portal is put back."""
+    stock_eq(env)
+    start_portal(env)
+    env.run_tasks()
+    assert delays == [CEXIT_TIMEOUT]
+    assert "no new room" in env.sent[-1][0]
+    assert not exits_added(env)
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    assert env.plugin._pending_portal is None
+
+
+def test_portal_item_refused_by_the_room(env: Env, delays: list[float]) -> None:
+    """The noportal line drops the recording and puts the portal back."""
+    stock_eq(env)
+    start_portal(env)
+    env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
+    env.fake.trigger_regs["noportal"]()
+    assert "refused" in env.sent[-1][0]
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    env.run_tasks()
+    assert not exits_added(env)
+    assert not any("no new room" in line for chunk in env.sent for line in chunk)
+
+
+def test_portal_item_direct(env: Env) -> None:
+    """With -t the exit is stored at once, nothing is used, and the room must be known."""
+    stock_eq(env)
+    env.fake.rooms["5"] = {"uid": "5"}
+    assert start_portal(env, touid="5").success
+    assert exits_added(env) == [("*", portal_marker(7), "5", 1, {"serial": 7, "level": 50})]
+    assert env.fake.mud == []
+    assert env.fake.eq.calls == []
+    assert not start_portal(env, touid="9").success
+    assert len(exits_added(env)) == 1
+
+
+def test_portal_text_command_is_unchanged(env: Env) -> None:
+    """A text command is stored as it is, with no eq call."""
+    stock_eq(env)
+    env.move(ROOM_A)
+    env.fake.rooms["1234"] = {"uid": "1234", "name": "A Room", "area": "aylor", "flags": []}
+    env.fake.args = {**PORTAL_ARGS, "command": ["hold", "7;enter"], "level": 30}
+    assert env.plugin._command_portal().success
+    assert exits_added(env) == [("*", "hold 7;enter", "1234", 1, {"level": 30})]
+    assert env.fake.mud == []
+    assert env.fake.eq.calls == []
+
+
+def test_disconnect_and_unload_drop_the_pending_portal(env: Env) -> None:
+    """A disconnect or an unload forget the portal being recorded and the one taken."""
+    stock_eq(env)
+    start_portal(env)
+    env.plugin._eventcb_disconnect()
+    assert env.plugin._pending_portal is None
+    assert env.plugin._taken is None
+    start_portal(env)
+    env.plugin._phook_uninitialize()
+    assert env.plugin._pending_portal is None
+    assert env.plugin._taken is None
+
+
+def item_walk(env: Env, *steps: dict[str, str]) -> list[str]:
+    """Run the movement callback on steps."""
+    result: list[str] = env.fake.callbacks["movement"](list(steps))
+    return result
+
+
+PORTAL_STEP = {"fromuid": "*", "dir": portal_marker(7)}
+
+
+def test_walk_uses_the_portal_first(env: Env) -> None:
+    """The portal is taken and entered before the returned commands; the move puts it back."""
+    stock_eq(env)
+    assert item_walk(env, PORTAL_STEP, {"fromuid": "1235", "dir": "e"}) == ["e"]
+    assert env.fake.mud == [ENTER]
+    assert env.fake.eq.calls == [("equip", 7)]
+    env.move(ROOM_B)
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+
+
+def test_walk_failed_puts_the_portal_back(env: Env) -> None:
+    """A walk that stops after the portal still restores."""
+    stock_eq(env)
+    item_walk(env, PORTAL_STEP)
+    env.plugin._eventcb_walk_failed()
+    assert env.fake.eq.calls[1:] == [("put", 7, "1000"), ("equip", 3, "portal")]
+    env.plugin._eventcb_walk_failed()
+    assert len(env.fake.eq.calls) == 3
+
+
+def test_walk_mid_path_portal(env: Env) -> None:
+    """A portal after other steps is used when its turn comes, then the rest is sent."""
+    stock_eq(env)
+    steps = [{"fromuid": "1", "dir": "n"}, PORTAL_STEP, {"fromuid": "2", "dir": "e"}]
+    assert item_walk(env, *steps) == ["n"]
+    assert env.fake.mud == []
+    env.run_tasks()
+    assert env.fake.mud == [ENTER, ["e"]]
+    assert env.fake.eq.calls == [("equip", 7)]
+
+
+def test_walk_mid_path_portal_is_cancelled(env: Env) -> None:
+    """A cancelled walk does not use the waiting portal."""
+    stock_eq(env)
+    item_walk(env, {"fromuid": "1", "dir": "n"}, PORTAL_STEP)
+    env.plugin._eventcb_walk_failed()
+    env.run_tasks()
+    assert env.fake.mud == []
+    assert env.fake.eq.calls == []
+
+
+def test_walk_unknown_item_returns_nothing(env: Env) -> None:
+    """An item eq does not have is reported and nothing is sent."""
+    assert item_walk(env, PORTAL_STEP, {"fromuid": "2", "dir": "e"}) == []
+    assert env.fake.mud == []
+    assert "does not know item 7" in env.sent[-1][0]
+    env.run_tasks()
+    assert env.fake.mud == []
+
+
+def test_disconnect_drops_the_taken_portal(env: Env) -> None:
+    """A disconnect forgets the taken portal, so the next move restores nothing."""
+    stock_eq(env)
+    item_walk(env, PORTAL_STEP)
+    env.plugin._eventcb_disconnect()
+    env.move(ROOM_B)
+    assert len(env.fake.eq.calls) == 1
+
+
+def test_requirement_blocks_a_missing_item(env: Env) -> None:
+    """An item portal is blocked when eq lacks the item or is absent; the level still applies."""
+    callback = env.fake.callbacks["requirement"]
+    env.fake.gmcp.update({"char.status.level": 50, "char.base.tier": 0})
+    step = {"fromuid": "*", "dir": portal_marker(7)}
+    assert not callback({"serial": 7}, step)
+    stock_eq(env)
+    assert callback({"serial": 7}, step)
+    assert callback({"serial": 7, "level": 50}, step)
+    assert not callback({"serial": 7, "level": 51}, step)
+    env.fake.eq.present = False
+    assert not callback({"serial": 7}, step)
+    # a text portal does not need eq
+    assert callback({"level": 50}, {"fromuid": "*", "dir": "hold 7;enter"})

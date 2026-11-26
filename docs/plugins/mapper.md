@@ -70,6 +70,35 @@ core `plugins.client.mapper`, so loading it loads them too.
 - **Portals and recall.** `portal` stores the portal under `*`, and recall under `**`. The commands
   `recall`, `home` and `hom` are stored as recalls without a flag. The path search uses a portal
   from the first room that is not `noportal`, and a recall from the first that is not `norecall`.
+- **Portal items.** `portal <serial>` records a portal item by using it. A command that is a single
+  word of digits above 0 is a serial; anything else is a text command as before, and `#N` stays the
+  portal-list reference. The item must be known to the eq plugin (`plugins.aardwolf.eq:item.get`)
+  and be a portal (`itype`); otherwise nothing is sent. eq is a soft dependency, reached only
+  through its APIs when they exist, so text portals work without it.
+  - *Recording.* The portal is taken out of its container and worn with a plain `wear <serial>`,
+    which puts it in the `portal` wear slot when the character has bought that slot and holds it
+    otherwise. Before the wear the items eq lists in the `portal` and `hold` slots are noted, and
+    `enter` is sent. The next room change is stored as an exit from `*` and the portal goes back
+    where it came from; the item that was in the slot the portal took (the slot eq lists it in, or
+    else the noted slot whose item changed) is worn there again. If neither can be told, the portal
+    is put back, nothing is re-worn and the plugin logs it.
+    With no room change before the `cexittimeout` setting runs out, or after the `noportal` line,
+    the client is told, nothing is stored and everything is put back. A portal that eq lists in
+    the `portal` or `hold` slot is just entered, with nothing restored. One recording (cexit or
+    portal) runs at a time, and `-r` is refused.
+  - *Level.* The requirement takes the item's level; `-l N` overrides it and `-l 0` stores none.
+  - *Stored form.* The exit from `*` has the direction `eqportal:<serial>` and the requirement
+    `{"serial": S, "level": L}` (`level` left out when 0). The serial is in the requirement because
+    the core mapper asks the requirement callback only for an exit that has one. `portallevel`,
+    `portalchange` and `lockexit` keep it.
+  - *Walking.* A walk through the exit takes the item, holds it and sends `enter` at that step,
+    then puts it back and wears the previous item on the next room change, or when the walk fails
+    or stops. If eq no longer knows the item the walk reports it and sends nothing.
+  - *Path search.* The requirement callback blocks the exit when eq is absent or does not have the
+    item, besides the level and tier check.
+  - *Display.* `portals` shows `<name> (<serial>)`, or `item <serial> (not carried)`. A bare serial
+    names the portal in the other portal commands; `portalrecall` refuses an item portal.
+  - `portal <serial> -t TOUID` stores the exit at once without using the item.
 - **Bounce.** From a `noportal` room the cheapest recall is chained into a portal, and from a
   `norecall` room the cheapest portal into a recall, with no setting. A room that is both walks out
   first.
@@ -82,6 +111,11 @@ core `plugins.client.mapper`, so loading it loads them too.
 
 ### Limitations
 
+- Portal items: the wear slots (`portal` and `hold`), that `enter` alone takes the worn portal, and the lines
+  Aardwolf prints when it refuses a portal are still to be confirmed against the live MUD. Only the
+  `noportal` line is a trigger; any other refusal ends as a timeout. The put-back sends its
+  commands on the room change, so a portal that eq has not yet seen moved is not moved back.
+  A portal to the room it starts from is never stored, since there is no room change.
 - The import is batched: it writes through the core mapper's `map.batch.add` in batches of at most
   1000 rows, each one transaction, so a large map takes seconds. The proxy stays responsive: the
   file is read in a thread and the loop runs between batches.
@@ -110,7 +144,7 @@ The commands are `#bp.aardwolf.mapper.<command>`.
 | `cexitdel [command]` | Delete a custom exit of the current room, or all of them. |
 | `cexitpurge [here\|all\|<area>] [-c]` | Count, or with `-c` delete, the custom exits of an area or of every area. |
 | `lockexit [exit] [-r ROOM] [-l LEVEL]` | List the exits of a room, show the lock of one, or set it. |
-| `portal <command> [-l LEVEL] [-t TOUID] [-r]` | Add a portal that leads to a room. |
+| `portal <command\|serial> [-l LEVEL] [-t TOUID] [-r]` | Add a portal that leads to a room; a serial uses the portal item and records where it leads. |
 | `portals [filter]` | The numbered portals and recalls, sorted by area. |
 | `portalchange <#N\|command> <new command>` | Change the command of a portal. |
 | `portallevel <#N\|command> <level>` | Set the level a portal needs; 0 for none. |

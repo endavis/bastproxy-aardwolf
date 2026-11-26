@@ -19,6 +19,60 @@ PLUGIN_ID = "plugins.aardwolf.mapper"
 MAPPER = "plugins.client.mapper"
 
 
+EQ = "plugins.aardwolf.eq"
+
+
+class FakeEq:
+    """A stand-in for the item APIs of the eq plugin; it records calls and never moves items."""
+
+    def __init__(self) -> None:
+        self.present = True
+        self.items: dict[int, dict[str, Any]] = {}
+        self.worn: dict[str, int] = {}
+        self.calls: list[tuple[Any, ...]] = []
+        # the slot a plain wear puts an item in; None means eq has not seen it move yet
+        self.lands: str | None = None
+
+    def _equip(self, *args: int | str) -> None:
+        self.calls.append(("equip", *args))
+        serial = args[0]
+        if len(args) == 1 and isinstance(serial, int) and self.lands is not None:
+            self.worn[self.lands] = serial
+            self.items[serial]["container"] = "Worn"
+
+    def add(
+        self,
+        serial: int,
+        name: str = "a portal",
+        *,
+        level: int = 50,
+        itype: int = 20,
+        container: str | None = "Inventory",
+    ) -> None:
+        """Add an item."""
+        self.items[serial] = {
+            "serial": serial,
+            "name": name,
+            "level": level,
+            "itype": itype,
+            "container": container,
+        }
+
+    def table(self) -> dict[str, Callable[..., Any]]:
+        """Return the fakes by full API name."""
+        return {
+            f"{EQ}:item.get": lambda serial: copy.deepcopy(self.items.get(int(serial))),
+            f"{EQ}:eq.worn.get": self._worn_get,
+            f"{EQ}:item.put": lambda *a: self.calls.append(("put", *a)),
+            f"{EQ}:item.equip": self._equip,
+            f"{EQ}:item.unequip": lambda *a: self.calls.append(("unequip", *a)),
+        }
+
+    def _worn_get(self, location: str) -> dict[str, Any] | None:
+        serial = self.worn.get(location)
+        return copy.deepcopy(self.items[serial]) if serial is not None else None
+
+
 class FakeMapper:
     """A stateful stand-in for the core mapper APIs and the few other APIs the commands use."""
 
@@ -37,6 +91,7 @@ class FakeMapper:
         self.on_batch: Callable[[], None] | None = None
         self.batch_error: Exception | None = None
         self.gmcp: dict[str, Any] = {}
+        self.eq = FakeEq()
 
     def state(self) -> dict[str, Any]:
         """Return a deep copy of everything stored."""
@@ -69,6 +124,8 @@ class FakeMapper:
             "plugins.core.colors:colorcode.escape": lambda text: text,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
         }
+        table["libs.api:api.exists"] = lambda api: self.eq.present and api in self.eq.table()
+        table.update(self.eq.table())
         func = table[short if name.startswith(MAPPER) else name]
 
         def record(*args: object, **kwargs: object) -> object:

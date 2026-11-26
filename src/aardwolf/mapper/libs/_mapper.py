@@ -2,8 +2,11 @@
 
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlencode
+
+from aardwolf._libs.itemu import OBJECTTYPESREV
 
 MAPPER = "plugins.client.mapper"
 EVENT_GMCP_ROOM = "ev_libs.net.mud_gmcp_room.info"
@@ -17,6 +20,26 @@ GMCP_LEVEL = "char.status.level"
 GMCP_TIER = "char.base.tier"
 NOPORTAL_REGEX = r"^Magic walls bounce you back\.$"
 NORECALL_REGEX = r"^You cannot (recall|return home) from this room\."
+# the direction of an exit from * that uses a portal item, followed by the item serial
+PORTAL_PREFIX = "eqportal:"
+# the wear slot of a portal item the character has bought, and the one a portal is held in
+# otherwise; a plain wear puts the portal in the right one. Both are eq's wear location names.
+PORTAL_WEARLOC = "portal"
+HELD_WEARLOC = "hold"
+PORTAL_ITYPE = OBJECTTYPESREV["portal"]
+# the eq plugin is a soft dependency: its APIs are used by name, and only when they exist
+API_EQ_ITEM_GET = "plugins.aardwolf.eq:item.get"
+API_EQ_WORN_GET = "plugins.aardwolf.eq:eq.worn.get"
+API_EQ_ITEM_PUT = "plugins.aardwolf.eq:item.put"
+API_EQ_ITEM_EQUIP = "plugins.aardwolf.eq:item.equip"
+API_EQ_ITEM_UNEQUIP = "plugins.aardwolf.eq:item.unequip"
+API_EQ = (
+    API_EQ_ITEM_GET,
+    API_EQ_WORN_GET,
+    API_EQ_ITEM_PUT,
+    API_EQ_ITEM_EQUIP,
+    API_EQ_ITEM_UNEQUIP,
+)
 FLAG_NOPORTAL = "noportal"
 FLAG_NORECALL = "norecall"
 # mirrors the core mapper's IGNORE_EXITS_FLAG, which a plugin cannot import
@@ -158,6 +181,41 @@ def area_from_gmcp(data: object) -> dict[str, Any] | None:
     }
 
 
+def serial_arg(text: object) -> int | None:
+    """Return the serial a portal command names: a single word of digits above 0, else None."""
+    if not isinstance(text, str):
+        return None
+    word = text.strip()
+    if not (word.isascii() and word.isdecimal()):
+        return None
+    serial = int(word)
+    return serial if serial > 0 else None
+
+
+def portal_marker(serial: int) -> str:
+    """Return the exit direction that stands for the portal item with this serial."""
+    return f"{PORTAL_PREFIX}{serial}"
+
+
+def portal_serial(direction: object) -> int | None:
+    """Return the serial of an item portal direction, or None for any other direction."""
+    if not isinstance(direction, str) or not direction.startswith(PORTAL_PREFIX):
+        return None
+    return serial_arg(direction[len(PORTAL_PREFIX) :])
+
+
+def portal_requirement(serial: int, level: int) -> dict[str, Any]:
+    """Return the requirement of an item portal; the level is left out when 0 or less.
+
+    The serial rides in the requirement because the core mapper asks the requirement
+    callback only for an exit that has one.
+    """
+    requirement: dict[str, Any] = {"serial": serial}
+    if level > 0:
+        requirement["level"] = level
+    return requirement
+
+
 def requirement_allowed(
     requirement: object,
     exit_dict: Mapping[str, Any],
@@ -277,6 +335,32 @@ def movement_chunks(steps: list[dict[str, Any]]) -> list[tuple[float, list[str]]
     if run:
         parts.append(_run_command(run))
     return command_chunks(parts)
+
+
+@dataclass(frozen=True)
+class PortalStep:
+    """A walk step that uses the portal item with this serial."""
+
+    serial: int
+
+
+def movement_plan(steps: list[dict[str, Any]]) -> list[tuple[float, list[str]] | PortalStep]:
+    """Turn walk steps into (delay seconds, commands) chunks and the portal item steps.
+
+    The steps between two item portals are turned into chunks as `movement_chunks` does.
+    """
+    plan: list[tuple[float, list[str]] | PortalStep] = []
+    segment: list[dict[str, Any]] = []
+    for step in steps:
+        serial = portal_serial(step.get("dir")) if step.get("fromuid") in ANYWHERE else None
+        if serial is None:
+            segment.append(step)
+            continue
+        plan.extend(movement_chunks(segment))
+        segment = []
+        plan.append(PortalStep(serial))
+    plan.extend(movement_chunks(segment))
+    return plan
 
 
 def steps_to_commands(steps: list[dict[str, Any]]) -> list[str]:
