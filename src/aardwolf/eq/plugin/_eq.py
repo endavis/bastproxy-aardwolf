@@ -58,6 +58,7 @@ _CALLBACKS = {
     "eq_data_end": "_trigger_data_end",
     "eq_vaultcounts": "_trigger_vaultcounts",
     "eq_no_vault": "_trigger_no_vault",
+    "eq_dead": "_trigger_dead",
     "eq_data_line": "_trigger_data_line",
 }
 _END_TAGS = {"invdata": "invdata", "eqdata": "eqdata", "keyring": "keyring", "vault": "vault"}
@@ -219,13 +220,14 @@ class EqPlugin(BasePlugin):
         for cid in sorted(bags - self._bag_types):
             self._add_bag_type(cid)
 
-    def _queue(self, cid: str) -> None:
-        """Queue the command that reads a container."""
+    def _queue(self, cid: str) -> bool:
+        """Queue the command that reads a container; return True when it was queued."""
         if cid == VAULT and not self._in_bank():
-            return
+            return False
         if cid not in (WORN, INVENTORY, KEYRING, VAULT) and cid not in self._bag_types:
-            return
+            return False
         self.api("plugins.core.mudcmds:command.queue")(type_for(cid).cmdtype)
+        return True
 
     def _refresh_all(self) -> None:
         """Queue every container: worn, inventory, keyring, the vault in a bank, the bags."""
@@ -341,6 +343,14 @@ class EqPlugin(BasePlugin):
         except (KeyError, TypeError, ValueError):
             log_to([self.plugin_id], logging.DEBUG, "bad vaultcounts: %s", matches)
 
+    def _trigger_dead(self) -> None:
+        """The character died: forget what it carries, keep the vault, and read it all again."""
+        dropped = self.state.reset_carried()
+        log_to([self.plugin_id], logging.DEBUG, "the character died, bags dropped: %s", dropped)
+        self._stop_reading()
+        self._sync_types()
+        self._refresh_all()
+
     # events
 
     @RegisterToEvent(event_name=EVENT_DISCONNECT)
@@ -368,6 +378,14 @@ class EqPlugin(BasePlugin):
     def _api_container_get(self, cid: int | str) -> dict[str, Any] | None:
         """Return ``{cid, items}`` of a container; Worn adds ``slots`` and Vault ``counts``."""
         return self.state.container_copy(cid)
+
+    @AddAPI("container.refresh", description="queue the read of one container")
+    def _api_container_refresh(self, cid: int | str) -> bool:
+        """Queue the read of Worn, Inventory, Keyring, Vault or a bag; False when it cannot be."""
+        resolved = self._resolve_container(str(cid))
+        if resolved is None:
+            return False
+        return self._queue(resolved)
 
     @AddAPI("eq.worn.get", description="return a copy of the item worn at a slot or location")
     def _api_eq_worn_get(self, location: int | str) -> dict[str, Any] | None:
@@ -479,10 +497,13 @@ class EqPlugin(BasePlugin):
 
     @AddCommand()
     @AddParser(description="show what is in the cache for an item")
-    @AddArgument("item", help="the serial of the item")
+    @AddArgument("item", help="the serial of the item", nargs="?", default="")
     def _command_icache(self) -> CommandResult:
-        """Show one line per field of a cached item."""
+        """Show one line per field of a cached item, or the size of the cache."""
         text = str(self._args().get("item", ""))
+        if not text:
+            count = len(self.state.items)
+            return CommandResult(True, [f"{count} items in the cache; give a serial to show one"])
         serial = to_serial(text)
         if serial is None:
             return CommandResult(True, [f"{text} is not a serial number"])
@@ -495,7 +516,7 @@ class EqPlugin(BasePlugin):
 
     @AddCommand(format=False, preamble=False)
     @AddParser(description="get an item, from wherever it is")
-    @AddArgument("item", help="the serial of the item, or what to get")
+    @AddArgument("item", help="the serial of the item, or what to get", nargs="?", default="")
     @AddArgument("otherargs", help="the rest of the get command", nargs="*", default=[])
     def _command_get(self) -> CommandResult:
         """Get an item by serial, or send the words to the MUD as a get command."""
@@ -503,13 +524,14 @@ class EqPlugin(BasePlugin):
         serial = to_serial(args.get("item"))
         if serial is not None and self._api_item_fetch(serial):
             return CommandResult(True, [])
-        words = " ".join(quote_arg(str(word)) for word in [args.get("item"), *args["otherargs"]])
-        self._send(f"get {words}")
-        return CommandResult(True, [f"serial is not known, sending 'get {words}'"])
+        parts = [quote_arg(str(word)) for word in [args.get("item"), *args["otherargs"]] if word]
+        command = " ".join(["get", *parts])
+        self._send(command)
+        return CommandResult(True, [f"serial is not known, sending '{command}'"])
 
     @AddCommand(format=False, preamble=False)
     @AddParser(description="put an item in something")
-    @AddArgument("item", help="the serial of the item, or what to put")
+    @AddArgument("item", help="the serial of the item, or what to put", nargs="?", default="")
     @AddArgument("otherargs", help="the rest of the put command", nargs="*", default=[])
     def _command_put(self) -> CommandResult:
         """Put an item in a bag, or send the words to the MUD as a put command."""
@@ -525,9 +547,10 @@ class EqPlugin(BasePlugin):
             if bag is not None and self.state.has_container(str(bag)):
                 self._api_item_put(serial, str(bag))
                 return CommandResult(True, [])
-        words = " ".join(quote_arg(str(word)) for word in [args.get("item"), *others])
-        self._send(f"put {words}")
-        return CommandResult(True, [f"sending 'put {words}'"])
+        parts = [quote_arg(str(word)) for word in [args.get("item"), *others] if word]
+        command = " ".join(["put", *parts])
+        self._send(command)
+        return CommandResult(True, [f"sending '{command}'"])
 
     def _resolve_container(self, text: str) -> str | None:
         """Return the id of the container a name or serial points at, or None."""

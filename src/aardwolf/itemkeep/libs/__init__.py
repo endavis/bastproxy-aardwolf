@@ -3,6 +3,7 @@
 from ._itemkeep import (
     EVENT_DISCONNECT,
     EVENT_EQ_INVENTORY_ADDED,
+    EVENT_EQ_INVENTORY_REMOVED,
     EVENT_EQ_REMOVED,
     EVENT_EQ_TAKEN,
     GROUP_REPLY,
@@ -27,6 +28,7 @@ from ._itemkeep import (
 __all__ = [
     "EVENT_DISCONNECT",
     "EVENT_EQ_INVENTORY_ADDED",
+    "EVENT_EQ_INVENTORY_REMOVED",
     "EVENT_EQ_REMOVED",
     "EVENT_EQ_TAKEN",
     "GROUP_REPLY",

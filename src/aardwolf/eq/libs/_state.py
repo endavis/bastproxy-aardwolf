@@ -54,6 +54,33 @@ class EqState:
         self.vault_counts = None
         self.vault_read = False
 
+    def reset_carried(self) -> list[str]:
+        """Forget what the character carries, keeping the vault and what is in it.
+
+        Return the ids of the bags dropped.
+        """
+        bags_before = set(self.bag_cids())
+        kept_serials: list[int] = []
+        pending = list(self.containers.get(VAULT, []))
+        while pending:
+            serial = pending.pop()
+            kept_serials.append(serial)
+            pending.extend(self.containers.get(str(serial), []))
+        kept_items = {s: self.items[s] for s in kept_serials if s in self.items}
+        kept_bags = {
+            str(s): self.containers[str(s)] for s in kept_serials if str(s) in self.containers
+        }
+        vault = list(self.containers.get(VAULT, []))
+        vault_counts = self.vault_counts
+        vault_read = self.vault_read
+        self.reset()
+        self.items.update(kept_items)
+        self.containers.update(kept_bags)
+        self.containers[VAULT] = vault
+        self.vault_counts = vault_counts
+        self.vault_read = vault_read
+        return sorted(bags_before - set(self.bag_cids()))
+
     # containers
 
     def ensure_container(self, cid: str) -> bool:
@@ -167,12 +194,7 @@ class EqState:
                 self.move(serial, WORN, slot)
             else:
                 self.move(serial, cid)
-            holds_bags = cid == INVENTORY or cid in self.bag_cids()
-            if (
-                item["itype"] == CONTAINER_ITYPE
-                and holds_bags
-                and self.ensure_container(str(serial))
-            ):
+            if item["itype"] == CONTAINER_ITYPE and self.ensure_container(str(serial)):
                 new_bags.append(str(serial))
         if cid == INVENTORY:
             self._drop_stale_bags()

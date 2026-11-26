@@ -14,6 +14,7 @@ from mudcmds_support import CoreHide
 import aardwolf
 from aardwolf.itemkeep.libs import (
     EVENT_EQ_INVENTORY_ADDED,
+    EVENT_EQ_INVENTORY_REMOVED,
     EVENT_EQ_REMOVED,
     EVENT_EQ_TAKEN,
     SETTINGS,
@@ -143,6 +144,7 @@ class Env:
             EVENT_EQ_INVENTORY_ADDED: self.plugin._eventcb_inventory_added,
             EVENT_EQ_TAKEN: self.plugin._eventcb_taken,
             EVENT_EQ_REMOVED: self.plugin._eventcb_removed,
+            EVENT_EQ_INVENTORY_REMOVED: self.plugin._eventcb_inventory_removed,
         }
         self.fake.record = payload
         callbacks[event]()
@@ -302,3 +304,32 @@ def test_a_typed_keep_is_shown(env: Env) -> None:
     assert env.fake.shown == [REPLY, PROMPT]
     assert env.fake.hidden == []
     assert env.fake.finished == []
+
+
+def test_an_item_that_left_the_inventory_is_kept_again(env: Env) -> None:
+    env.fake.values["weapon"] = True
+    env.deliver(EVENT_EQ_INVENTORY_ADDED, {"item": item(1234)})
+    env.deliver(EVENT_EQ_INVENTORY_REMOVED, {"item": item(1234)})
+    env.deliver(EVENT_EQ_INVENTORY_ADDED, {"item": item(1234)})
+    assert env.fake.queued == [(TYPE_KEEP, "1234")] * 2
+
+
+def test_an_item_that_stays_with_the_character_is_kept_once(env: Env) -> None:
+    env.fake.values["weapon"] = True
+    env.deliver(EVENT_EQ_INVENTORY_ADDED, {"item": item(1234)})
+    env.deliver(EVENT_EQ_TAKEN, {"item": item(1234)})
+    env.deliver(EVENT_EQ_REMOVED, {"item": item(1234)})
+    assert env.fake.queued == [(TYPE_KEEP, "1234")]
+
+
+@pytest.mark.parametrize(
+    "payload", [{"item": "not a dict"}, {"item": None}, {}, {"item": {"serial": "x"}}]
+)
+def test_inventory_removed_with_a_bad_item_changes_nothing(
+    env: Env, payload: dict[str, Any]
+) -> None:
+    env.fake.values["weapon"] = True
+    env.deliver(EVENT_EQ_INVENTORY_ADDED, {"item": item(1234)})
+    env.deliver(EVENT_EQ_INVENTORY_REMOVED, payload)
+    env.deliver(EVENT_EQ_TAKEN, {"item": item(1234)})
+    assert env.fake.queued == [(TYPE_KEEP, "1234")]

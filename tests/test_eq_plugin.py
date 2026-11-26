@@ -277,6 +277,7 @@ def test_after_load(env: Env) -> None:
         "eq_data_end",
         "eq_vaultcounts",
         "eq_no_vault",
+        "eq_dead",
         "eq_data_line",
     }
     assert fake.enabled() == set(fake.triggers) - {"eq_data_line"}
@@ -970,3 +971,111 @@ def test_inv_grouping_and_nogroup(env: Env) -> None:
     assert any(line.startswith("(  2) ") for line in grouped)
     ungrouped = run_inv(env, nogroup=True)
     assert len([line for line in ungrouped if "a test potion" in line]) == 2
+
+
+# bags seen in any block (#146)
+
+WORN_BAG = "5001,,a test worn bag,1,11,0,24,-1"
+VAULT_BAG = "5002,,a test vault bag,1,11,0,-1,-1"
+
+
+def test_a_worn_bag_gets_a_container_and_is_read(env: Env) -> None:
+    env.fake.feed(["{eqdata}", WORN_BAG, "{/eqdata}"])
+    assert "eq_container_5001" in env.fake.types
+    assert "eq_container_5001" in env.fake.queued
+    env.fake.args = {"container": "5001"}
+    assert "does not exist" not in " ".join(env.plugin._command_inv().message)
+
+
+def test_a_vault_bag_gets_a_container_and_is_read(env: Env) -> None:
+    env.fake.feed(["{vault}", VAULT_BAG, "{/vault}"])
+    assert "eq_container_5002" in env.fake.types
+    assert "eq_container_5002" in env.fake.queued
+    env.fake.args = {"container": "5002"}
+    assert "does not exist" not in " ".join(env.plugin._command_inv().message)
+
+
+# death (#147)
+
+
+def test_death_forgets_what_is_carried_keeps_the_vault_and_reads_again(env: Env) -> None:
+    env.fill()
+    env.fake.feed(["{vault}", VAULT_BAG, "{/vault}"])
+    env.fake.queued.clear()
+    env.fake.feed(["You die."])
+    state = env.plugin.state
+    assert state.serials("Inventory") == []
+    assert state.serials("Worn") == []
+    assert state.serials("Vault") == [5002]
+    assert state.vault_read is True
+    assert env.fake.removed_types == ["eq_container_2002"]
+    assert env.fake.queued == ["eq_worn", "eq_inventory", "eq_keyring", "eq_container_5002"]
+    assert "You die." in env.fake.shown
+
+
+def test_death_in_a_bank_reads_the_vault_too(env: Env) -> None:
+    env.fill()
+    env.fake.gmcp["room.info.details"] = "bank"
+    env.fake.feed(["You die."])
+    assert env.fake.queued == ["eq_worn", "eq_inventory", "eq_keyring", "eq_vault"]
+
+
+def test_death_in_the_middle_of_a_block_drops_it(env: Env) -> None:
+    env.fill()
+    env.fake.feed(["{eqdata}", "You die."])
+    assert "eq_data_line" not in env.fake.enabled()
+    env.fake.feed([SWORD, "{/eqdata}"])
+    assert env.plugin.state.serials("Worn") == []
+
+
+# refreshing one container (#148)
+
+
+def test_container_refresh_queues_one_read(env: Env) -> None:
+    env.fill()
+    assert env.plugin._api_container_refresh("inventory") is True
+    assert env.plugin._api_container_refresh(2002) is True
+    assert env.plugin._api_container_refresh("2002") is True
+    assert env.plugin._api_container_refresh("Worn") is True
+    assert env.fake.queued == ["eq_inventory", "eq_container_2002", "eq_container_2002", "eq_worn"]
+
+
+def test_container_refresh_refuses_what_it_cannot_read(env: Env) -> None:
+    env.fill()
+    assert env.plugin._api_container_refresh("nosuch") is False
+    assert env.plugin._api_container_refresh(9999) is False
+    assert env.plugin._api_container_refresh("Vault") is False
+    assert env.fake.queued == []
+    env.fake.gmcp["room.info.details"] = "bank"
+    assert env.plugin._api_container_refresh("Vault") is True
+    assert env.fake.queued == ["eq_vault"]
+
+
+# commands without an item (#149)
+
+
+def test_item_is_optional_for_icache_get_and_put(env: Env) -> None:
+    import argparse
+
+    for command in (env.plugin._command_icache, env.plugin._command_get, env.plugin._command_put):
+        parser = argparse.ArgumentParser(exit_on_error=False)
+        for argument in command.command_data.arguments:
+            parser.add_argument(*argument["args"], **argument["kwargs"])
+        parsed = parser.parse_args([])
+        assert parsed.item == ""
+
+
+def test_bare_get_and_put_are_sent_without_a_trailing_space(env: Env) -> None:
+    env.fake.args = {"item": "", "otherargs": []}
+    env.plugin._command_get()
+    env.plugin._command_put()
+    assert env.sent == ["get", "put"]
+
+
+def test_bare_icache_shows_the_cache_size(env: Env) -> None:
+    env.fill()
+    env.fake.args = {"item": ""}
+    count = len(env.plugin.state.items)
+    assert env.plugin._command_icache().message == [
+        f"{count} items in the cache; give a serial to show one"
+    ]

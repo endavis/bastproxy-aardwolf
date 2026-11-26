@@ -91,6 +91,8 @@ class TriggerSpec(NamedTuple):
 _TAGS = "invdata|eqdata|keyring|vault"
 # what Aardwolf answers to "vault data" for a character with no vault, instead of a vault block
 NO_VAULT_REGEX = r"^You do not have a vault\. See 'help vault' for how to acquire one\.$"
+# the death message; eq has its own trigger, as plugins do not import plugins
+DEAD_REGEX = r"^You die\.$"
 
 TRIGGERS: tuple[TriggerSpec, ...] = (
     TriggerSpec(
@@ -121,6 +123,7 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         {"items": int, "total": int, "max": int},
     ),
     TriggerSpec("eq_no_vault", NO_VAULT_REGEX, None, True, False, None),
+    TriggerSpec("eq_dead", DEAD_REGEX, None, True, False, None),
     TriggerSpec("eq_data_line", r"^(?P<data>\s*\d+,.*)$", GROUP_DATA, False, False, None),
 )
 

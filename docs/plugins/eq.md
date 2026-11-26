@@ -64,8 +64,9 @@ kept from the client: the plugin still reads them, and other lines are shown as 
   refresh leaves no stray prompts. For the vault this also hides
   `{vaultcounts}...{/vaultcounts}`, which comes after `{/vault}`. Without prompt marking
   (promptfix not loaded) a window closes at the end tag and the prompt is shown.
-- **Bags.** A bag (item type 11) gets a container and a type the first time it is seen, and its
-  contents are queued. Both go when the bag leaves the inventory.
+- **Bags.** A bag (item type 11) gets a container and a type the first time it is seen in any
+  read (worn, inventory, keyring, vault or another bag), and its contents are queued. Both go when
+  the bag leaves the inventory.
 - **Reading.** When the character becomes active, and for `refresh`, the plugin queues worn,
   inventory and keyring, then the vault when GMCP `room.info.details` contains `bank`, then the
   bags. A missing value is not a bank. A mismatch that `invmon` shows queues the containers
@@ -73,6 +74,13 @@ kept from the client: the plugin still reads them, and other lines are shown as 
 - **No vault.** A character without a vault gets "You do not have a vault." instead of a vault
   block. That line finishes the vault read at once and records an empty vault. When the read was
   queued, the line and its prompt are hidden.
+- **Death.** The `^You die\.$` trigger (`eq_dead`, the line is still shown) forgets what is worn
+  and carried: Worn, Inventory, Keyring, the bags and their items. The vault stays, with its
+  counts, whether it was read and the bags in it, because it lives in the bank and death cannot
+  change it. Eq then drops a block being read and queues the same reads as `refresh`. The reads
+  are queued at once. This is inferred, not checked live: Aardwolf prints `You die.` from inside
+  its death routine and reads the next command only on a later pulse, after the corpse is made, so
+  `eqdata` and `invdata` sent after the line are answered with the inventory after death.
 - **Disconnect.** The state is cleared, a block that was being read is dropped and the bag types
   are removed.
 
@@ -117,6 +125,7 @@ The forms below are the ones the plugin matches. The item values are made up.
 {/vault}
 {vaultcounts}1,1,50{/vaultcounts}     # items, total, maximum; after {/vault}
 You do not have a vault. See 'help vault' for how to acquire one.   # vault data, no vault
+You die.                              # the death message
 {invitem}6001,,a new thing,3,6,0,-1,-1
 {invmon}6,2001,2002,-1                # action,serial,container,location
 ```
@@ -144,6 +153,7 @@ All are `plugins.aardwolf.eq:<name>`.
 | `item.get(serial)` | a copy of the item, or `None`; the serial may be an int or text |
 | `item.find.by.name(name)` | copies of the items with `name` in their name, case sensitive |
 | `container.get(cid)` | `{cid, items}`, with `slots` for Worn and `counts` for Vault, or `None`; `items` are serials |
+| `container.refresh(cid)` | `True` when the read of one container was queued: `Worn`, `Inventory`, `Keyring`, `Vault` (names are not case sensitive) or a bag serial, as an int or text. `False` for an unknown container, or for the vault outside a bank |
 | `eq.worn.get(location)` | a copy of the item worn at a slot number or location name, or `None`; never raises |
 | `item.fetch(serial)` | `True` when the item is known: sends the command that takes it out of its container and notes where it came from |
 | `item.put(serial, container=None, location=None)` | the container id, or `None` when nothing was done: puts the item in `container`, or back where it came from, fetching it first when it is in another container |
@@ -161,9 +171,9 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | Command | Does |
 | :--- | :--- |
 | `#bp.aardwolf.eq.refresh` | queues worn, inventory, keyring, the vault in a bank, and the bags |
-| `#bp.aardwolf.eq.icache <serial>` | shows `Item <serial>` and one sorted `key: value` line per field, or says it is not cached or not a serial |
-| `#bp.aardwolf.eq.get <item> [words]` | with a known serial, fetches the item; otherwise sends `get <item> [words]`, quoting words that hold spaces |
-| `#bp.aardwolf.eq.put <item> [bag]` | with a known item and no bag, puts it back where it came from; with a known bag serial, puts it there; otherwise sends `put <item> [words]` |
+| `#bp.aardwolf.eq.icache [serial]` | shows `Item <serial>` and one sorted `key: value` line per field, or says it is not cached or not a serial; without a serial it says how many items are in the cache |
+| `#bp.aardwolf.eq.get [item] [words]` | with a known serial, fetches the item; otherwise sends `get <item> [words]`, quoting words that hold spaces; bare, it sends `get` |
+| `#bp.aardwolf.eq.put [item] [bag]` | with a known item and no bag, puts it back where it came from; with a known bag serial, puts it there; otherwise sends `put <item> [words]`; bare, it sends `put` |
 | `#bp.aardwolf.eq.eq [-n] [-c] [-s]` | shows what is worn, one row per slot with its location, flags, level and name. `-n` leaves out the flags, `-c` adds the score and `-s` the serial. Empty optional locations (the medals, `second`, the floating, tattoo, `above`, `portal` and `sleeping` slots) are hidden, and so are the empty `shield` and `hold` while `second` is filled |
 | `#bp.aardwolf.eq.inv [container] [-n] [-c] [-s] [-g]` | shows `Inventory` (the default), `Worn`, `Keyring`, `Vault` or the bag with that serial; names are not case sensitive. Identical items (same name, flags and level) fold into one row counted as `(  n)`, with the serial `Many` under `-s`; `-g` turns grouping off. The inventory ends with the keyring count and, once the vault was read and it holds items, the vault counts. An empty container says `You have nothing in <container>`, an unread vault says to go to a bank and use `#bp.aardwolf.eq.refresh`, and an unknown container says `container <x> does not exist` |
 
@@ -172,7 +182,7 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | Old | New |
 | :--- | :--- |
 | `eq.getitem` | `plugins.aardwolf.eq:item.get` |
-| `eq.getcontainer` | `plugins.aardwolf.eq:container.get` |
+| `eq.getcontainer` | `plugins.aardwolf.eq:container.get`; its `refresh()` is `container.refresh` |
 | `eq.findname` | `plugins.aardwolf.eq:item.find.by.name` |
 | `eq.getworn` | `plugins.aardwolf.eq:eq.worn.get` |
 | `eq.get` | `plugins.aardwolf.eq:item.fetch` |
@@ -189,6 +199,7 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 | commands `eq`, `inv` | the same names |
 | `Item.score` default `Unkn` | a display-only default, `Unkn` when an item has no `score` |
 | commands `refresh`, `get`, `put`, `icache` | the same names |
+| `dead`, event `trigger_dead` | the `eq_dead` trigger, which eq handles itself |
 
 ## Changes from the old plugin
 
@@ -223,8 +234,11 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
   identify, and the copy saved to eqdb leaves them out.
 - **Fixed: `origcontainer`** was never cleared, so a later put sent the item to an old place.
 - **Fixed: a put into the inventory** sent `put <serial> Inventory`; now it only fetches.
-- **Fixed: `dead`.** The handler emptied the containers without a read and nothing raised its
-  event. The state is cleared on disconnect, and read again when the character is active.
+- **Changed: death.** The old handler emptied the containers without a read, and nothing in this
+  repo raised `trigger_dead`, so #75 (plan item 18) dropped it. Aardwolf leaves many items in the
+  corpse, so eq now has its own `^You die\.$` trigger. Unlike the old handler it keeps the vault
+  and reads everything else again; unlike #75 it does not leave the state stale until the next
+  connect. The timing of the reads is inferred, not checked live (see Death above).
 - **Fixed: vault counts compared as strings.** The old inventory showed the vault line even for an
   empty vault (a string is always above an int in Python 2), and the keep-flagged line compared the
   total with the item count as text, so `10` was not above `9`. Both compare ints now.
@@ -253,7 +267,10 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
 - **Changed: typed data commands.** A typed `eqdata` or `invdata` also updates the state, and is
   shown in full, because mudcmds never hides a typed command.
 - **Changed: a new bag is read when first seen,** and each bag has its own command type, so a typed
-  `invdata` cannot open the hide window of a queued `invdata <serial>`.
+  `invdata` cannot open the hide window of a queued `invdata <serial>`. As in the old plugin this
+  covers bags in Worn, on the keyring and in the vault. Nobody has checked whether Aardwolf
+  answers `invdata <serial>` for a bag in the vault or on the keyring; a refusal is shown and the
+  mudcmds timeout frees the queue.
 - **Known issue of `itemu`, not fixed here.** `itemu.parse_item_data` splits the comma `eqdata`
   layout on every comma, so a name with a comma is misparsed. The eq plugin does not use it for
   item lines.
