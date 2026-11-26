@@ -278,6 +278,9 @@ Bugs fixed in the port:
   mobs, and a table with only failed rows no longer fail.
 - **A level event without a total level** named its milestone `None`; it is named for the total
   level now.
+- **Changed: a milestone that exists is skipped quietly.** The old plugin sent
+  `Milestone <name> already exists` to the client. Only the plugin adds milestones (start, levels,
+  hero, superhero and tier), so `add_milestone` now returns -1 without a message.
 - **SQL injection.** The old code pasted values into its SQL. Every value is a bound parameter,
   and a stat name is checked against the `stats` columns first.
 - **NOEXP kills counted as experience.** Kills with `noexp = 1` store the experience they would

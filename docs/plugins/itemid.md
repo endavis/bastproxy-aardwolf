@@ -205,6 +205,8 @@ Each of these was a bug in the old plugin unless it says changed.
   resists are shown when the item has any of them, as before.
 - **Changed: line `{...}` with no data.** The invdetails line trigger needs some data after the
   closing brace, so the `{invdetails}` start tag is not read as a line.
+- **Changed: the identify command type.** Its regex is `^identify \d+$`, where the old one was
+  `^identify (?P<item>.*)$`. Only the plugin queues it, always with a serial.
 - **Kept, and to check live: notes with a colon.** A line is a label when it has a colon and a
   character right after the space that follows the bar. A note written that way is read as a label
   and lost from the notes, as in the old plugin.

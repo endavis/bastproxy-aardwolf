@@ -11,6 +11,9 @@ mis-converted 45 totals in 1..4220 (``convert_level(403)`` gave remort 2 instead
 This port uses integer arithmetic on ``total - 1`` and matches the old results everywhere
 else. The old ``classabb()`` with no argument returned the full-name to abbreviation
 table; use ``CLASSABBREV`` for that.
+
+Change from the old behaviour: ``parse_damage_line`` takes a line ending in ``!`` or ``.``.
+The old character class ``[!|\\.]`` also accepted ``|``.
 """
 
 import re

@@ -183,6 +183,8 @@ The plugin listens to `ev_plugins.core.clients_client_disconnected`,
     which left the AFK title stuck on a character with no title, or whose title the plugin never
     saw (it learned titles only from what was typed through the proxy). The title is now read when
     AFK turns on, and an empty one is restored with `title clear`.
+23. Changed: a queued tell keeps only `timestamp`, `player` and `msg`. The old plugin kept a copy
+    of the whole GMCP `comm.channel` data with the timestamp added. The old plugin read only `timestamp` and `msg`.
 
 ## Known gaps
 
