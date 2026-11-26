@@ -33,7 +33,7 @@ listens to the level plugin's events by name and does not depend on it.
 ## Behaviour
 
 - **Triggers.** Their names carry a `skills_` prefix because trigger names are global. The six tag
-  triggers are always on and are not omitted, as in the old plugin. The slist triggers sit in three
+  triggers are always on and are omitted, so the tag lines never reach the client. The slist triggers sit in three
   groups, named `<plugin id>.<suffix>` and off by default: `slist` (the start and end tags),
   `slist_spells` (a spell line) and `slist_recoveries` (a recovery line). They are omitted.
 - **Queue.** Two `slist` command types, `slist` and `slistspellup`, run through the mudcmds queue. A
@@ -192,4 +192,7 @@ ends, or 0), `spellup` and `recovery`.
   straight to the MUD.
 - **In-memory state.** The old plugin kept no saved state either; a disconnect clears the table and
   the first active event rebuilds it.
+- **Tag lines hidden.** The old plugin did not omit the `{affon}`, `{affoff}`, `{recon}`,
+  `{recoff}`, `{skillgain}` and `{sfail}` tag lines, so they reached the client. They are omitted
+  now; the events still fire.
 - **Anchored start tag.** The start regex is anchored to the whole line.

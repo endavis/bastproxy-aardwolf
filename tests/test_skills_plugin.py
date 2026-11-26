@@ -299,7 +299,7 @@ def test_after_load_adds_events_type_triggers_and_tags(env: Env) -> None:
     assert set(env.fake.triggers) == {spec.name for spec in TRIGGERS}
     omitted = {n for n, k in env.fake.kwargs.items() if k.get("omit")}
     assert omitted == {s.name for s in TRIGGERS if s.omit}
-    assert "skills_affon" not in omitted
+    assert "skills_affon" in omitted
     assert env.fake.kwargs["skills_start"]["group"] == f"{PLUGIN_ID}.slist"
     assert env.fake.kwargs["skills_spell_line"]["group"] == f"{PLUGIN_ID}.slist_spells"
     assert env.fake.kwargs["skills_recov_line"]["group"] == f"{PLUGIN_ID}.slist_recoveries"
@@ -429,7 +429,7 @@ def test_affon_and_affoff(env: Env) -> None:
     env.fake.feed("{affoff}14")
     assert env.fake.events(EVENT_AFFOFF) == [{"sn": 14}]
     assert not env.plugin._api_skill_is_affected(14)
-    assert env.fake.shown[-2:] == ["{affon}14,600", "{affoff}14"]
+    assert env.fake.hidden[-2:] == ["{affon}14,600", "{affoff}14"]
 
 
 def test_recon_and_recoff(env: Env) -> None:
@@ -673,3 +673,21 @@ def test_full_window_stays_open_past_the_end_of_the_spell_headers(env: Env) -> N
     env.fake.feed("after")
     assert "a stray line" in env.fake.hidden
     assert env.fake.shown == ["after"]
+
+
+def test_tag_lines_are_hidden_and_events_still_fire(env: Env) -> None:
+    """A line matching each tag trigger is omitted, and its event is still raised."""
+    env.load_all()
+    lines = [
+        "{affon}14,600",
+        "{affoff}14",
+        "{recon}4,300",
+        "{recoff}4",
+        "{skillgain}14,50",
+        "{sfail}14,0,1,5",
+    ]
+    env.fake.feed(*lines)
+    assert env.fake.hidden[-len(lines) :] == lines
+    assert not any(line in env.fake.shown for line in lines)
+    assert env.fake.events(EVENT_AFFON) == [{"sn": 14, "duration": NOW + 600}]
+    assert env.fake.events(EVENT_AFFOFF) == [{"sn": 14}]

@@ -131,22 +131,22 @@ class TriggerSpec(NamedTuple):
 
 
 TRIGGERS: tuple[TriggerSpec, ...] = (
-    TriggerSpec("skills_affoff", r"^\{affoff\}(?P<sn>\d+)$", None, True, False, {"sn": int}),
+    TriggerSpec("skills_affoff", r"^\{affoff\}(?P<sn>\d+)$", None, True, True, {"sn": int}),
     TriggerSpec(
         "skills_affon",
         r"^\{affon\}(?P<sn>\d+),(?P<duration>\d+)$",
         None,
         True,
-        False,
+        True,
         {"sn": int, "duration": int},
     ),
-    TriggerSpec("skills_recoff", r"^\{recoff\}(?P<sn>\d+)$", None, True, False, {"sn": int}),
+    TriggerSpec("skills_recoff", r"^\{recoff\}(?P<sn>\d+)$", None, True, True, {"sn": int}),
     TriggerSpec(
         "skills_recon",
         r"^\{recon\}(?P<sn>\d+),(?P<duration>\d+)$",
         None,
         True,
-        False,
+        True,
         {"sn": int, "duration": int},
     ),
     TriggerSpec(
@@ -154,7 +154,7 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         r"^\{skillgain\}(?P<sn>\d+),(?P<percent>\d+)$",
         None,
         True,
-        False,
+        True,
         {"sn": int, "percent": int},
     ),
     TriggerSpec(
@@ -162,7 +162,7 @@ TRIGGERS: tuple[TriggerSpec, ...] = (
         r"^\{sfail\}(?P<sn>\d+),(?P<target>\d+),(?P<reason>\d+),(?P<recovery>-?\d+)$",
         None,
         True,
-        False,
+        True,
         {"sn": int, "target": int, "reason": int, "recovery": int},
     ),
     TriggerSpec(
