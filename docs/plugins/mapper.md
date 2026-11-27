@@ -29,7 +29,7 @@ The plugin id is `plugins.aardwolf.mapper`:
 #bp.core.pluginm.load plugins.aardwolf.mapper
 ```
 
-It depends on the events, triggers, colors, commands and web core plugins, on the [move plugin](move.md) and on the
+It depends on the events, triggers, colors, utils, commands and web core plugins, on the [move plugin](move.md) and on the
 core `plugins.client.mapper`, so loading it loads them too.
 
 ## Behaviour
@@ -158,14 +158,9 @@ deprecated.
 | `portalpurge [-c]` | Count, or with `-c` delete, every portal and recall. |
 
 A search defaults to `here`, the area of the current room, and fails with "the current room is not
-known" when there is none. An area id is lowercased and matched exactly. The table follows the core
-`find` command, in room uid order:
-
-```text
-Mapper shops in aylor: 2 rooms
-uid | name | area | found
-32418 | The Aylor Bank | aylor | Bank
-```
+known" when there is none. An area id is lowercased and matched exactly. The core `table.format` prints
+the table, like the core `find` command, in room uid order. Its title is, for example, `Mapper shops in
+aylor: 2 rooms`, and its columns are uid, name, area and found (the details that matched).
 
 The detail searches match the comma separated details of a room, whether it was captured from GMCP or
 imported. An area with no stored rooms reports "area <x> has no mapped rooms"; an area with no match

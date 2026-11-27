@@ -289,31 +289,32 @@ def test_shops_here(env: Env, db: Path) -> None:
     _imported(env, db)
     result = env.search("shops")
     assert result.success
-    assert result.message == [
-        "Mapper shops in testarea: 1 rooms",
-        "uid | name | area | found",
-        "100 | The Test Bank | testarea | Bank, Shop",
-    ]
+    assert result.message == ["Mapper shops in testarea: 1 rooms"]
+    assert env.table_cells() == [("100", "The Test Bank", "testarea", "Bank, Shop")]
+    title, _data, columns = env.fake.tables[-1]
+    assert title == result.message[0]
+    assert [c["name"] for c in columns] == ["uid", "name", "area", "found"]
 
 
 def test_train_and_quest_by_area_lowercased(env: Env, db: Path) -> None:
     """The area argument is lowercased and exact."""
     _imported(env, db)
     train = env.search("train", "TestArea")
-    assert train.message[-1] == "101 | Training Hall | testarea | Trainer"
+    assert train.success
+    assert env.table_cells()[-1] == ("101", "Training Hall", "testarea", "Trainer")
     quest = env.search("quest", "testarea")
-    assert quest.message[-1] == "102 | Quest Office | testarea | Questor"
+    assert quest.success
+    assert env.table_cells()[-1] == ("102", "Quest Office", "testarea", "Questor")
 
 
 def test_notes_lists_note_text(env: Env, db: Path) -> None:
     """Notes lists the rooms with a note, with the note text."""
     _imported(env, db)
     result = env.search("notes", "testarea")
-    assert result.message == [
-        "Mapper notes in testarea: 2 rooms",
-        "uid | name | area | found",
-        "100 | The Test Bank | testarea | bookmark note",
-        "102 | Quest Office | testarea | bookmark wins",
+    assert result.message == ["Mapper notes in testarea: 2 rooms"]
+    assert env.table_cells() == [
+        ("100", "The Test Bank", "testarea", "bookmark note"),
+        ("102", "Quest Office", "testarea", "bookmark wins"),
     ]
 
 
@@ -321,7 +322,8 @@ def test_search_in_other_area_uses_spaced_details(env: Env, db: Path) -> None:
     """Details with spaces and capitals still match."""
     _imported(env, db)
     result = env.search("shops", "otherarea")
-    assert result.message[-1] == "200 | Far Hut | otherarea | Shop"
+    assert result.success
+    assert env.table_cells()[-1] == ("200", "Far Hut", "otherarea", "Shop")
 
 
 def test_search_here_without_current_room_fails(env: Env, db: Path) -> None:
@@ -362,11 +364,8 @@ def test_search_works_on_captured_rooms(env: Env) -> None:
     del room["exits"]
     env.fake.rooms["1234"] = room
     result = env.search("shops", "aylor")
-    assert result.message == [
-        "Mapper shops in aylor: 1 rooms",
-        "uid | name | area | found",
-        "1234 | Aylor Bank | aylor | Bank",
-    ]
+    assert result.message == ["Mapper shops in aylor: 1 rooms"]
+    assert env.table_cells() == [("1234", "Aylor Bank", "aylor", "Bank")]
 
 
 def test_search_rows_are_in_numeric_uid_order(env: Env) -> None:
@@ -379,7 +378,8 @@ def test_search_rows_are_in_numeric_uid_order(env: Env) -> None:
             "details": {"details": "shop"},
         }
     result = env.search("shops", "a")
-    assert [line.split(" | ")[0] for line in result.message[2:]] == ["9", "10"]
+    assert result.success
+    assert [cells[0] for cells in env.table_cells()] == ["9", "10"]
 
 
 def test_search_escapes_names(env: Env) -> None:
@@ -399,8 +399,10 @@ def test_search_escapes_names(env: Env) -> None:
         return original(name)
 
     env.plugin.api = MagicMock(side_effect=escaping)
-    assert env.search("shops", "a").message[-1] == "1 | @@RRed | a | Shop"
-    assert env.search("notes", "a").message[-1] == "1 | @@RRed | a | @@Gnote"
+    assert env.search("shops", "a").success
+    assert env.table_cells()[-1] == ("1", "@@RRed", "a", "Shop")
+    assert env.search("notes", "a").success
+    assert env.table_cells()[-1] == ("1", "@@RRed", "a", "@@Gnote")
 
 
 def test_command_arguments_are_declared(env: Env) -> None:
@@ -434,13 +436,33 @@ def test_cexits_listing(mapped: Env) -> None:
     here = mapped.run("cexits", where="here")
     assert here.success
     assert here.message[0] == "Mapper custom exits in here: 2"
-    assert here.message[1] == "uid | name | area | command | to | level"
-    assert here.message[2] == "1 | Room 1 | a | open door;wait(2);e | 3 | 50"
-    assert here.message[3] == "3 | Room 3 | a | pull lever | 9 | 0"
-    assert len(mapped.run("cexits", where="thisroom").message) == 3
-    assert mapped.run("cexits", where="b").message[2].startswith("9 | Room 9 | b | squeeze")
+    assert [c["name"] for c in mapped.fake.tables[-1][2]] == [
+        "uid",
+        "name",
+        "area",
+        "command",
+        "to",
+        "level",
+    ]
+    assert mapped.table_cells() == [
+        ("1", "Room 1", "a", "open door;wait(2);e", "3", "50"),
+        ("3", "Room 3", "a", "pull lever", "9", "0"),
+    ]
+    assert mapped.run("cexits", where="thisroom").success
+    assert len(mapped.table_cells()) == 1
+    assert mapped.run("cexits", where="b").success
+    assert mapped.table_cells()[0][:4] == ("9", "Room 9", "b", "squeeze")
     mapped.fake.exit_add("*", "enter", "1")
-    assert len(mapped.run("cexits", where="here").message) == 4
+    assert mapped.run("cexits", where="here").success
+    assert len(mapped.table_cells()) == 2
+
+
+def test_lockexit_without_exits_prints_an_empty_table(mapped: Env) -> None:
+    """A room with no exits still prints its table, with no rows."""
+    mapped.fake.rooms["5"] = room("5", "a")
+    result = mapped.run("lockexit", exit=[], room="5", level=None)
+    assert result.message == ["Mapper exits of 5"]
+    assert mapped.table_cells() == []
 
 
 def test_cexits_empty_and_unknown_room(mapped: Env) -> None:
@@ -485,7 +507,8 @@ def test_cexitpurge(mapped: Env) -> None:
 def test_lockexit(mapped: Env) -> None:
     """List the exits, show a lock, set one keeping touid and cost, and remove it."""
     listed = mapped.run("lockexit", exit=[], room=None, level=None)
-    assert listed.message[1:] == ["exit | to | level", "n | 2 | 0", "open door;wait(2);e | 3 | 50"]
+    assert listed.message == ["Mapper exits of 1"]
+    assert mapped.table_cells() == [("n", "2", "0"), ("open door;wait(2);e", "3", "50")]
     shown = mapped.run("lockexit", exit=["open", "door;wait(2);e"], room=None, level=None)
     assert "needs level 50" in shown.message[0]
     mapped.fake.exit_add("1", "s", "2", 4)
@@ -552,16 +575,23 @@ def add_portals(env: Env) -> None:
 def test_portals_listing(mapped: Env) -> None:
     """Sorted by area, room number and command; numbers stay stable under a filter."""
     add_portals(mapped)
-    result = mapped.run("portals", filter="")
-    assert result.message[1] == "# | kind | area | name | to | command | level"
-    assert result.message[2:] == [
-        "#1 | portal | a | Room 2 | 2 | aaa | 0",
-        "#2 | recall | a | Room 3 | 3 | recall | 0",
-        "#3 | portal | b | Room 9 | 9 | zzz | 5",
+    assert mapped.run("portals", filter="").success
+    assert [c["name"] for c in mapped.fake.tables[-1][2]] == [
+        "#",
+        "kind",
+        "area",
+        "name",
+        "to",
+        "command",
+        "level",
     ]
-    assert mapped.run("portals", filter="B").message[2:] == [
-        "#3 | portal | b | Room 9 | 9 | zzz | 5"
+    assert mapped.table_cells() == [
+        ("#1", "portal", "a", "Room 2", "2", "aaa", "0"),
+        ("#2", "recall", "a", "Room 3", "3", "recall", "0"),
+        ("#3", "portal", "b", "Room 9", "9", "zzz", "5"),
     ]
+    assert mapped.run("portals", filter="B").success
+    assert mapped.table_cells() == [("#3", "portal", "b", "Room 9", "9", "zzz", "5")]
     assert mapped.run("portals", filter="nope").message == ["No portals found"]
 
 
@@ -621,12 +651,22 @@ def test_item_portal_listing_and_references(mapped: Env) -> None:
     """The item name and serial show in the command column; a bare serial names the portal."""
     item_portal(mapped, level=30)
     assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7, "level": 30}
-    row = mapped.run("portals", filter="").message[2]
-    assert row == "#1 | portal | a | Room 2 | 2 | a swirling portal (7) | 30"
+    assert mapped.run("portals", filter="").success
+    assert mapped.table_cells()[0] == (
+        "#1",
+        "portal",
+        "a",
+        "Room 2",
+        "2",
+        "a swirling portal (7)",
+        "30",
+    )
     del mapped.fake.eq.items[7]
-    assert mapped.run("portals", filter="").message[2].endswith("| item 7 (not carried) | 30")
+    assert mapped.run("portals", filter="").success
+    assert mapped.table_cells()[0][5:] == ("item 7 (not carried)", "30")
     mapped.fake.eq.present = False
-    assert mapped.run("portals", filter="").message[2].endswith("| item 7 (not carried) | 30")
+    assert mapped.run("portals", filter="").success
+    assert mapped.table_cells()[0][5:] == ("item 7 (not carried)", "30")
     assert mapped.run("portallevel", ref="7", level=0).success
     assert mapped.fake.exits[("*", "eqportal:7")]["requirement"] == {"serial": 7}
     assert mapped.run("portallevel", ref="#1", level=45).success

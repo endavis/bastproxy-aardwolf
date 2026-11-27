@@ -101,6 +101,36 @@ PLACE_COLUMNS: list[dict[str, str]] = [
     {"name": "found", "label": "Found", "type": "text"},
 ]
 
+# the column lists of the text tables: the header of a column and the key of its cell
+PLACE_TEXT_COLUMNS: list[dict[str, str]] = [
+    {"name": "uid", "key": "uid"},
+    {"name": "name", "key": "name"},
+    {"name": "area", "key": "area"},
+    {"name": "found", "key": "found"},
+]
+CEXIT_TEXT_COLUMNS: list[dict[str, str]] = [
+    {"name": "uid", "key": "uid"},
+    {"name": "name", "key": "name"},
+    {"name": "area", "key": "area"},
+    {"name": "command", "key": "command"},
+    {"name": "to", "key": "to"},
+    {"name": "level", "key": "level"},
+]
+EXIT_TEXT_COLUMNS: list[dict[str, str]] = [
+    {"name": "exit", "key": "exit"},
+    {"name": "to", "key": "to"},
+    {"name": "level", "key": "level"},
+]
+PORTAL_TEXT_COLUMNS: list[dict[str, str]] = [
+    {"name": "#", "key": "number"},
+    {"name": "kind", "key": "kind"},
+    {"name": "area", "key": "area"},
+    {"name": "name", "key": "name"},
+    {"name": "to", "key": "to"},
+    {"name": "command", "key": "command"},
+    {"name": "level", "key": "level"},
+]
+
 
 def to_int(value: object) -> int:
     """Return a value as an int, or 0 when it is missing or not numeric."""
@@ -482,14 +512,15 @@ def detail_matches(details: object, wanted: Iterable[str]) -> list[str]:
     return [item.capitalize() for item in items if item in wanted_set]
 
 
-def table_lines(title: str, header: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
-    """Return a table: the title, a header line, and one ` | ` joined line per row."""
-    return [title, " | ".join(header), *(" | ".join(row) for row in rows)]
+def table_data(
+    columns: Sequence[Mapping[str, str]], rows: Iterable[Sequence[str]]
+) -> list[dict[str, str]]:
+    """Return the row tuples as dicts keyed by the ``key`` of each column, in row order.
 
-
-def search_lines(title: str, rows: Iterable[tuple[str, str, str, str]]) -> list[str]:
-    """Return a search table: the title, a header, and one line per (uid, name, area, found)."""
-    return table_lines(title, ("uid", "name", "area", "found"), rows)
+    A row with more or fewer cells than there are columns raises ``ValueError``.
+    """
+    keys = [column["key"] for column in columns]
+    return [dict(zip(keys, row, strict=True)) for row in rows]
 
 
 class WebTableQuery(Protocol):

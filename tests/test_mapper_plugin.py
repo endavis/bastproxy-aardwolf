@@ -231,6 +231,7 @@ def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
     assert "plugins.client.mapper" in PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.move" in PLUGIN_DEPENDENCIES
+    assert "plugins.core.utils" in PLUGIN_DEPENDENCIES
 
 
 def test_after_load_registers(env: Env) -> None:

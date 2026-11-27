@@ -92,6 +92,15 @@ class FakeMapper:
         self.batch_error: Exception | None = None
         self.gmcp: dict[str, Any] = {}
         self.eq = FakeEq()
+        # every table.format call: (title, the rows, the columns)
+        self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
+
+    def table_format(
+        self, title: str, data: Iterable[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        """Record a table.format call and return the title as its only line."""
+        self.tables.append((title, list(data), columns))
+        return [title]
 
     def state(self) -> dict[str, Any]:
         """Return a deep copy of everything stored."""
@@ -123,6 +132,7 @@ class FakeMapper:
             "plugins.core.commands:command.current.args.get": lambda: self.args,
             "plugins.core.colors:colorcode.escape": lambda text: text,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "plugins.core.utils:table.format": self.table_format,
         }
         table["libs.api:api.exists"] = lambda api: self.eq.present and api in self.eq.table()
         table.update(self.eq.table())
@@ -281,6 +291,11 @@ class Env:
     def lines(self) -> list[str]:
         """Return everything sent to the client, flattened."""
         return [line for chunk in self.sent for line in chunk]
+
+    def table_cells(self) -> list[tuple[str, ...]]:
+        """Return the cells of the last table's rows, in column order."""
+        _title, data, columns = self.fake.tables[-1]
+        return [tuple(row[column["key"]] for column in columns) for row in data]
 
     def run_import(self, path: Path) -> "CommandResult":
         """Run the importmush command and then the task it queued."""
