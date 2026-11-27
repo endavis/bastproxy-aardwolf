@@ -38,6 +38,7 @@ from ..libs import (
     GROUP_REW,
     HIDE_MAX_LINES,
     INFO_HIDE_START,
+    MOBS_LEFT_COLUMNS,
     NEW_TRIGGER,
     SUFFIX_COMP,
     SUFFIX_FAILED,
@@ -49,6 +50,7 @@ from ..libs import (
     info_mobs,
     info_starttime,
     is_count_line,
+    mobs_left_table_data,
     name_has_several_locations,
     new_campaign_regex,
     new_mob,
@@ -518,10 +520,9 @@ class CpPlugin(BasePlugin):
         """Show the mobs left."""
         if not self.cp.get("oncp"):
             return CommandResult(True, ["You are not on a cp"])
-        lines = ["Mobs left:", f"{'Mob Name':<40} Area/Room", "@G" + "-" * 60]
-        for mob in self.cp.get("mobsleft", []):
-            color = "@R" if mob.get("mobdead") else "@w"
-            lines.append(f"{color}{mob.get('name', ''):<40} {mob.get('location', '')}")
+        lines = self.api("plugins.core.utils:table.format")(
+            "Mobs left", mobs_left_table_data(self.cp.get("mobsleft", [])), MOBS_LEFT_COLUMNS
+        )
         return CommandResult(True, lines)
 
     @AddCommand()

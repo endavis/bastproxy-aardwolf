@@ -9,6 +9,7 @@ from aardwolf.cp.libs import (
     CP_DURATION,
     EVENTS,
     INFO_HIDE_START,
+    MOBS_LEFT_COLUMNS,
     NEVER_REGEX,
     SUFFIX_COMP,
     TRIGGERS,
@@ -16,6 +17,7 @@ from aardwolf.cp.libs import (
     info_mobs,
     info_starttime,
     is_count_line,
+    mobs_left_table_data,
     name_has_several_locations,
     new_campaign_regex,
     new_mob,
@@ -408,3 +410,24 @@ def test_a_hide_start_has_one_alternative_per_omitted_trigger(group: str) -> Non
     assert start.startswith("(?:") and start.endswith(")")
     assert start.count("|") >= len(omitted) - 1
     assert "(?P<" not in start
+
+
+def test_mobs_left_columns() -> None:
+    """The columns are the mob name and the area/room."""
+    assert [(c["name"], c["key"]) for c in MOBS_LEFT_COLUMNS] == [
+        ("Mob Name", "name"),
+        ("Area/Room", "location"),
+    ]
+    assert all(set(c) == {"name", "key"} for c in MOBS_LEFT_COLUMNS)
+
+
+def test_mobs_left_table_data() -> None:
+    """A live mob is white, a dead one red on both cells; a missing field is empty."""
+    mobs = [new_mob("A rat", "Sewers", False), new_mob("A bat", "Cave", True), {"mobdead": True}]
+    assert mobs_left_table_data(mobs) == [
+        {"name": "@wA rat", "location": "@wSewers"},
+        {"name": "@RA bat", "location": "@RCave"},
+        {"name": "@R", "location": "@R"},
+    ]
+    assert mobs_left_table_data([{}]) == [{"name": "@w", "location": "@w"}]
+    assert mobs_left_table_data([]) == []
