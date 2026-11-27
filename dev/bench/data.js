@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795770975399,
+  "lastUpdate": 1795771849125,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3571,6 +3571,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.861720938204811e-7",
             "extra": "mean: 5.821882249690441 usec\nrounds: 174887"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d85cf62c1a492c5c3514328188bb8e1b691f8a8",
+          "message": "fix: head the statdb comparison columns in time order (merges PR #199, addresses #198)\n\nformat_comparison built the column headers from the two milestone names\nbefore swapping the rows into time order, so comp 5 3 headed its columns\n5 and 3 while showing milestone 3's values first. The columns are now\nbuilt after the swap, so each header names the milestone whose values\nsit under it. The web comp page shares this path.\n\ntest_compare_one_and_two_names_in_either_order asserted the mislabelled\nheader for comp 5 3; it now expects 3 then 5, as the issue states. A new\ntest checks the headers against the data for both name orders.\n\nAddresses #198\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T09:30:03Z",
+          "tree_id": "2ff70b135a582fe8bbe32142466c7f78af661dc8",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/5d85cf62c1a492c5c3514328188bb8e1b691f8a8"
+        },
+        "date": 1795771848386,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3659456.80076167,
+            "unit": "iter/sec",
+            "range": "stddev: 3.7810206047126635e-8",
+            "extra": "mean: 273.2646003067621 nsec\nrounds: 199921"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 198619.58729615866,
+            "unit": "iter/sec",
+            "range": "stddev: 6.420350031719799e-7",
+            "extra": "mean: 5.03475016544524 usec\nrounds: 105776"
           }
         ]
       }
