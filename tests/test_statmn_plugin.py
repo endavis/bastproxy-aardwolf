@@ -53,6 +53,8 @@ class FakeApi:
         self.select_exists = True
         self.select_error: Exception | None = None
         self.selects: list[tuple[str, tuple[Any, ...]]] = []
+        self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
+        self.center_lengths: list[int] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -70,6 +72,7 @@ class FakeApi:
             "plugins.core.proxy:mud.is.connected": lambda: self.connected,
             "plugins.core.utils:timelength.format": self._format_time,
             "plugins.core.utils:string.center.colored": self._center,
+            "plugins.core.utils:table.format": self._table,
             "plugins.core.utils:value.verify": _verify,
             "libs.net.protocols:gmcp.value.get": lambda key: self.perlevel,
             "libs.api:api.exists": lambda api: api == SELECT_API and self.select_exists,
@@ -110,9 +113,15 @@ class FakeApi:
         whole = int(seconds)
         return f"{whole // 60:02d}m" if nosec else f"{whole // 60:02d}m:{whole % 60:02d}s"
 
-    @staticmethod
-    def _center(text: str, filler: str, length: int, filler_color: str) -> str:
+    def _center(self, text: str, filler: str, length: int, filler_color: str) -> str:
+        self.center_lengths.append(length)
         return f"{filler_color}-- {text} --"
+
+    def _table(
+        self, title: str, data: list[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        self.tables.append((title, data, columns))
+        return [title]
 
     def _select(self, sql: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
         self.selects.append((sql, params))
@@ -272,7 +281,7 @@ def test_the_timer_sends_the_report_while_connected(timed: Env) -> None:
     timed.fake.timers[TIMER][0]()
     text = "\n".join(timed.shown())
     assert "Stats for @x33@W60@x33m" in text
-    assert "2899" in text
+    assert timed.fake.tables[-1][1][0]["gold"] == "@W2899"
     assert len(timed.sent) == 1
 
 
@@ -302,9 +311,11 @@ def test_linelength_setting_sets_the_report_width(env: Env) -> None:
     check = env.fake.validators["linelength"]
     assert check(0) is not None
     assert check(60) is None
-    assert env.plugin._command_rep().message[3] == "@x33" + "-" * 50
+    env.plugin._command_rep()
+    assert env.fake.center_lengths[-1] == 50
     env.fake.settings["linelength"] = 30
-    assert env.plugin._command_rep().message[3] == "@x33" + "-" * 30
+    env.plugin._command_rep()
+    assert env.fake.center_lengths[-1] == 30
 
 
 def test_rep_with_a_length(env: Env) -> None:
