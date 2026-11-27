@@ -1,5 +1,7 @@
 """Aardwolf connect plugin: GMCP setup and first-active detection."""
 
+from typing import Any
+
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
@@ -24,6 +26,27 @@ EVENT_GMCP = "ev_libs.net.mud_gmcp"
 EVENT_GMCP_CHAR = "ev_libs.net.mud_gmcp_char"
 EVENT_GMCP_ROOM = "ev_libs.net.mud_gmcp_room.info"
 EVENT_GMCP_QUEST = "ev_libs.net.mud_gmcp_comm.quest"
+EVENTS_GMCP_VITALS = tuple(
+    f"ev_libs.net.mud_gmcp_char.{package}" for package in ("vitals", "maxstats", "status", "base")
+)
+VITALS_PROVIDER = "vitals"
+VITALS_FIELDS: dict[str, str] = {
+    "hp": "char.vitals.hp",
+    "maxhp": "char.maxstats.maxhp",
+    "mana": "char.vitals.mana",
+    "maxmana": "char.maxstats.maxmana",
+    "moves": "char.vitals.moves",
+    "maxmoves": "char.maxstats.maxmoves",
+    "level": "char.status.level",
+    "tier": "char.base.tier",
+    "remorts": "char.base.remorts",
+    "tnl": "char.status.tnl",
+    "align": "char.status.align",
+    "state": "char.status.state",
+    "pos": "char.status.pos",
+    "enemy": "char.status.enemy",
+    "enemypct": "char.status.enemypct",
+}
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
 EVENT_CLIENT_LOGGED_IN = "ev_plugins.core.clients_client_logged_in"
 
@@ -34,6 +57,7 @@ class ConnectPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self) -> None:
         """Initialize the state flags."""
+        self._vitals_offered: set[str] = set()
         self._reset_state()
 
     def _reset_state(self) -> None:
@@ -66,12 +90,35 @@ class ConnectPlugin(BasePlugin):
         register(EVENT_GMCP_QUEST, self._eventcb_check)
         register(EVENT_DISCONNECT, self._eventcb_mud_disconnected)
         register(EVENT_CLIENT_LOGGED_IN, self._eventcb_client_logged_in)
+        for event in EVENTS_GMCP_VITALS:
+            register(event, self._eventcb_vitals_changed)
 
         # loaded mid-session: the mud is already connected and the character logged in
         if self._mud_connected() and self._state_is_active():
             self._gmcp_setup()
             self._request_all()
             self._check_first_active()
+
+    @RegisterPluginHook("after_load", priority=60)
+    def _phook_add_web_providers(self) -> None:
+        """Offer the character vitals as a web data provider; a refusal is logged."""
+        self._vitals_offered = set()
+        add = self.api("plugins.core.web:web.provider.add")
+        if add(self.plugin_id, VITALS_PROVIDER, self._provider_vitals):
+            self._vitals_offered.add(VITALS_PROVIDER)
+
+    def _provider_vitals(self) -> dict[str, Any]:
+        """Return the vitals from the cached GMCP data; a missing value is None."""
+        return {name: self._gmcp_value(path) for name, path in VITALS_FIELDS.items()}
+
+    def _provider_changed(self, name: str) -> None:
+        """Tell the web listeners a provider changed, when it was offered."""
+        if name in self._vitals_offered:
+            self.api("plugins.core.web:web.provider.changed.raise")(self.plugin_id, name)
+
+    def _eventcb_vitals_changed(self) -> None:
+        """Raise a vitals change after a vitals, maxstats, status or base message."""
+        self._provider_changed(VITALS_PROVIDER)
 
     def _mud_connected(self) -> bool:
         """Return True when the proxy is connected to the mud."""
@@ -164,6 +211,7 @@ class ConnectPlugin(BasePlugin):
     def _eventcb_mud_disconnected(self) -> None:
         """Forget the connection state when the mud disconnects."""
         self._reset_state()
+        self._provider_changed(VITALS_PROVIDER)
 
     @AddAPI("character.is.first.active", description="True once the character was first active")
     def _api_character_is_first_active(self) -> bool:

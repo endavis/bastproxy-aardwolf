@@ -45,6 +45,9 @@ class FakeApi:
         self.registered: dict[str, Callable[..., Any]] = {}
         self.trigger_adds: list[tuple[str, str]] = []
         self.trigger_regs: list[tuple[str, Callable[..., Any]]] = []
+        self.provider_adds: list[tuple[str, str, Callable[..., Any]]] = []
+        self.provider_ok = True
+        self.provider_raises: list[tuple[str, str]] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -58,6 +61,8 @@ class FakeApi:
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.events:event.register": self._event_register,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_raise,
         }
         return table[name]
 
@@ -92,6 +97,14 @@ class FakeApi:
 
     def _trigger_register(self, trigger_id: str, func: Callable[..., Any]) -> bool:
         self.trigger_regs.append((trigger_id, func))
+        return True
+
+    def _provider_add(self, owner: str, name: str, snapshot: Callable[..., Any]) -> str | None:
+        self.provider_adds.append((owner, name, snapshot))
+        return f"{owner}.{name}" if self.provider_ok else None
+
+    def _provider_raise(self, owner: str, name: str) -> bool:
+        self.provider_raises.append((owner, name))
         return True
 
     def _event_register(self, name: str, func: Callable[..., Any]) -> None:
@@ -130,6 +143,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Env]:
     plugin = _connect.ConnectPlugin.__new__(_connect.ConnectPlugin)
     plugin.plugin_id = "plugins.aardwolf.connect"
     plugin.api = MagicMock(side_effect=fake)
+    plugin._vitals_offered = set()
     plugin._reset_state()
     yield Env(_connect, plugin, fake, lines)
 
@@ -153,13 +167,13 @@ def test_press_return_regex(env: Env) -> None:
 
 
 def test_after_load(env: Env) -> None:
-    """after_load adds modules, the trigger and six event callbacks."""
+    """after_load adds modules, the trigger and ten event callbacks."""
     env.fake.mud_connected = False
     env.plugin._phook_initialize()
     assert env.fake.modules_added == [env.module.GMCP_MODULES]
     assert env.fake.trigger_adds == [("press_return", env.module.PRESS_RETURN_REGEX)]
     assert env.fake.trigger_regs == [("tid", env.plugin._trigger_press_return)]
-    assert len(env.fake.registered) == 6
+    assert len(env.fake.registered) == 10
     assert env.fake.sent_gmcp == []
     assert env.lines == []
 
@@ -297,3 +311,109 @@ def test_gmcp_stub_is_case_sensitive(env: Env) -> None:
     assert get("char.status.state") == 3
     assert get("Char.Status.state") is None
     assert get("char.vitals.hp") == 10
+
+
+VITALS_DATA: dict[str, Any] = {
+    "char.vitals.hp": 90,
+    "char.vitals.mana": 80,
+    "char.vitals.moves": 70,
+    "char.maxstats.maxhp": 100,
+    "char.maxstats.maxmana": 110,
+    "char.maxstats.maxmoves": 120,
+    "char.status.level": 42,
+    "char.status.tnl": 500,
+    "char.status.align": -250,
+    "char.status.state": 3,
+    "char.status.pos": "Standing",
+    "char.status.enemy": "a made-up foe",
+    "char.status.enemypct": 60,
+    "char.base.tier": 1,
+    "char.base.remorts": 2,
+}
+
+
+def test_plugin_depends_on_web() -> None:
+    """The plugin lists the web plugin as a dependency."""
+    from aardwolf import connect
+
+    assert "plugins.core.web" in connect.PLUGIN_DEPENDENCIES
+
+
+def test_vitals_provider_added_once(env: Env) -> None:
+    """The vitals provider is added once with the plugin id and the snapshot."""
+    env.plugin._phook_add_web_providers()
+    assert env.fake.provider_adds == [
+        ("plugins.aardwolf.connect", "vitals", env.plugin._provider_vitals)
+    ]
+
+
+def test_vitals_full_data(env: Env) -> None:
+    """The snapshot holds the 15 fields from the cached data."""
+    env.fake.gmcp = dict(VITALS_DATA)
+    data = env.plugin._provider_vitals()
+    assert len(env.module.VITALS_FIELDS) == 15
+    assert set(data) == set(env.module.VITALS_FIELDS)
+    assert data["hp"] == 90
+    assert data["maxmoves"] == 120
+    assert data["tier"] == 1
+    assert data["pos"] == "Standing"
+    assert data["enemy"] == "a made-up foe"
+
+
+def test_vitals_empty_cache(env: Env) -> None:
+    """With no cached data every field is None."""
+    data = env.plugin._provider_vitals()
+    assert len(data) == 15
+    assert all(value is None for value in data.values())
+
+
+@pytest.mark.parametrize(
+    ("package", "fields"),
+    [
+        ("vitals", {"hp", "mana", "moves"}),
+        ("maxstats", {"maxhp", "maxmana", "maxmoves"}),
+        ("status", {"level", "tnl", "align", "state", "pos", "enemy", "enemypct"}),
+        ("base", {"tier", "remorts"}),
+    ],
+)
+def test_vitals_missing_package(env: Env, package: str, fields: set[str]) -> None:
+    """A missing package gives None for its fields only."""
+    env.fake.gmcp = {k: v for k, v in VITALS_DATA.items() if k.split(".")[1] != package}
+    data = env.plugin._provider_vitals()
+    assert {name for name, value in data.items() if value is None} == fields
+
+
+@pytest.mark.parametrize("package", ["vitals", "maxstats", "status", "base"])
+def test_vitals_change_per_event(env: Env, package: str) -> None:
+    """Each of the four package events raises exactly one change."""
+    env.fake.mud_connected = False
+    env.plugin._phook_initialize()
+    env.plugin._phook_add_web_providers()
+    callback = env.fake.registered[f"ev_libs.net.mud_gmcp_char.{package}"]
+    callback()
+    assert env.fake.provider_raises == [("plugins.aardwolf.connect", "vitals")]
+
+
+def test_vitals_parent_event_not_used(env: Env) -> None:
+    """The parent char event only runs the first-active check."""
+    env.fake.mud_connected = False
+    env.plugin._phook_initialize()
+    env.plugin._phook_add_web_providers()
+    env.fake.registered[env.module.EVENT_GMCP_CHAR]()
+    assert env.fake.provider_raises == []
+
+
+def test_vitals_refused_raises_nothing(env: Env) -> None:
+    """A refused provider raises no change."""
+    env.fake.provider_ok = False
+    env.plugin._phook_add_web_providers()
+    env.plugin._eventcb_vitals_changed()
+    env.plugin._eventcb_mud_disconnected()
+    assert env.fake.provider_raises == []
+
+
+def test_vitals_disconnect_raises_change(env: Env) -> None:
+    """A disconnect raises one change, as the GMCP cache clears."""
+    env.plugin._phook_add_web_providers()
+    env.plugin._eventcb_mud_disconnected()
+    assert env.fake.provider_raises == [("plugins.aardwolf.connect", "vitals")]

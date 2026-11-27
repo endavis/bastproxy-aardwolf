@@ -55,6 +55,32 @@ character is already active, and again after each new login. The hook needs a ba
 includes endavis/bastproxy#589; when `uv.lock` pins an older commit, upgrade it with
 `uv lock --upgrade-package bastproxy`.
 
+## Web data provider
+
+The plugin offers the character vitals through bastproxy's web plugin (ADR-0025):
+
+| | |
+| :--- | :--- |
+| Provider | `vitals` |
+| Topic | `aardwolf.connect.vitals` |
+| Page | `/aardwolf/connect/vitals` |
+
+The data is a JSON object built from the cached GMCP `char.vitals`, `char.maxstats`,
+`char.status` and `char.base`. A value that is not cached is `null`. Values pass through as the
+MUD sent them.
+
+| Field | GMCP source |
+| :--- | :--- |
+| `hp`, `mana`, `moves` | `char.vitals` |
+| `maxhp`, `maxmana`, `maxmoves` | `char.maxstats` |
+| `level`, `tnl`, `align`, `state`, `pos`, `enemy`, `enemypct` | `char.status` |
+| `tier`, `remorts` | `char.base` |
+
+A change is raised once per `char.vitals`, `char.maxstats`, `char.status` or `char.base` message,
+and once when the MUD disconnects (the GMCP cache clears). This needs a bastproxy that includes
+`web.provider.add`; when `uv.lock` pins an older commit, upgrade it with
+`uv lock --upgrade-package bastproxy`.
+
 ## From the old plugin
 
 | Old | New |
