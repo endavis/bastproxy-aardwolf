@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795814373541,
+  "lastUpdate": 1795815450055,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3799,6 +3799,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.594600766150929e-7",
             "extra": "mean: 5.938035266602539 usec\nrounds: 175747"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "817ebf8a3ef36555498c8e8bae388de33d118c6d",
+          "message": "feat: offer campaign, GQ and quest targets as web data providers (merges PR #213, addresses #209)\n\nThe cp and gq plugins each register a mobsleft table and a summary\njson provider; the quest plugin registers a current json provider.\nEach raises web.provider.changed when its state changes, and returns\nan empty table or null fields when nothing is active. The three\nplugins now depend on plugins.core.web, and their docs list each\nprovider's topic and fields.\n\nAddresses #209\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T21:36:54Z",
+          "tree_id": "4f0a09fec6997f1b6032bf799aad0abf15b44c92",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/817ebf8a3ef36555498c8e8bae388de33d118c6d"
+        },
+        "date": 1795815449386,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 4058230.264898714,
+            "unit": "iter/sec",
+            "range": "stddev: 1.931393008690224e-8",
+            "extra": "mean: 246.41282892432378 nsec\nrounds: 41210"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 220533.98402547388,
+            "unit": "iter/sec",
+            "range": "stddev: 4.769942191123686e-7",
+            "extra": "mean: 4.534448531453955 usec\nrounds: 113341"
           }
         ]
       }
