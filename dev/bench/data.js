@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795742855693,
+  "lastUpdate": 1795743265373,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3457,6 +3457,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000002712762247554549",
             "extra": "mean: 6.577470916307703 usec\nrounds: 175717"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "94ac3f7c3bdace3794fa6e686345d89e45667f9f",
+          "message": "refactor: print the cp mobs-left list through table.format (merges PR #195, addresses #191)\n\nThe cp show command built its table by hand. Print it through the core\nplugins.core.utils:table.format API. The libs hold the column list and a\npure rows-to-dicts helper; the dead-mob colour stays in the cell text,\non both cells so the whole row stays red.\n\nAddresses #191. Part 4 of 5 under #191.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T01:33:49Z",
+          "tree_id": "8f8a8a190e7de70bd6edaab354e7435a269bc1f0",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/94ac3f7c3bdace3794fa6e686345d89e45667f9f"
+        },
+        "date": 1795743264988,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3955496.0853482173,
+            "unit": "iter/sec",
+            "range": "stddev: 3.6897528120542674e-8",
+            "extra": "mean: 252.81278970396608 nsec\nrounds: 194667"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 217898.37278031433,
+            "unit": "iter/sec",
+            "range": "stddev: 5.874138884922965e-7",
+            "extra": "mean: 4.589295400604953 usec\nrounds: 113341"
           }
         ]
       }
