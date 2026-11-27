@@ -70,7 +70,7 @@ provider, so a page updates without polling.
 
 | Topic | Page path | Kind |
 | :--- | :--- | :--- |
-| `aardwolf.quest.current` | `/aardwolf/quest/current` | json |
+| `aardwolf.quest.current` | `/data/aardwolf/quest/current` | json |
 
 `current` is json with `active` (true from the start message until the quest is completed or
 fails), `target`, `area`, `room`, `starttime`, `endtime` (the start plus the timer of the start

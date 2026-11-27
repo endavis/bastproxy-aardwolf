@@ -133,8 +133,8 @@ provider, so a page updates without polling.
 
 | Topic | Page path | Kind |
 | :--- | :--- | :--- |
-| `aardwolf.cp.mobsleft` | `/aardwolf/cp/mobsleft` | table |
-| `aardwolf.cp.summary` | `/aardwolf/cp/summary` | json |
+| `aardwolf.cp.mobsleft` | `/data/aardwolf/cp/mobsleft` | table |
+| `aardwolf.cp.summary` | `/data/aardwolf/cp/summary` | json |
 
 `mobsleft` has one row for each mob left and these columns:
 

@@ -3,6 +3,7 @@
 import logging
 import sqlite3
 import time
+from datetime import datetime
 from typing import Any
 
 from bastproxy.libs.logger import log_to
@@ -22,17 +23,23 @@ from ..libs import (
     DEFAULT_STATCOLOR,
     EMPTYLINE_EVENT,
     EMPTYLINE_ID,
+    EVENT_CONNECT,
     EVENT_CP_COMP,
     EVENT_DISCONNECT,
     EVENT_GQ_COMPLETED,
     EVENT_GQ_DONE,
     EVENT_GQ_WON,
     EVENT_LEVEL_GAIN,
+    EVENT_MOBKILL,
     EVENT_QUEST_COMP,
     LINE_LENGTH,
+    MUD_CONNECTION_API,
     NO_DB,
     SELECT_API,
+    SESSION_PROVIDER,
     SETTING_LINE_LENGTH,
+    WEB_PROVIDER_ADD,
+    WEB_PROVIDER_CHANGED,
     Colors,
     Formatters,
     Rows,
@@ -44,6 +51,7 @@ from ..libs import (
     quest_average,
     quest_message,
     report_lines,
+    session_snapshot,
     window_stats,
 )
 
@@ -57,6 +65,10 @@ class StatmnPlugin(BasePlugin):
         self._msgs: list[str] = []
         # True while _flush is registered on the empty line trigger
         self._waiting = False
+        # the time the session began: the last MUD connect, None before the first one
+        self._session_start: float | None = None
+        self._web_providers: set[str] = set()
+        self.attributes_to_save_on_reload = ["_session_start"]
 
     @property
     def _report_timer(self) -> str:
@@ -93,6 +105,44 @@ class StatmnPlugin(BasePlugin):
             validator=int_validator(1, 500),
         )
         self._schedule_report()
+
+    @RegisterPluginHook("after_load", priority=60)
+    def _phook_add_web_providers(self) -> None:
+        """Offer the session totals as a web data provider."""
+        self._web_providers = set()
+        if self.api(WEB_PROVIDER_ADD)(self.plugin_id, SESSION_PROVIDER, self._provider_session):
+            self._web_providers.add(SESSION_PROVIDER)
+        if self._session_start is None and self.api("plugins.core.proxy:mud.is.connected")():
+            self._session_start = self._connected_time()
+
+    def _connected_time(self) -> float | None:
+        """Return the time the proxy connected to the MUD, or None when it is not known."""
+        connection = self.api(MUD_CONNECTION_API)()
+        connected = getattr(connection, "connected_time", None)
+        return connected.timestamp() if isinstance(connected, datetime) else None
+
+    def _provider_session(self) -> dict[str, Any]:
+        """Return the totals since the session began; None where they are not known."""
+        snapshot, unreadable = session_snapshot(self._select, self._session_start)
+        if unreadable:
+            log_to(self.plugin_id, logging.WARNING, "the session provider has no stats database")
+        return snapshot
+
+    def _session_changed(self) -> None:
+        """Tell the web plugin the session totals changed, when the provider was accepted."""
+        if SESSION_PROVIDER in self._web_providers:
+            self.api(WEB_PROVIDER_CHANGED)(self.plugin_id, SESSION_PROVIDER)
+
+    @RegisterToEvent(event_name=EVENT_CONNECT)
+    def _eventcb_connect(self) -> None:
+        """A new session began: start the totals again."""
+        self._session_start = time.time()
+        self._session_changed()
+
+    @RegisterToEvent(event_name=EVENT_MOBKILL, priority=CALLBACK_PRIORITY)
+    def _eventcb_mobkill(self) -> None:
+        """A mob was killed: the totals changed."""
+        self._session_changed()
 
     @RegisterPluginHook("uninitialize", priority=10)
     def _phook_uninitialize(self) -> None:
@@ -258,11 +308,13 @@ class StatmnPlugin(BasePlugin):
                 quest_average(self._select),
             )
         )
+        self._session_changed()
 
     @RegisterToEvent(event_name=EVENT_CP_COMP, priority=CALLBACK_PRIORITY)
     def _eventcb_cp_comp(self) -> None:
         """Queue the message for a finished campaign."""
         self._queue(cp_message(self._record(), self._colors(), self._formatters()))
+        self._session_changed()
 
     @RegisterToEvent(event_name=EVENT_GQ_WON, priority=CALLBACK_PRIORITY)
     @RegisterToEvent(event_name=EVENT_GQ_COMPLETED, priority=CALLBACK_PRIORITY)
@@ -270,6 +322,7 @@ class StatmnPlugin(BasePlugin):
     def _eventcb_gq(self) -> None:
         """Queue the message for a finished global quest."""
         self._queue(gq_message(self._record(), self._colors(), self._formatters()))
+        self._session_changed()
 
     @RegisterToEvent(event_name=EVENT_LEVEL_GAIN, priority=CALLBACK_PRIORITY)
     def _eventcb_level_gain(self) -> None:
@@ -295,3 +348,4 @@ class StatmnPlugin(BasePlugin):
                 exppermin if isinstance(exppermin, int) else DEFAULT_EXPPERMIN,
             )
         )
+        self._session_changed()

@@ -4,6 +4,7 @@ import ast
 import sqlite3
 import time
 from collections.abc import Callable, Iterator
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
@@ -51,6 +52,10 @@ class FakeApi:
         self.connected = True
         self.perlevel: object = 2000
         self.select_exists = True
+        self.provider_ok = True
+        self.providers: dict[str, tuple[Callable[..., Any], list[dict[str, str]] | None, str]] = {}
+        self.provider_changes: list[tuple[str, str]] = []
+        self.connection: object = None
         self.select_error: Exception | None = None
         self.selects: list[tuple[str, tuple[Any, ...]]] = []
         self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
@@ -70,6 +75,9 @@ class FakeApi:
             "plugins.core.timers:timer.remove": self._timer_remove,
             "plugins.core.commands:command.current.args.get": lambda: self.args,
             "plugins.core.proxy:mud.is.connected": lambda: self.connected,
+            "plugins.core.proxy:mud.connection.get": lambda: self.connection,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_changed,
             "plugins.core.utils:timelength.format": self._format_time,
             "plugins.core.utils:string.center.colored": self._center,
             "plugins.core.utils:table.format": self._table,
@@ -89,6 +97,25 @@ class FakeApi:
         self.settings[name] = (
             _verify(str(default), "timelength") if stype == "timelength" else default
         )
+
+    def _provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+    ) -> str | None:
+        """Record a web.provider.add call; return the topic, or None when refused."""
+        if not self.provider_ok:
+            return None
+        self.providers[name] = (snapshot, columns, kind)
+        return f"{owner}.{name}"
+
+    def _provider_changed(self, owner: str, name: str) -> bool:
+        """Record a web.provider.changed.raise call."""
+        self.provider_changes.append((owner, name))
+        return True
 
     def _trigger_register(self, trigger_id: str, func: Callable[[], None]) -> bool:
         self.register_calls += 1
@@ -524,3 +551,168 @@ def test_the_event_callbacks_are_registered_at_priority_60() -> None:
         "ev_plugins.aardwolf.gq_completed",
         "ev_plugins.aardwolf.gq_done",
     }
+
+
+# the session data provider
+
+
+def _session(env: Env) -> dict[str, Any]:
+    """Run the session provider's snapshot."""
+    snapshot = env.fake.providers["session"][0]()
+    assert isinstance(snapshot, dict)
+    return snapshot
+
+
+@pytest.fixture
+def provided(env: Env) -> Env:
+    """The plugin with the after_load hook that offers the provider run."""
+    env.plugin._phook_add_web_providers()
+    return env
+
+
+def test_the_session_provider_is_json_and_null_before_a_connect(provided: Env) -> None:
+    from aardwolf.statmn.libs import SESSION_TOTALS
+
+    provided.fake.connected = False
+    provided.plugin._phook_add_web_providers()
+    _, columns, kind = provided.fake.providers["session"]
+    assert (columns, kind) == (None, "json")
+    assert _session(provided) == {"start": None, **dict.fromkeys(SESSION_TOTALS)}
+    assert provided.plugin._session_start is None
+
+
+def test_connect_sets_the_start_and_raises_once(provided: Env) -> None:
+    provided.plugin._eventcb_connect()
+    start = provided.plugin._session_start
+    assert isinstance(start, float)
+    assert provided.fake.provider_changes == [(PLUGIN_ID, "session")]
+    snapshot = _session(provided)
+    assert snapshot["start"] == start
+    assert snapshot["kills"] == 0
+
+
+def test_events_update_the_totals_and_raise(provided: Env) -> None:
+    db = provided.fake.db
+    provided.plugin._session_start = 500.0
+    changes = provided.fake.provider_changes
+    db.modify(
+        "INSERT INTO mobkills(time, totalxp, gold, tp) VALUES (?, ?, ?, ?)", (1000, 25, 10, 1)
+    )
+    provided.plugin._eventcb_mobkill()
+    assert len(changes) == 1
+    assert _session(provided)["kills"] == 1
+    assert _session(provided)["xp"] == 25
+    db.modify(
+        "INSERT INTO quests(finishtime, totqp, gold, tp, failed) VALUES (?, ?, ?, ?, ?)",
+        (1000, 10, 100, 1, 0),
+    )
+    provided.event(provided.plugin._eventcb_quest_comp, QUEST)
+    assert len(changes) == 2
+    assert _session(provided)["quests"] == 1
+    assert _session(provided)["qp"] == 10
+    db.modify(
+        "INSERT INTO campaigns(finishtime, qp, bonusqp, gold, tp, failed) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (1000, 5, 2, 30, 1, 0),
+    )
+    provided.event(provided.plugin._eventcb_cp_comp, {"qp": 5})
+    assert len(changes) == 3
+    assert _session(provided)["campaigns"] == 1
+    db.modify(
+        "INSERT INTO gquests(finishtime, qp, qpmobs, gold, tp) VALUES (?, ?, ?, ?, ?)",
+        (1000, 10, 4, 0, 3),
+    )
+    provided.event(provided.plugin._eventcb_gq, {"qp": 5})
+    assert len(changes) == 4
+    assert _session(provided)["gqs"] == 1
+    db.modify("INSERT INTO levels(starttime, type) VALUES (?, ?)", (900, "level"))
+    provided.event(
+        provided.plugin._eventcb_level_gain, {"type": "level", "starttime": 900, "finishtime": 901}
+    )
+    assert len(changes) == 5
+    assert _session(provided)["levels"] == 1
+
+
+def test_a_second_connect_resets_the_session(provided: Env) -> None:
+    provided.plugin._session_start = 500.0
+    provided.fake.db.modify(
+        "INSERT INTO mobkills(time, totalxp, gold, tp) VALUES (?, ?, ?, ?)", (1000, 25, 10, 1)
+    )
+    assert _session(provided)["kills"] == 1
+    provided.plugin._eventcb_connect()
+    assert _session(provided)["kills"] == 0
+    assert provided.plugin._session_start != 500.0
+
+
+def test_no_stats_database_gives_null_totals_and_a_warning(
+    provided: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    provided.fake.select_exists = False
+    provided.plugin._session_start = 500.0
+    with caplog.at_level("WARNING"):
+        snapshot = _session(provided)
+    assert snapshot["start"] == 500.0
+    assert snapshot["xp"] is None
+    assert snapshot["levels"] is None
+    provided.fake.provider_changes.clear()
+    provided.event(provided.plugin._eventcb_gq, {"qp": 5})
+    assert len(provided.fake.provider_changes) == 1
+
+
+def test_loaded_while_connected_takes_the_connected_time(env: Env) -> None:
+    from datetime import datetime
+
+    env.fake.connected = True
+    env.fake.connection = type("Conn", (), {"connected_time": datetime.fromtimestamp(700, UTC)})()
+    env.plugin._phook_add_web_providers()
+    assert env.plugin._session_start == 700.0
+
+
+def test_loaded_while_disconnected_leaves_no_start(env: Env) -> None:
+    env.fake.connected = False
+    env.plugin._phook_add_web_providers()
+    assert env.plugin._session_start is None
+
+
+def test_loaded_while_connected_without_a_time_leaves_no_start(env: Env) -> None:
+    env.fake.connected = True
+    env.fake.connection = None
+    env.plugin._phook_add_web_providers()
+    assert env.plugin._session_start is None
+    env.fake.connection = type("Conn", (), {"connected_time": "not a time"})()
+    env.plugin._phook_add_web_providers()
+    assert env.plugin._session_start is None
+
+
+def test_a_restored_start_is_kept(env: Env) -> None:
+    from datetime import datetime
+
+    env.plugin._session_start = 123.0
+    env.fake.connected = True
+    env.fake.connection = type("Conn", (), {"connected_time": datetime.fromtimestamp(700, UTC)})()
+    env.plugin._phook_add_web_providers()
+    assert env.plugin._session_start == 123.0
+
+
+def test_a_refused_session_provider_never_raises_a_change(env: Env) -> None:
+    env.fake.provider_ok = False
+    env.plugin._phook_add_web_providers()
+    env.plugin._eventcb_connect()
+    env.plugin._eventcb_mobkill()
+    assert env.fake.provider_changes == []
+
+
+def test_session_registrations() -> None:
+    from aardwolf.statmn.plugin import _statmn
+
+    plugin = _statmn.StatmnPlugin
+    kill = plugin._eventcb_mobkill.event_registration
+    assert [(r["event_name"], r["priority"]) for r in kill] == [
+        ("ev_plugins.aardwolf.mobk_kill", 60)
+    ]
+    connect = plugin._eventcb_connect.event_registration
+    assert [r["event_name"] for r in connect] == ["ev_libs.net.mud_mudconnect"]
+
+
+def test_session_start_is_saved_on_reload(env: Env) -> None:
+    assert "_session_start" in env.plugin.attributes_to_save_on_reload
