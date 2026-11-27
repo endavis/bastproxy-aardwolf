@@ -37,7 +37,8 @@ database. It is not required, so it does not load until asked.
 - **The report.** A table of the last `reportminutes` of the quests (not failed), campaigns (not
   failed), global quests and mob kills. A kind with nothing in the window shows zeros. A last row
   adds up the experience, quest points, trains and gold. It is shown by the `rep` command and by a
-  timer.
+  timer. The table is printed by the core `table.format`, so it takes the proxy's line length and
+  left-aligns its cells.
 - **The timer.** A repeating timer shows the report every `show`; the default is 0, which is off. It starts at load when `show` is
   above 0, and starts again when `show` changes. A `show` of 0 turns it off and tells the client.
   While the MUD is not connected the timer shows nothing.
@@ -63,14 +64,18 @@ Example report:
 
 ```text
 --------------  Stats for 01h  -----------------
-Type       |  Total     XP    QP    TP       Gold
---------------------------------------------------
-Quests     |      1      0    12     0       2899
-CPs        |      0      0     0     0          0
-GQs        |      0      0     0     0          0
-Mobs       |      4     72     0     0       1104
---------------------------------------------------
-Total      |            72    12     0       4003
+
++----------------------------------------------------------------+
+|                            Totals                              |
++----------------------------------------------------------------+
+| Type   | Total | XP | QP | TP | Gold                          |
++----------------------------------------------------------------+
+| Quests | 1     | 0  | 12 | 0  | 2899                          |
+| CPs    | 0     | 0  | 0  | 0  | 0                             |
+| GQs    | 0     | 0  | 0  | 0  | 0                             |
+| Mobs   | 4     | 72 | 0  | 0  | 1104                          |
+| Total  |       | 72 | 12 | 0  | 4003                          |
++----------------------------------------------------------------+
 ```
 
 ## Settings
@@ -82,7 +87,7 @@ Total      |            72    12     0       4003
 | `show` | `0` | Show the report every this long; `0`, the default, turns it off. |
 | `reportminutes` | `60m` | The length of time the report covers. |
 | `exppermin` | `20` | The experience per minute that must be exceeded to show it on a level message. |
-| `linelength` | `50` | The width of the report, 1 to 500; read each time, a value out of range is refused. |
+| `linelength` | `50` | The width of the title line, 1 to 500 (the table takes the proxy's line length); read each time, a value out of range is refused. |
 
 ```text
 #bp.aardwolf.statmn.set show 10m

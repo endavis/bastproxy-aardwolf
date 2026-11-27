@@ -1,5 +1,6 @@
 """Tests for the pure helpers of the statmn plugin."""
 
+import dataclasses
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -8,6 +9,8 @@ import pytest
 from statdb_support import make_db
 
 from aardwolf.statmn.libs import (
+    STAT_COLUMNS,
+    STAT_TABLE_TITLE,
     Colors,
     Formatters,
     Select,
@@ -21,6 +24,7 @@ from aardwolf.statmn.libs import (
     quest_average,
     quest_message,
     report_lines,
+    stat_data,
     window_stats,
     xp_per_min,
 )
@@ -41,7 +45,20 @@ def _center(text: str, filler: str, length: int, filler_color: str) -> str:
     return f"[{filler_color}{filler}{filler}]  {text}  [{length}]"
 
 
-FMT = Formatters(format_time=_time, center=_center)
+class TableRecorder:
+    """A stand-in for table.format: records the call and returns the title as the one line."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
+
+    def __call__(
+        self, title: str, data: list[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        self.calls.append((title, data, columns))
+        return [title]
+
+
+FMT = Formatters(format_time=_time, center=_center, table=TableRecorder())
 
 
 def test_color_time_colors_the_numbers() -> None:
@@ -194,16 +211,65 @@ def test_report_lines_layout() -> None:
         StatRow("GQs", 0, 0, 0, 0, 0),
         StatRow("Mobs", 4, 72, 0, 0, 1104),
     ]
-    lines = report_lines(rows, 3600, COLORS, FMT)
+    rec = TableRecorder()
+    lines = report_lines(rows, 3600, COLORS, dataclasses.replace(FMT, table=rec))
     assert lines[0] == ""
     assert lines[1] == "@i[@i--]  @iStats for @i@s60@im@i  [50]"
-    assert lines[2] == "@iType       |  Total     XP    QP    TP       Gold"
-    assert lines[3] == "@i" + "-" * 50
-    assert lines[4] == "@sQuests     @i| @s     1      0    12     0       2899"
-    assert lines[7] == "@sMobs       @i| @s     4     72     0     0       1104"
-    assert lines[8] == lines[3]
-    assert lines[9] == "@sTotal      @i| @s           72    12     0       4003"
-    assert lines[10] == ""
+    assert lines[2] == STAT_TABLE_TITLE
+    assert lines[3] == ""
+    assert len(lines) == 4
+    ((title, data, columns),) = rec.calls
+    assert title == STAT_TABLE_TITLE
+    assert [c["name"] for c in columns] == ["Type", "Total", "XP", "QP", "TP", "Gold"]
+    assert len(data) == 5
+    keys = ("label", "total", "xp", "qp", "tp", "gold")
+    assert tuple(data[0][k] for k in keys) == ("@sQuests", "@s1", "@s0", "@s12", "@s0", "@s2899")
+    assert tuple(data[3][k] for k in keys) == ("@sMobs", "@s4", "@s72", "@s0", "@s0", "@s1104")
+    assert tuple(data[4][k] for k in keys) == ("@sTotal", "", "@s72", "@s12", "@s0", "@s4003")
+
+
+def test_stat_columns() -> None:
+    keys = [c["key"] for c in STAT_COLUMNS]
+    assert len(set(keys)) == len(keys)
+    assert [c["name"] for c in STAT_COLUMNS] == ["Type", "Total", "XP", "QP", "TP", "Gold"]
+    assert all(set(c) == {"name", "key"} for c in STAT_COLUMNS)
+
+
+def test_stat_data() -> None:
+    rows = [StatRow("Quests", 1, 5, 12, 0, 2899), StatRow("Mobs", 4, 72, 0, 1, 1104)]
+    data = stat_data(rows, COLORS)
+    assert [d["label"] for d in data] == ["@sQuests", "@sMobs", "@sTotal"]
+    assert data[0] == {
+        "label": "@sQuests",
+        "total": "@s1",
+        "xp": "@s5",
+        "qp": "@s12",
+        "tp": "@s0",
+        "gold": "@s2899",
+    }
+    assert data[2] == {
+        "label": "@sTotal",
+        "total": "",
+        "xp": "@s77",
+        "qp": "@s12",
+        "tp": "@s1",
+        "gold": "@s4003",
+    }
+    assert all(set(d) == {c["key"] for c in STAT_COLUMNS} for d in data)
+
+
+def test_stat_data_without_rows_is_only_a_total_row() -> None:
+    assert stat_data([], COLORS) == [
+        {"label": "@sTotal", "total": "", "xp": "@s0", "qp": "@s0", "tp": "@s0", "gold": "@s0"}
+    ]
+
+
+def test_report_lines_splices_the_table_lines() -> None:
+    def table(title: str, data: list[dict[str, str]], columns: list[dict[str, str]]) -> list[str]:
+        return ["row one", "row two"]
+
+    lines = report_lines([], 3600, COLORS, dataclasses.replace(FMT, table=table))
+    assert lines[2:] == ["row one", "row two", ""]
 
 
 class FakeSelect:
@@ -338,8 +404,9 @@ def test_level_window_and_kills_use_the_previous_level(db: "Sqldb") -> None:
 
 def test_report_lines_line_length_parameter() -> None:
     rows = [StatRow("Quests", 1, 0, 12, 0, 2899)]
-    narrow = report_lines(rows, 3600, COLORS, FMT, 20)
-    assert narrow[3] == "@i" + "-" * 20
+    rec_narrow, rec_wide = TableRecorder(), TableRecorder()
+    narrow = report_lines(rows, 3600, COLORS, dataclasses.replace(FMT, table=rec_narrow), 20)
+    wide = report_lines(rows, 3600, COLORS, dataclasses.replace(FMT, table=rec_wide))
     assert narrow[1].endswith("[20]")
-    assert narrow[2] == report_lines(rows, 3600, COLORS, FMT)[2]
-    assert report_lines(rows, 3600, COLORS, FMT)[3] == "@i" + "-" * 50
+    assert rec_narrow.calls == rec_wide.calls
+    assert wide[1].endswith("[50]")

@@ -21,6 +21,8 @@ from ._statmn import (
     PREFIX,
     SELECT_API,
     SETTING_LINE_LENGTH,
+    STAT_COLUMNS,
+    STAT_TABLE_TITLE,
     Colors,
     Formatters,
     Rows,
@@ -35,6 +37,7 @@ from ._statmn import (
     quest_average,
     quest_message,
     report_lines,
+    stat_data,
     window_stats,
     xp_per_min,
 )
@@ -60,6 +63,8 @@ __all__ = [
     "PREFIX",
     "SELECT_API",
     "SETTING_LINE_LENGTH",
+    "STAT_COLUMNS",
+    "STAT_TABLE_TITLE",
     "Colors",
     "Formatters",
     "Rows",
@@ -74,6 +79,7 @@ __all__ = [
     "quest_average",
     "quest_message",
     "report_lines",
+    "stat_data",
     "window_stats",
     "xp_per_min",
 ]

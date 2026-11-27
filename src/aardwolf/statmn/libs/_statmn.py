@@ -96,10 +96,13 @@ class Formatters:
             argument leaves the seconds out.
         center: Centres text between filler characters, ``(text, filler, length, filler_color)``,
             ``plugins.core.utils:string.center.colored``.
+        table: Formats a table as lines, ``(title, data, columns)``,
+            ``plugins.core.utils:table.format``.
     """
 
     format_time: Callable[[float, bool], str]
     center: Callable[[str, str, int, str], str]
+    table: Callable[[str, list[dict[str, str]], list[dict[str, str]]], list[str]]
 
 
 class StatRow(NamedTuple):
@@ -356,7 +359,48 @@ def window_stats(select: Select, start: float) -> list[StatRow] | None:
     return rows
 
 
-_ROW_FORMAT = "{stat}{label:<10} {info}| {stat}{total:>6} {xp:>6} {qp:>5} {tp:>5} {gold:>10}"
+STAT_TABLE_TITLE = "Totals"
+
+# the columns of the report table: the header of a column and the key of its cell
+STAT_COLUMNS: list[dict[str, str]] = [
+    {"name": "Type", "key": "label"},
+    {"name": "Total", "key": "total"},
+    {"name": "XP", "key": "xp"},
+    {"name": "QP", "key": "qp"},
+    {"name": "TP", "key": "tp"},
+    {"name": "Gold", "key": "gold"},
+]
+
+
+def stat_data(rows: Sequence[StatRow], colors: Colors) -> list[dict[str, str]]:
+    """Return the cells of the report table: a dict for each row, then a totals row.
+
+    Every cell carries the stat colour; the totals row shows no count.
+    """
+    total = StatRow(
+        "Total",
+        0,
+        sum(row.xp for row in rows),
+        sum(row.qp for row in rows),
+        sum(row.tp for row in rows),
+        sum(row.gold for row in rows),
+    )
+
+    def cells(row: StatRow, blank_total: bool = False) -> dict[str, str]:
+        values = (
+            row.label,
+            "" if blank_total else str(row.total),
+            str(row.xp),
+            str(row.qp),
+            str(row.tp),
+            str(row.gold),
+        )
+        return {
+            column["key"]: f"{colors.stat}{value}" if value else ""
+            for column, value in zip(STAT_COLUMNS, values, strict=True)
+        }
+
+    return [*(cells(row) for row in rows), cells(total, blank_total=True)]
 
 
 def report_lines(
@@ -366,48 +410,20 @@ def report_lines(
     fmt: Formatters,
     line_length: int = LINE_LENGTH,
 ) -> list[str]:
-    """Return the lines of the report: a header, a row for each kind and the totals.
+    """Return the lines of the report: a title line, then a table of the kinds and the totals.
 
     Args:
         rows: The rows of ``window_stats``.
         window: The length of the report window in seconds.
         colors: The colours of the text.
         fmt: The bastproxy helpers.
-        line_length: The width of the report.
+        line_length: The width of the title line; the table takes the proxy's line length.
     """
     info = colors.info
     timestr = color_time(fmt.format_time(window, True), colors)
-    divider = info + "-" * line_length
-    lines = [
+    return [
         "",
         info + fmt.center(f"{info}Stats for {timestr}{info}", "-", line_length, info),
-        f"{info}{'Type':<10} | {'Total':>6} {'XP':>6} {'QP':>5} {'TP':>5} {'Gold':>10}",
-        divider,
+        *fmt.table(STAT_TABLE_TITLE, stat_data(rows, colors), STAT_COLUMNS),
+        "",
     ]
-    lines.extend(_format_row(row, colors) for row in rows)
-    lines.append(divider)
-    total = StatRow(
-        "Total",
-        0,
-        sum(row.xp for row in rows),
-        sum(row.qp for row in rows),
-        sum(row.tp for row in rows),
-        sum(row.gold for row in rows),
-    )
-    lines.append(_format_row(total, colors, blank_total=True))
-    lines.append("")
-    return lines
-
-
-def _format_row(row: StatRow, colors: Colors, blank_total: bool = False) -> str:
-    """Format a report row; the totals row shows no count."""
-    return _ROW_FORMAT.format(
-        stat=colors.stat,
-        info=colors.info,
-        label=row.label,
-        total="" if blank_total else row.total,
-        xp=row.xp,
-        qp=row.qp,
-        tp=row.tp,
-        gold=row.gold,
-    )

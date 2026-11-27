@@ -116,6 +116,9 @@ class StatmnPlugin(BasePlugin):
                 seconds, nosec=nosec
             ),
             center=self.api("plugins.core.utils:string.center.colored"),
+            table=lambda title, data, columns: list(
+                self.api("plugins.core.utils:table.format")(title, data, columns)
+            ),
         )
 
     def _record(self) -> dict[str, Any]:
