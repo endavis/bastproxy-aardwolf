@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795743736580,
+  "lastUpdate": 1795770975399,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3533,6 +3533,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 3.32309941307108e-7",
             "extra": "mean: 3.471137015052128 usec\nrounds: 147929"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "739cbb1bac669c650f823fdb77cd4475b207a5f8",
+          "message": "docs: describe eq on a PK death and record the live-checked death timing (merges PR #197, addresses #177)\n\nThe Death bullet in the eq docs now gives the read order a live check of a\ndeath to a mob showed: the {invmon} action 1 and action 3 stream, then the\nempty eqdata, invdata and keyring data replies, none reaching the client.\nIt replaces the \"inferred, not checked live\" wording there and in the\n\"Changed: death\" entry.\n\nIt also covers a PK death, which keeps the equipment: eq still forgets and\nre-reads, so its APIs report an empty character until the re-reads are\nanswered.\n\nAddresses #177\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T09:15:41Z",
+          "tree_id": "58cf41992176b799dfc5456ae509930dddf86d3c",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/739cbb1bac669c650f823fdb77cd4475b207a5f8"
+        },
+        "date": 1795770974984,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2946664.8369271923,
+            "unit": "iter/sec",
+            "range": "stddev: 9.304653535105101e-8",
+            "extra": "mean: 339.36672656765694 nsec\nrounds: 194629"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 171765.75497609412,
+            "unit": "iter/sec",
+            "range": "stddev: 8.861720938204811e-7",
+            "extra": "mean: 5.821882249690441 usec\nrounds: 174887"
           }
         ]
       }
