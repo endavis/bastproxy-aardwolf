@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795797752218,
+  "lastUpdate": 1795814373541,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3761,6 +3761,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000013030993470742606",
             "extra": "mean: 5.176451100722166 usec\nrounds: 106975"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1affdb6bc8a3b3e594abede34ace830c1c4b8acf",
+          "message": "feat: supply map markers and terrain colours for Aardwolf rooms (merges PR #212, addresses #207)\n\nRegister a room marker callback and a terrain colour map with the core\nmapper. Details give $ shop, B bank, H healer, T trainer, Q questor,\nP pk and G graffiti. The 18 terrain colours are reasonable picks, not\nsourced from the MUSHclient mapper. Docs list both tables.\n\nAddresses #207\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T21:19:00Z",
+          "tree_id": "bb61ed8a8c18be308f2905cdfdab25471e9995cc",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/1affdb6bc8a3b3e594abede34ace830c1c4b8acf"
+        },
+        "date": 1795814372918,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3177099.8659633105,
+            "unit": "iter/sec",
+            "range": "stddev: 4.290507240072333e-8",
+            "extra": "mean: 314.7524604791721 nsec\nrounds: 191976"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 168405.87081459898,
+            "unit": "iter/sec",
+            "range": "stddev: 8.594600766150929e-7",
+            "extra": "mean: 5.938035266602539 usec\nrounds: 175747"
           }
         ]
       }
