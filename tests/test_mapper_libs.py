@@ -52,7 +52,7 @@ ROOM: dict[str, Any] = {
     "terrain": "city",
     "details": "bank,safe",
     "exits": {"n": 1235, "s": -1},
-    "coord": {"id": 0, "x": 30, "y": 19, "cont": 0},
+    "coord": {"id": 0, "x": 30, "y": 19, "cont": 1},
 }
 
 
@@ -98,7 +98,7 @@ def test_room_from_gmcp_full() -> None:
         "x": 30,
         "y": 19,
         "z": 0,
-        "details": {"details": "bank,safe", "coord_id": 0, "cont": 0},
+        "details": {"details": "bank,safe", "coord_id": 0, "cont": 1},
         "flags": ["noportal"],
         "exits": {"n": "1235", "s": "-1"},
     }
@@ -114,6 +114,30 @@ def test_room_from_gmcp_sparse() -> None:
     assert bad["x"] is None
     assert bad["y"] is None
     assert bad["exits"] == {}
+
+
+def test_room_from_gmcp_non_continent_has_no_coords() -> None:
+    """A room whose coord cont is 0 shares its area's coordinates, so x and y are unset."""
+    info = {"num": 7, "coord": {"id": 3, "x": 40, "y": 12, "cont": 0}}
+    room = room_from_gmcp(info, "R", [])
+    assert room["x"] is None
+    assert room["y"] is None
+    assert room["details"]["coord_id"] == 3
+    assert room["details"]["cont"] == 0
+
+
+def test_room_from_gmcp_missing_cont_has_no_coords() -> None:
+    """A coord without cont gives no x and y."""
+    room = room_from_gmcp({"num": 7, "coord": {"id": 3, "x": 40, "y": 12}}, "R", [])
+    assert room["x"] is None
+    assert room["y"] is None
+
+
+def test_room_from_gmcp_continent_keeps_coords() -> None:
+    """A room whose coord cont is 1 keeps its x and y."""
+    room = room_from_gmcp({"num": 7, "coord": {"id": 0, "x": 40, "y": 12, "cont": 1}}, "R", [])
+    assert room["x"] == 40
+    assert room["y"] == 12
 
 
 def test_area_from_gmcp() -> None:
