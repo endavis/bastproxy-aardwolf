@@ -116,7 +116,7 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 
 | Command | Description |
 | :--- | :--- |
-| `list` | List the milestones: the range of level milestones, then the named ones three to a line. |
+| `list` | List the milestones: the range of level milestones, then a table of the named ones, three to a row. |
 | `comp [milestone1] [milestone2]` | Compare two milestones. With one name it compares that milestone to `current`; with none, `start` to `current`. |
 | `quests [count] [-n number]` | Quest totals and averages, the last `count` quests, or the quest with the id `number`. |
 | `levels [count] [-n number]` | Level and power-up totals, averages and times, the last `count` rows, or the row with the id `number`. "Time" is each row's gap to the next row's `starttime` in `level_id` order, rows of either type; the last row has none. |
@@ -124,6 +124,9 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 | `gqs [count] [-n number]` | Global quest totals and averages, the last `count`, or one global quest with its mobs. |
 | `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
 | `mobkills [-c count]` | List the last `count` kills (default the `mobkillcount` setting, 10), newest first, with time (UTC), name, level, total XP, gold, room and special-kill flags (B, V, A, S, D, I). An empty table says "No kills recorded". |
+
+The row lists of `list`, `comp`, `quests`, `levels` and `mobkills` print through the core
+`plugins.core.utils:table.format`: cells are left-aligned and the table takes the proxy's line length.
 
 The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
 failing. The `db*` commands that bastproxy's sqldb plugin adds work on this database too.

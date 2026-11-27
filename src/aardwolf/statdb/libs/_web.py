@@ -21,17 +21,19 @@ from ._report import (
     FIELDSTOCOMP,
     SPECIAL_FLAGS,
     Formatters,
+    MilestoneList,
     cp_stats,
     cp_summary,
     gq_stats,
     gq_summary,
     level_stats,
     level_summary,
-    milestone_lines,
+    milestone_text,
     mob_stats,
     mob_summary,
     quest_stats,
     quest_summary,
+    read_milestones,
     report_guard,
 )
 
@@ -540,7 +542,7 @@ class TableResult:
     rows: list[list[Any]] | None = None
     total: int = 0
     stats: Any = None
-    lines: list[str] | None = None
+    milestones: MilestoneList | None = None
 
 
 def read_table(path: Path, page: TablePage, table: TableParams) -> TableResult:
@@ -560,7 +562,7 @@ def read_table(path: Path, page: TablePage, table: TableParams) -> TableResult:
         rows = [list(row) for row in db.rows(queries.rows_sql, queries.rows_args)]
         result = TableResult(rows=rows, total=total)
         if page.summary == "milestones":
-            result.lines = milestone_lines(db)
+            result.milestones = read_milestones(db)
         elif page.summary:
             result.stats = STATS_READERS[page.summary](db)
     return result
@@ -569,7 +571,9 @@ def read_table(path: Path, page: TablePage, table: TableParams) -> TableResult:
 def page_lines(page: TablePage, result: TableResult, fmt: Formatters) -> list[str]:
     """Return the lines above a table: the summary of its text report."""
     if page.summary == "milestones":
-        return result.lines or []
+        if result.milestones is None:
+            return []
+        return milestone_text(result.milestones, fmt)
     if page.summary:
         return SUMMARIES[page.summary](result.stats, fmt)
     return []

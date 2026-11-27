@@ -4,6 +4,10 @@ Ported from the old plugin's ``cmd_*`` and ``show_*`` methods with the same SQL 
 and line formats. The helpers bastproxy provides come in through ``Formatters``, so the
 functions read nothing but the database.
 
+The row lists (milestones, the milestone comparison, quests, levels and mob kills) print
+through ``Formatters.table``, the ``plugins.core.utils:table.format`` API, with the column lists
+and the pure row builders of this module.
+
 Differences from the old output: an unknown row number reports "no such ..." instead of
 failing, a campaign or global quest without mobs counts 0 mobs, an empty table shows zeros
 and blanks instead of failing, and the finish and start times are compared to the number -1
@@ -13,7 +17,7 @@ and blanks instead of failing, and the finish and start times are compared to th
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 from aardwolf._libs.aardu import convert_level
 
@@ -71,12 +75,15 @@ class Formatters:
         format_time: Turns a number of seconds into text, ``plugins.core.utils:timelength.format``.
         readable: Shortens a number such as 1500000 to ``1.50 M``,
             ``plugins.core.utils:number.to.readable``.
+        table: Formats a table, ``plugins.core.utils:table.format``: a title, the rows as dicts
+            and the columns as ``{"name", "key"}`` dicts give the lines.
         line_length: The width of the divider lines.
         time_format: The ``strftime`` pattern of the dates a report shows.
     """
 
     format_time: Callable[[float], str]
     readable: Callable[[float], str]
+    table: Callable[[str, list[dict[str, str]], list[dict[str, str]]], list[str]]
     line_length: int = 80
     time_format: str = TIME_FORMAT
 
@@ -133,36 +140,70 @@ def _level_text(level: int) -> str:
 # milestones
 
 
-def list_milestones(store: StatStore) -> list[str]:
-    """List the milestones: the level range, then the named milestones three to a line."""
-    return milestone_lines(store.db)
+MILESTONE_COLUMNS: list[dict[str, str]] = [
+    {"name": "Milestone", "key": "first"},
+    {"name": "", "key": "second"},
+    {"name": "", "key": "third"},
+]
+MILESTONE_TITLE = "Milestones"
+COMPARE_TITLE = "Compare milestones"
 
 
-def milestone_lines(db: ReadDb) -> list[str]:
-    """List the milestones of a database, as ``list_milestones`` does."""
-    msg: list[str] = []
+class MilestoneList(NamedTuple):
+    """The milestones of a database.
+
+    Attributes:
+        level_range: ``Levels between A and B``, or "" when there is no range.
+        names: The names of the named milestones, in order.
+    """
+
+    level_range: str
+    names: list[str]
+
+
+def read_milestones(db: ReadDb) -> MilestoneList:
+    """Read the level range and the named milestones of a database."""
     rows = db.select("SELECT milestone FROM stats")
     levels = db.select(
         "SELECT MIN(totallevels) as MIN, MAX(totallevels) as MAX FROM stats "
         "WHERE stats.totallevels == stats.milestone"
     )
+    level_range = ""
     for row in levels:
         if row["MAX"] and row["MIN"]:
-            msg.append(f"Levels between {row['MIN']} and {row['MAX']}")
+            level_range = f"Levels between {row['MIN']} and {row['MAX']}"
 
-    items: list[str] = []
+    names: list[str] = []
     for row in rows:
         try:
             int(row["milestone"])
         except (TypeError, ValueError):
-            items.append(str(row["milestone"]))
-        if len(items) == 3:
-            msg.append(" ".join(f"{item:<15}" for item in items))
-            items = []
-    if items:
-        msg.append(" ".join(f"{item:<15}" for item in items))
+            names.append(str(row["milestone"]))
+    return MilestoneList(level_range, names)
 
+
+def milestone_data(names: Sequence[str]) -> list[dict[str, str]]:
+    """Group milestone names three to a row, under the keys of ``MILESTONE_COLUMNS``."""
+    keys = [column["key"] for column in MILESTONE_COLUMNS]
+    return [
+        dict(zip(keys, names[start : start + len(keys)], strict=False))
+        for start in range(0, len(names), len(keys))
+    ]
+
+
+def milestone_text(milestones: MilestoneList, fmt: Formatters) -> list[str]:
+    """Return the lines of the milestone list: the level range, then a table of the names."""
+    msg: list[str] = []
+    if milestones.level_range:
+        msg.append(milestones.level_range)
+    if milestones.names:
+        msg.extend(fmt.table(MILESTONE_TITLE, milestone_data(milestones.names), MILESTONE_COLUMNS))
     return msg or ["No milestones"]
+
+
+def list_milestones(store: StatStore, fmt: Formatters) -> list[str]:
+    """List the milestones: the level range, then a table of the named milestones."""
+    return milestone_text(read_milestones(store.db), fmt)
 
 
 def _when(row: dict[str, Any], now: float) -> None:
@@ -176,6 +217,28 @@ def _when(row: dict[str, Any], now: float) -> None:
         row["times"] = time.strftime("%X", time.localtime(row["time"]))
 
 
+def comparison_columns(first: object, second: object) -> list[dict[str, str]]:
+    """Return the columns of a comparison, headed by the names of the two milestones."""
+    return [
+        {"name": "Milestone", "key": "field"},
+        {"name": str(first), "key": "first"},
+        {"name": str(second), "key": "second"},
+        {"name": "Difference", "key": "difference"},
+    ]
+
+
+def _comparison_row(
+    field: str, first: object, second: object, difference: object
+) -> dict[str, str]:
+    """Return one row of a comparison, every cell as text."""
+    return {
+        "field": field,
+        "first": str(first),
+        "second": str(second),
+        "difference": str(difference),
+    }
+
+
 def format_comparison(
     first: dict[str, Any], second: dict[str, Any], fmt: Formatters, now: float | None = None
 ) -> list[str]:
@@ -183,25 +246,22 @@ def format_comparison(
     left = dict(first)
     right = dict(second)
     stamp = time.time() if now is None else now
-    row_format = "{:<17} {:<15} {:<15} {:<10}"
-    msg = [row_format.format("Milestone", left["milestone"], right["milestone"], "Difference")]
-    msg.append("@g" + "-" * 60)
+    columns = comparison_columns(left["milestone"], right["milestone"])
     _when(left, stamp)
     _when(right, stamp)
     if right["time"] < left["time"]:
         left, right = right, left
-    msg.append(
-        row_format.format(
+    data = [
+        _comparison_row(
             "Date", left["dates"], right["dates"], fmt.format_time(right["time"] - left["time"])
-        )
-    )
-    msg.append(row_format.format("Time", left["times"], right["times"], ""))
-    msg.append("@g" + "-" * 60)
+        ),
+        _comparison_row("Time", left["times"], right["times"], ""),
+    ]
     for field in FIELDSTOCOMP:
         one = _n(left[field])
         two = _n(right[field])
-        msg.append(row_format.format(field, one, two, two - one))
-    return msg
+        data.append(_comparison_row(field, one, two, two - one))
+    return list(fmt.table(COMPARE_TITLE, data, columns))
 
 
 def milestone_names(first: str, second: str) -> tuple[str, str]:
@@ -250,50 +310,71 @@ def compare_milestones(
 # quests
 
 
-def _quest_row(item: dict[str, Any], fmt: Formatters, extra: bool) -> str:
-    """Format a quest as a line of the quest list, or of the single quest report."""
+QUEST_COLUMNS: list[dict[str, str]] = [
+    {"name": "ID", "key": "id"},
+    {"name": "QP", "key": "qp"},
+    {"name": "MC", "key": "mc"},
+    {"name": "TR", "key": "tr"},
+    {"name": "LK", "key": "lk"},
+    {"name": "PK", "key": "pk"},
+    {"name": "HC", "key": "hc"},
+    {"name": "DBL", "key": "dbl"},
+    {"name": "TL", "key": "tl"},
+    {"name": "TP", "key": "tp"},
+    {"name": "TN", "key": "tn"},
+    {"name": "PR", "key": "pr"},
+    {"name": "Gold", "key": "gold"},
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "Time", "key": "time"},
+]
+# the columns of the single quest report, which has no PK and HC
+QUEST_SHOW_COLUMNS = [column for column in QUEST_COLUMNS if column["key"] not in ("pk", "hc")]
+QUEST_MOB_COLUMNS: list[dict[str, str]] = [
+    {"name": "Mob", "key": "mob"},
+    {"name": "Room", "key": "room"},
+    {"name": "Area", "key": "area"},
+]
+QUEST_LIST_TITLE = "Recent quests"
+QUEST_MOB_TITLE = "Quest mob"
+
+
+def _quest_cells(item: dict[str, Any], fmt: Formatters) -> dict[str, str]:
+    """Return the cells of a quest row, every column."""
     dbl = ""
     if int(item["double"]) == 1:
         dbl += "D"
     if int(item["daily"]) == 1:
         dbl += "E"
-    level = convert_level(item["level"])["level"]
     ttime = fmt.format_time(item["finishtime"] - item["starttime"])
     if int(item["failed"]) == 1:
         ttime = "Failed"
-    if extra:
-        return "%-6s %2s %2s %2s %2s %2s %2s %3s %2s %2s %2s %2s %4s %3s %8s" % (  # noqa: UP031  # %-formats keep the old column layout
-            item["quest_id"],
-            item["qp"],
-            item["mccp"],
-            item["tierqp"],
-            item["lucky"],
-            item["opk"],
-            item["hardcore"],
-            dbl,
-            item["totqp"],
-            item["tp"],
-            item["trains"],
-            item["pracs"],
-            item["gold"],
-            level,
-            ttime,
-        )
-    return "%-6s %2s %2s %2s %2s %3s %2s %2s %2s %2s %4s %3s %8s" % (  # noqa: UP031  # %-formats keep the old column layout
-        item["quest_id"],
-        item["qp"],
-        item["mccp"],
-        item["tierqp"],
-        item["lucky"],
-        dbl,
-        item["totqp"],
-        item["tp"],
-        item["trains"],
-        item["pracs"],
-        item["gold"],
-        level,
-        ttime,
-    )
+    cells = {
+        "id": item["quest_id"],
+        "qp": item["qp"],
+        "mc": item["mccp"],
+        "tr": item["tierqp"],
+        "lk": item["lucky"],
+        "pk": item["opk"],
+        "hc": item["hardcore"],
+        "dbl": dbl,
+        "tl": item["totqp"],
+        "tp": item["tp"],
+        "tn": item["trains"],
+        "pr": item["pracs"],
+        "gold": item["gold"],
+        "lvl": convert_level(item["level"])["level"],
+        "time": ttime,
+    }
+    return {key: str(value) for key, value in cells.items()}
+
+
+def quest_data(
+    items: Sequence[dict[str, Any]], fmt: Formatters, columns: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """Return the quests as table rows holding only the keys of ``columns``."""
+    keys = [column["key"] for column in columns]
+    rows = [_quest_cells(item, fmt) for item in items]
+    return [{key: row[key] for key in keys} for row in rows]
 
 
 def show_quest(store: StatStore, number: int, fmt: Formatters) -> list[str]:
@@ -302,15 +383,16 @@ def show_quest(store: StatStore, number: int, fmt: Formatters) -> list[str]:
     if not rows or not isinstance(rows, list):
         return [f"No such quest: {number}"]
     item = rows[0]
-    div = _divider(fmt)
+    mob = {
+        "mob": str(item["mobname"]),
+        "room": str(item["mobroom"]),
+        "area": str(item["mobarea"]),
+    }
     return [
-        "@G%-6s %-2s %-2s %-2s %-2s %-3s %-2s %-2s %-2s %-2s %-4s %-3s   %s"  # noqa: UP031  # %-formats keep the old column layout
-        % ("ID", "QP", "MC", "TR", "LK", "DBL", "TL", "TP", "TN", "PR", "Gold", "Lvl", "Time"),
-        div,
-        _quest_row(item, fmt, extra=False),
-        div,
-        f"{item['mobname']:<25} {item['mobroom']:<25} {item['mobarea']:<20}",
-        div,
+        *fmt.table(
+            f"Quest {number}", quest_data([item], fmt, QUEST_SHOW_COLUMNS), QUEST_SHOW_COLUMNS
+        ),
+        *fmt.table(QUEST_MOB_TITLE, [mob], QUEST_MOB_COLUMNS),
     ]
 
 
@@ -322,35 +404,15 @@ def quest_report(store: StatStore, count: int, number: int | None, fmt: Formatte
     if number:
         return show_quest(store, number, fmt)
 
-    div = _divider(fmt)
     msg = quest_summary(quest_stats(store.db), fmt)
 
     if count > 0:
         last = store.db.getlast("quests", count)
         if last and isinstance(last, list):
             msg.append("")
-            msg.append(
-                "@G%-6s %-2s %-2s %-2s %-2s %-2s %-2s %-3s %-2s %-2s %-2s %-2s %-4s %-3s   %s"  # noqa: UP031  # %-formats keep the old column layout
-                % (
-                    "ID",
-                    "QP",
-                    "MC",
-                    "TR",
-                    "LK",
-                    "PK",
-                    "HC",
-                    "DBL",
-                    "TL",
-                    "TP",
-                    "TN",
-                    "PR",
-                    "Gold",
-                    "Lvl",
-                    "Time",
-                )
+            msg.extend(
+                fmt.table(QUEST_LIST_TITLE, quest_data(last, fmt, QUEST_COLUMNS), QUEST_COLUMNS)
             )
-            msg.append(div)
-            msg.extend(_quest_row(item, fmt, extra=True) for item in last)
     return msg
 
 
@@ -469,6 +531,57 @@ def _gap_text(fmt: Formatters, start: object, nextstart: object) -> str:
     return ""
 
 
+LEVEL_COLUMNS: list[dict[str, str]] = [
+    {"name": "ID", "key": "id"},
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "T", "key": "t"},
+    {"name": "TR", "key": "tr"},
+    {"name": "BT", "key": "bt"},
+    {"name": "PR", "key": "pr"},
+    {"name": "HP", "key": "hp"},
+    {"name": "MN", "key": "mn"},
+    {"name": "MV", "key": "mv"},
+    {"name": "S", "key": "s"},
+    {"name": "I", "key": "i"},
+    {"name": "W", "key": "w"},
+    {"name": "C", "key": "c"},
+    {"name": "D", "key": "d"},
+    {"name": "L", "key": "l"},
+    {"name": "Time", "key": "time"},
+]
+LEVEL_LIST_TITLE = "Recent levels"
+
+
+def level_data(items: Sequence[dict[str, Any]], fmt: Formatters) -> list[dict[str, str]]:
+    """Return the levels, newest first, as table rows.
+
+    The time of a row is the gap to the start of the row before it, which started later.
+    """
+    data: list[dict[str, str]] = []
+    for index, item in enumerate(items):
+        nextstart = items[index - 1]["starttime"] if index > 0 else None
+        cells = {
+            "id": item["level_id"],
+            "lvl": convert_level(item["level"])["level"],
+            "t": "L" if item["type"] == "level" else "P",
+            "tr": item["trains"],
+            "bt": _level_bonus(item),
+            "pr": item["pracs"],
+            "hp": item["hp"],
+            "mn": item["mp"],
+            "mv": item["mv"],
+            "s": item["str"],
+            "i": item["int"],
+            "w": item["wis"],
+            "c": item["con"],
+            "d": item["dex"],
+            "l": item["luc"],
+            "time": _gap_text(fmt, item["starttime"], nextstart),
+        }
+        data.append({key: str(value) for key, value in cells.items()})
+    return data
+
+
 def show_level(
     store: StatStore, number: int, fmt: Formatters, perlevel: float | None = None
 ) -> list[str]:
@@ -552,58 +665,13 @@ def level_report(
     if number:
         return show_level(store, number, fmt, perlevel)
 
-    div = _divider(fmt)
     msg = level_summary(level_stats(store.db), fmt)
 
     if count > 0:
         last = store.db.getlast("levels", count)
         if last and isinstance(last, list):
             msg.append("")
-            msg.append(
-                "@G%-6s %-3s %2s %2s %2s %-2s %-2s %-2s %-2s %-1s %-1s %-1s %-1s %-1s %-1s   %s"  # noqa: UP031  # %-formats keep the old column layout
-                % (
-                    "ID",
-                    "Lvl",
-                    "T",
-                    "TR",
-                    "BT",
-                    "PR",
-                    "HP",
-                    "MN",
-                    "MV",
-                    "S",
-                    "I",
-                    "W",
-                    "C",
-                    "D",
-                    "L",
-                    "Time",
-                )
-            )
-            msg.append(div)
-            for index, item in enumerate(last):
-                nextstart = last[index - 1]["starttime"] if index > 0 else None
-                msg.append(
-                    "%-6s %-3s %2s %2s %2s %-2s %-2s %-2s %-2s %-1s %-1s %-1s %-1s %-1s %-1s   %s"  # noqa: UP031  # %-formats keep the old column layout
-                    % (
-                        item["level_id"],
-                        convert_level(item["level"])["level"],
-                        "L" if item["type"] == "level" else "P",
-                        item["trains"],
-                        _level_bonus(item),
-                        item["pracs"],
-                        item["hp"],
-                        item["mp"],
-                        item["mv"],
-                        item["str"],
-                        item["int"],
-                        item["wis"],
-                        item["con"],
-                        item["dex"],
-                        item["luc"],
-                        _gap_text(fmt, item["starttime"], nextstart),
-                    )
-                )
+            msg.extend(fmt.table(LEVEL_LIST_TITLE, level_data(last, fmt), LEVEL_COLUMNS))
     return msg
 
 
@@ -1107,6 +1175,39 @@ def _flags(item: dict[str, Any]) -> str:
     return "".join(letter for column, letter in SPECIAL_FLAGS if int(item[column]) == 1)
 
 
+MOBKILL_COLUMNS: list[dict[str, str]] = [
+    {"name": "Time", "key": "time"},
+    {"name": "Name", "key": "name"},
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "TXP", "key": "txp"},
+    {"name": "Gold", "key": "gold"},
+    {"name": "Room", "key": "room"},
+    {"name": "Flags", "key": "flags"},
+]
+MOBKILL_TITLE = "Recent mob kills"
+
+
+def mobkill_data(items: Sequence[dict[str, Any]], fmt: Formatters) -> list[dict[str, str]]:
+    """Return the mob kills as table rows; a name is cut to 18 characters."""
+    data: list[dict[str, str]] = []
+    for item in items:
+        when = int(item["time"])
+        level = int(item["level"])
+        room = int(item["room_id"])
+        data.append(
+            {
+                "time": time.strftime("%Y-%m-%d %H:%M", time.gmtime(when)) if when != -1 else "",
+                "name": str(item["name"])[0:18],
+                "lvl": str(convert_level(level)["level"]) if level >= 1 else "",
+                "txp": str(item["totalxp"]),
+                "gold": str(fmt.readable(item["gold"])),
+                "room": str(room) if room else "",
+                "flags": _flags(item),
+            }
+        )
+    return data
+
+
 def mobkill_list(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     """List the last ``count`` mob kills, newest first."""
     if count < 1:
@@ -1114,23 +1215,7 @@ def mobkill_list(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     rows = store.recent_mobkills(count)
     if not rows:
         return [NO_KILLS]
-    msg = [
-        f"@G{'Time':<16} {'Name':<18} {'Lvl':>3} {'TXP':>6} {'Gold':>8} {'Room':>8} Flags",
-        _divider(fmt),
-    ]
-    for item in rows:
-        when = int(item["time"])
-        time_text = time.strftime("%Y-%m-%d %H:%M", time.gmtime(when)) if when != -1 else ""
-        level = int(item["level"])
-        level_text = str(convert_level(level)["level"]) if level >= 1 else ""
-        room = int(item["room_id"])
-        room_text = str(room) if room else ""
-        gold = fmt.readable(item["gold"])
-        msg.append(
-            f"{time_text:<16} {item['name'][0:18]:<18} {level_text:>3} "
-            f"{item['totalxp']:>6} {gold:>8} {room_text:>8} {_flags(item)}"
-        )
-    return msg
+    return list(fmt.table(MOBKILL_TITLE, mobkill_data(rows, fmt), MOBKILL_COLUMNS))
 
 
 def _mob_line(item: dict[str, Any]) -> str:

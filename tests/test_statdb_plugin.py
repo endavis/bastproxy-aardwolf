@@ -3,7 +3,7 @@
 import copy
 import inspect
 import sqlite3
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
@@ -51,6 +51,8 @@ class FakeApi:
         self.unlisted: set[str] = set()
         self.mapper_rooms: dict[str, dict[str, Any]] | None = None
         self.mapper_areas: dict[str, dict[str, Any]] = {}
+        # every table.format call: (title, the rows, the columns)
+        self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -69,12 +71,20 @@ class FakeApi:
             "plugins.core.utils:timelength.format": lambda seconds: f"{int(seconds)}s",
             "plugins.core.utils:number.to.readable": lambda number: f"<{number}>",
             "plugins.core.proxy:line.length.get": lambda: 40,
+            "plugins.core.utils:table.format": self._table_format,
             "plugins.core.web:web.route.add": self._route_add,
             "libs.api:api.exists": self._api_exists,
             "plugins.client.mapper:room.get": lambda uid: (self.mapper_rooms or {}).get(uid),
             "plugins.client.mapper:area.get": lambda uid: self.mapper_areas.get(uid),
         }
         return table[name]
+
+    def _table_format(
+        self, title: str, data: Iterable[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        """Record a table.format call and return the title as its only line."""
+        self.tables.append((title, list(data), columns))
+        return [title]
 
     def _route_add(
         self,
@@ -540,10 +550,14 @@ def test_commands_with_an_old_database(env: Env, tmp_path: Path) -> None:
     """Each command shows rows from a database written by the old plugin."""
     _fill_from_old(env, tmp_path)
     assert _run(env, "list")[0] == "Levels between 3 and 5"
-    assert _run(env, "comp", milestone1="3")[0].split()[:3] == ["Milestone", "3", "current"]
-    assert _run(env, "quests", count=2)[-1].split()[0] == "1"
-    assert _run(env, "quests", number=1)[2].split()[0] == "1"
-    assert _run(env, "levels", count=1)[-1].split()[0] == "3"
+    _run(env, "comp", milestone1="3")
+    assert [c["name"] for c in env.fake.tables[-1][2][:3]] == ["Milestone", "3", "current"]
+    _run(env, "quests", count=2)
+    assert env.fake.tables[-1][1][-1]["id"] == "1"
+    _run(env, "quests", number=1)
+    assert env.fake.tables[-2][1][0]["id"] == "1"
+    _run(env, "levels", count=1)
+    assert env.fake.tables[-1][1][-1]["id"] == "3"
     env.fake.gmcp = {"char.base.perlevel": 600}
     assert _run(env, "levels", number=3)[1].split() == ["3", "lev", "5", "re0t0r1l5"]
     assert _run(env, "cps", count=1)[-1].split()[-1] == "Failed"
@@ -551,10 +565,11 @@ def test_commands_with_an_old_database(env: Env, tmp_path: Path) -> None:
     assert _run(env, "gqs", count=1)[-1].split()[0] == "2"
     assert _run(env, "gqs", number=1)[-2].startswith("@G3")
     assert _run(env, "mobs", count=1)[-1].split()[2] == "bat"
-    assert len(_run(env, "mobkills", count=10)) == 5
-    one = _run(env, "mobkills", count=1)
-    assert len(one) == 3
-    assert "a bat" in one[-1]
+    _run(env, "mobkills", count=10)
+    assert len(env.fake.tables[-1][1]) == 3
+    _run(env, "mobkills", count=1)
+    assert len(env.fake.tables[-1][1]) == 1
+    assert "a bat" in env.fake.tables[-1][1][-1]["name"]
 
 
 def test_mobkills_on_an_empty_database(env: Env) -> None:
@@ -606,8 +621,10 @@ def test_mobkills_count_defaults_to_the_setting(env: Env) -> None:
         env.store.save_mobkill({"name": f"mob {number}", "totalxp": 1, "time": number * 100})
     assert env.fake.setting_values["mobkillcount"] == 10
     env.fake.setting_values["mobkillcount"] = 2
-    assert len(_run(env, "mobkills", count=None)) == 4
-    assert len(_run(env, "mobkills", count=3)) == 5
+    _run(env, "mobkills", count=None)
+    assert len(env.fake.tables[-1][1]) == 2
+    _run(env, "mobkills", count=3)
+    assert len(env.fake.tables[-1][1]) == 3
 
 
 def test_new_settings_refuse_bad_values(env: Env) -> None:
@@ -618,6 +635,13 @@ def test_new_settings_refuse_bad_values(env: Env) -> None:
         assert env.fake.validators[name]("5") is not None
     assert env.fake.validators["timeformat"]("%H:%M") is None
     assert env.fake.validators["timeformat"]("no directive") is not None
+
+
+def test_formatters_table_goes_through_the_core_table_format(env: Env) -> None:
+    """The table helper of the formatters calls plugins.core.utils:table.format."""
+    cols = [{"name": "A", "key": "a"}]
+    assert env.plugin._formatters().table("T", [{"a": "1"}], cols) == ["T"]
+    assert env.fake.tables[-1] == ("T", [{"a": "1"}], cols)
 
 
 def test_timeformat_setting_reaches_the_report_formatters(env: Env) -> None:
@@ -779,7 +803,7 @@ def test_comp_handler_statuses(env: Env) -> None:
     assert both["message"] == "milestone nope does not exist; milestone nada does not exist"
     result = _call(env, "comp", {"first": "start", "second": "current"})
     assert result["kind"] == "html"
-    assert result["lines"][0].split()[:3] == ["Milestone", "start", "current"]
+    assert [c["name"] for c in env.fake.tables[-1][2][:3]] == ["Milestone", "start", "current"]
 
 
 def test_table_handler_links_cells(env: Env) -> None:
