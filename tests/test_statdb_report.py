@@ -160,7 +160,7 @@ def test_compare_one_and_two_names_in_either_order(full: "StatStore") -> None:
     compare_milestones(full, "3", "", fmt, now=5000)
     assert [c["name"] for c in rec.calls[0][2]] == ["Milestone", "3", "current", "Difference"]
     compare_milestones(full, "5", "3", fmt, now=5000)
-    assert [c["name"] for c in rec.calls[1][2]] == ["Milestone", "5", "3", "Difference"]
+    assert [c["name"] for c in rec.calls[1][2]] == ["Milestone", "3", "5", "Difference"]
     rows = {row["field"]: row for row in _recorded(rec, 1)}
     assert rows["totallevels"] == {
         "field": "totallevels",
@@ -169,6 +169,22 @@ def test_compare_one_and_two_names_in_either_order(full: "StatStore") -> None:
         "difference": "2",
     }
     assert rows["Date"]["difference"] == "1000s"
+
+
+def test_compare_headers_match_the_column_data_in_either_order(full: "StatStore") -> None:
+    """The header over each column names the milestone whose values sit in it."""
+    from aardwolf.statdb.libs import compare_milestones
+
+    rec = TableRecorder()
+    fmt = formatters(table=rec)
+    compare_milestones(full, "3", "5", fmt, now=5000)
+    compare_milestones(full, "5", "3", fmt, now=5000)
+    for index in (0, 1):
+        names = [c["name"] for c in rec.calls[index][2]]
+        rows = {row["field"]: row for row in _recorded(rec, index)}
+        assert names[1:3] == ["3", "5"]
+        assert rows["totallevels"]["first"] == "3"
+        assert rows["totallevels"]["second"] == "5"
 
 
 def test_compare_names_a_missing_milestone(full: "StatStore") -> None:

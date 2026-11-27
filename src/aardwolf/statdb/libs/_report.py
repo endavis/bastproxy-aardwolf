@@ -246,11 +246,11 @@ def format_comparison(
     left = dict(first)
     right = dict(second)
     stamp = time.time() if now is None else now
-    columns = comparison_columns(left["milestone"], right["milestone"])
     _when(left, stamp)
     _when(right, stamp)
     if right["time"] < left["time"]:
         left, right = right, left
+    columns = comparison_columns(left["milestone"], right["milestone"])
     data = [
         _comparison_row(
             "Date", left["dates"], right["dates"], fmt.format_time(right["time"] - left["time"])
