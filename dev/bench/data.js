@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795772659685,
+  "lastUpdate": 1795787293401,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3647,6 +3647,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000011350282252698244",
             "extra": "mean: 5.9274902561883644 usec\nrounds: 174521"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f979822e750fc4756a570dd809ff2aa16781454f",
+          "message": "fix: pad the statdb milestone rows so every row has every column (merges PR #202, addresses #201)\n\nfix: pad the last statdb milestone row so every column key is present\n\nmilestone_data grouped the names three to a row with zip(strict=False),\nso a last row could lack the \"third\" key and core table.format raised\nKeyError, failing the web page and the list command. Pad every row with\n\"\" for the missing cells.\n\nTableRecorder in the test support now raises when a recorded row lacks\na column key, mirroring table.format, so every statdb table is checked.\nThe other row builders (comparison, quests, levels, campaigns, global\nquests, mobs) build fixed-key rows and needed no change.\n\nAddresses #201\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T13:47:31Z",
+          "tree_id": "ed6915640b25bd408720ed805840d1a934c9c874",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/f979822e750fc4756a570dd809ff2aa16781454f"
+        },
+        "date": 1795787292528,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2811815.679683963,
+            "unit": "iter/sec",
+            "range": "stddev: 4.829585746567559e-8",
+            "extra": "mean: 355.6420882155391 nsec\nrounds: 188006"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 172114.79832157592,
+            "unit": "iter/sec",
+            "range": "stddev: 9.14936234762223e-7",
+            "extra": "mean: 5.810075657362242 usec\nrounds: 178859"
           }
         ]
       }
