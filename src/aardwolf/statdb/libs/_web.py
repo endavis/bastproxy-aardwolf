@@ -162,12 +162,6 @@ def _letters(pairs: Sequence[tuple[str, str]]) -> str:
     )
 
 
-def _first_letter(pairs: Sequence[tuple[str, str]]) -> str:
-    """Return the SQL for the letter of the first column that is 1."""
-    whens = " ".join(f"WHEN {column} = 1 THEN '{letter}'" for column, letter in pairs)
-    return f"CASE {whens} ELSE '' END"
-
-
 def _mins(start: str, finish: str) -> str:
     """Return the SQL for the minutes between two times, NULL when either is unknown."""
     return (
@@ -351,10 +345,11 @@ TABLE_PAGES: dict[str, TablePage] = {
         ),
         TablePage(
             "mobs",
-            "Mob kills",
+            "Mob kills, newest first",
             "mobkills",
             "mk_id",
             (
+                _col("time", "Time (UTC)", "text", f"CASE WHEN time != -1 THEN {_utc('time')} END"),
                 _col("lvl", "Lvl", "int", _level_of("level")),
                 _col("mob", "Mob", "text", "name"),
                 _col("txp", "TXP", "int", "totalxp"),
@@ -368,30 +363,18 @@ TABLE_PAGES: dict[str, TablePage] = {
                     "|| (CASE WHEN noexp = 0 AND blessingxp != 0 THEN 'E' ELSE '' END)",
                 ),
                 _col("tp", "TP", "int", "CASE WHEN tp = 1 THEN 1 ELSE 0 END"),
-                _col("s", "S", "text", _first_letter(SPECIAL_FLAGS)),
+                _col("flags", "Flags", "text", _letters(SPECIAL_FLAGS)),
                 _col("gold", "Gold", "int"),
+                _col(
+                    "room",
+                    "Room",
+                    "int",
+                    "CASE WHEN room_id NOT IN (0, -1) THEN room_id END",
+                    "mapper-room",
+                ),
             ),
             summary="mobs",
             guard="mobkills",
-        ),
-        TablePage(
-            "mobkills",
-            "Mob kills, newest first",
-            "mobkills",
-            "mk_id",
-            (
-                _col("time", "Time (UTC)", "text", f"CASE WHEN time != -1 THEN {_utc('time')} END"),
-                _col("name", "Name", "text"),
-                _col(
-                    "lvl", "Lvl", "int", "CASE WHEN level >= 1 THEN " + _level_of("level") + " END"
-                ),
-                _col("txp", "TXP", "int", "totalxp"),
-                _col("gold", "Gold", "int"),
-                _col(
-                    "room", "Room", "int", "CASE WHEN room_id != 0 THEN room_id END", "mapper-room"
-                ),
-                _col("flags", "Flags", "text", _letters(SPECIAL_FLAGS)),
-            ),
         ),
     )
 }
