@@ -78,9 +78,14 @@ kept from the client: the plugin still reads them, and other lines are shown as 
   and carried: Worn, Inventory, Keyring, the bags and their items. The vault stays, with its
   counts, whether it was read and the bags in it, because it lives in the bank and death cannot
   change it. Eq then drops a block being read and queues the same reads as `refresh`. The reads
-  are queued at once. This is inferred, not checked live: Aardwolf prints `You die.` from inside
-  its death routine and reads the next command only on a later pulse, after the corpse is made, so
-  `eqdata` and `invdata` sent after the line are answered with the inventory after death.
+  are queued at once. A live check of a death to a mob showed the order: right after `You die.`,
+  Aardwolf sends an `{invmon}` action 1 for every worn item, then an action 3 for every item. The
+  queued `eqdata`, `invdata` and `keyring data` are answered after that stream, all empty, and
+  none of the three replies reaches the client.
+  A PK death (pk, warfare, duel) leaves no corpse and the equipment stays with the character, as
+  Aardwolf's `help death` says. Eq does not tell the two kinds of death apart: it still forgets
+  what is worn and carried, and the re-reads bring it all back. Until they are answered, eq's APIs
+  report an empty character.
 - **Disconnect.** The state is cleared, a block that was being read is dropped and the bag types
   are removed.
 
@@ -238,7 +243,7 @@ Commands go to the MUD with `SendDataDirectlyToMud`.
   repo raised `trigger_dead`, so #75 (plan item 18) dropped it. Aardwolf leaves many items in the
   corpse, so eq now has its own `^You die\.$` trigger. Unlike the old handler it keeps the vault
   and reads everything else again; unlike #75 it does not leave the state stale until the next
-  connect. The timing of the reads is inferred, not checked live (see Death above).
+  connect. The timing of the reads was checked live on a death to a mob (see Death above).
 - **Fixed: vault counts compared as strings.** The old inventory showed the vault line even for an
   empty vault (a string is always above an int in Python 2), and the keep-flagged line compared the
   total with the item count as text, so `10` was not above `9`. Both compare ints now.
