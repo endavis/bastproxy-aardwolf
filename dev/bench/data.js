@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795741460150,
+  "lastUpdate": 1795742516100,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3381,6 +3381,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.677097182380342e-7",
             "extra": "mean: 5.749099841798731 usec\nrounds: 179534"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a812def3d006276a5e9995cd94903137554132e",
+          "message": "refactor: print the mobk damage table through the core table.format (merges PR #193, addresses #191)\n\nThe last command built its damage-type table by hand with fixed widths and\na dashed rule. It now passes the rows to plugins.core.utils:table.format,\nso the columns line up whatever the damage-type names. The libs hold the\ncolumn list and a pure rows-to-dicts helper. The numeric columns are now\nleft-justified, as table.format does for every column.\n\nPart 3 of 5 under #191. Addresses #191.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T01:21:21Z",
+          "tree_id": "c4a1e1f4bcbf5f0dcf397cbbcf2373dacfed80a2",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6a812def3d006276a5e9995cd94903137554132e"
+        },
+        "date": 1795742515146,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2854226.254095564,
+            "unit": "iter/sec",
+            "range": "stddev: 1.3121272630628419e-7",
+            "extra": "mean: 350.35764896531515 nsec\nrounds: 195734"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 167484.09440833496,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000768183605438982",
+            "extra": "mean: 5.970716225517797 usec\nrounds: 175717"
           }
         ]
       }
