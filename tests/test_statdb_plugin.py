@@ -560,11 +560,16 @@ def test_commands_with_an_old_database(env: Env, tmp_path: Path) -> None:
     assert env.fake.tables[-1][1][-1]["id"] == "3"
     env.fake.gmcp = {"char.base.perlevel": 600}
     assert _run(env, "levels", number=3)[1].split() == ["3", "lev", "5", "re0t0r1l5"]
-    assert _run(env, "cps", count=1)[-1].split()[-1] == "Failed"
-    assert _run(env, "cps", number=1)[-2].startswith("@Gan orc")
-    assert _run(env, "gqs", count=1)[-1].split()[0] == "2"
-    assert _run(env, "gqs", number=1)[-2].startswith("@G3")
-    assert _run(env, "mobs", count=1)[-1].split()[2] == "bat"
+    _run(env, "cps", count=1)
+    assert env.fake.tables[-1][1][-1]["time"] == "Failed"
+    _run(env, "cps", number=1)
+    assert "an orc" in [mob["name"] for mob in env.fake.tables[-1][1]]
+    _run(env, "gqs", count=1)
+    assert env.fake.tables[-1][1][-1]["id"] == "2"
+    _run(env, "gqs", number=1)
+    assert env.fake.tables[-1][1][-1]["num"] == "3"
+    _run(env, "mobs", count=1)
+    assert env.fake.tables[-1][1][-1]["mob"] == "a bat"
     _run(env, "mobkills", count=10)
     assert len(env.fake.tables[-1][1]) == 3
     _run(env, "mobkills", count=1)

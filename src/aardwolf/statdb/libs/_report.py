@@ -766,37 +766,58 @@ def level_summary(stats: dict[str, dict[str, Any]], fmt: Formatters) -> list[str
 # campaigns
 
 
-def _cp_line(item: dict[str, Any], mobs: object, fmt: Formatters) -> str:
-    """Format a campaign as a line of a report."""
+CP_COLUMNS: list[dict[str, str]] = [
+    {"name": "ID", "key": "id"},
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "QP", "key": "qp"},
+    {"name": "BN", "key": "bn"},
+    {"name": "TP", "key": "tp"},
+    {"name": "TN", "key": "tn"},
+    {"name": "PR", "key": "pr"},
+    {"name": "Gold", "key": "gold"},
+    {"name": "Mobs", "key": "mobs"},
+    {"name": "Time", "key": "time"},
+]
+CP_MOB_COLUMNS: list[dict[str, str]] = [
+    {"name": "Name", "key": "name"},
+    {"name": "Location", "key": "location"},
+]
+CP_LIST_TITLE = "Recent campaigns"
+CP_MOB_TITLE = "Campaign mobs"
+
+
+def _cp_cells(item: dict[str, Any], mobs: object, fmt: Formatters) -> dict[str, str]:
+    """Return the cells of a campaign row."""
     ttime = _time_text(fmt, item)
     if int(item["failed"]) == 1:
         ttime = "Failed"
-    return "%-6s %-12s %-2s %2s %2s %2s %2s %6s  %-3s  %s" % (  # noqa: UP031  # %-formats keep the old column layout
-        item["cp_id"],
-        _level_text(item["level"]),
-        item["qp"],
-        item["bonusqp"],
-        item["tp"],
-        item["trains"],
-        item["pracs"],
-        item["gold"],
-        mobs,
-        ttime,
-    )
+    cells = {
+        "id": item["cp_id"],
+        "lvl": _level_text(item["level"]),
+        "qp": item["qp"],
+        "bn": item["bonusqp"],
+        "tp": item["tp"],
+        "tn": item["trains"],
+        "pr": item["pracs"],
+        "gold": item["gold"],
+        "mobs": mobs,
+        "time": ttime,
+    }
+    return {key: str(value) for key, value in cells.items()}
 
 
-CP_HEADER = "@G%-6s %-12s %-2s %-2s %-2s %-2s %-2s %6s %-4s  %s" % (  # noqa: UP031  # %-formats keep the old column layout
-    "ID",
-    "Lvl",
-    "QP",
-    "BN",
-    "TP",
-    "TN",
-    "PR",
-    "Gold",
-    "Mobs",
-    "Time",
-)
+def cp_data(
+    items: Sequence[dict[str, Any]], counts: dict[Any, dict[str, Any]], fmt: Formatters
+) -> list[dict[str, str]]:
+    """Return the campaigns as table rows; ``counts`` maps a campaign id to its mob count."""
+    return [
+        _cp_cells(item, counts.get(item["cp_id"], {}).get("mobcount", 0), fmt) for item in items
+    ]
+
+
+def cp_mob_data(mobs: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """Return the mobs of a campaign as table rows."""
+    return [{"name": str(mob["name"]), "location": str(mob["location"])} for mob in mobs]
 
 
 def show_cp(store: StatStore, number: int, fmt: Formatters) -> list[str]:
@@ -805,13 +826,11 @@ def show_cp(store: StatStore, number: int, fmt: Formatters) -> list[str]:
     if not rows or not isinstance(rows, list):
         return [f"No such campaign: {number}"]
     mobs = store.db.select("SELECT * FROM cpmobs WHERE cp_id = ?", (number,))
-    div = _divider(fmt)
-    msg = [CP_HEADER, div, _cp_line(rows[0], len(mobs), fmt), div]
-    msg.append("@G%-30s %-30s" % ("Name", "Location"))  # noqa: UP031  # %-formats keep the old column layout
-    msg.append(div)
-    msg.extend("@G%-30s %-30s" % (mob["name"], mob["location"]) for mob in mobs)  # noqa: UP031  # %-formats keep the old column layout
-    msg.append(div)
-    return msg
+    one = [_cp_cells(rows[0], len(mobs), fmt)]
+    return [
+        *fmt.table(f"Campaign {number}", one, CP_COLUMNS),
+        *fmt.table(CP_MOB_TITLE, cp_mob_data(mobs), CP_MOB_COLUMNS),
+    ]
 
 
 def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters) -> list[str]:
@@ -822,7 +841,6 @@ def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
     if number:
         return show_cp(store, number, fmt)
 
-    div = _divider(fmt)
     msg = cp_summary(cp_stats(store.db), fmt)
 
     if count > 0:
@@ -832,12 +850,7 @@ def cp_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
         )
         if last and isinstance(last, list):
             msg.append("")
-            msg.append(CP_HEADER)
-            msg.append(div)
-            msg.extend(
-                _cp_line(item, counts.get(item["cp_id"], {}).get("mobcount", 0), fmt)
-                for item in last
-            )
+            msg.extend(fmt.table(CP_LIST_TITLE, cp_data(last, counts, fmt), CP_COLUMNS))
     return msg
 
 
@@ -904,34 +917,59 @@ def cp_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
 
 # global quests
 
-GQ_HEADER = "@G%-6s %-12s %-2s %-2s %-2s %-2s %-2s %6s %-4s  %s" % (  # noqa: UP031  # %-formats keep the old column layout
-    "ID",
-    "Lvl",
-    "QP",
-    "QM",
-    "TP",
-    "TN",
-    "PR",
-    "Gold",
-    "Mobs",
-    "Time",
-)
+GQ_COLUMNS: list[dict[str, str]] = [
+    {"name": "ID", "key": "id"},
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "QP", "key": "qp"},
+    {"name": "QM", "key": "qm"},
+    {"name": "TP", "key": "tp"},
+    {"name": "TN", "key": "tn"},
+    {"name": "PR", "key": "pr"},
+    {"name": "Gold", "key": "gold"},
+    {"name": "Mobs", "key": "mobs"},
+    {"name": "Time", "key": "time"},
+]
+GQ_MOB_COLUMNS: list[dict[str, str]] = [
+    {"name": "Num", "key": "num"},
+    {"name": "Name", "key": "name"},
+    {"name": "Location", "key": "location"},
+]
+GQ_LIST_TITLE = "Recent global quests"
+GQ_MOB_TITLE = "Global quest mobs"
 
 
-def _gq_line(item: dict[str, Any], mobs: object, fmt: Formatters) -> str:
-    """Format a global quest as a line of a report."""
-    return "%-6s %-12s %2s %2s %2s %2s %2s %6s  %-3s  %s" % (  # noqa: UP031  # %-formats keep the old column layout
-        item["gq_id"],
-        _level_text(item["level"]),
-        item["qp"],
-        item["qpmobs"],
-        item["tp"],
-        item["trains"],
-        item["pracs"],
-        item["gold"],
-        mobs,
-        _time_text(fmt, item),
-    )
+def _gq_cells(item: dict[str, Any], mobs: object, fmt: Formatters) -> dict[str, str]:
+    """Return the cells of a global quest row."""
+    cells = {
+        "id": item["gq_id"],
+        "lvl": _level_text(item["level"]),
+        "qp": item["qp"],
+        "qm": item["qpmobs"],
+        "tp": item["tp"],
+        "tn": item["trains"],
+        "pr": item["pracs"],
+        "gold": item["gold"],
+        "mobs": mobs,
+        "time": _time_text(fmt, item),
+    }
+    return {key: str(value) for key, value in cells.items()}
+
+
+def gq_data(
+    items: Sequence[dict[str, Any]], counts: dict[Any, dict[str, Any]], fmt: Formatters
+) -> list[dict[str, str]]:
+    """Return the global quests as table rows; ``counts`` maps a gq id to its mob count."""
+    return [
+        _gq_cells(item, counts.get(item["gq_id"], {}).get("mobcount", 0), fmt) for item in items
+    ]
+
+
+def gq_mob_data(mobs: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """Return the mobs of a global quest as table rows."""
+    return [
+        {"num": str(mob["num"]), "name": str(mob["name"]), "location": str(mob["location"])}
+        for mob in mobs
+    ]
 
 
 def show_gq(store: StatStore, number: int, fmt: Formatters) -> list[str]:
@@ -940,16 +978,11 @@ def show_gq(store: StatStore, number: int, fmt: Formatters) -> list[str]:
     if not rows or not isinstance(rows, list):
         return [f"No such global quest: {number}"]
     mobs = store.db.select("SELECT * FROM gqmobs WHERE gq_id = ?", (number,))
-    div = _divider(fmt)
-    msg = [GQ_HEADER, div, _gq_line(rows[0], len(mobs), fmt), div]
-    msg.append("@G%-5s %-30s %-30s" % ("Num", "Name", "Location"))  # noqa: UP031  # %-formats keep the old column layout
-    msg.append(div)
-    msg.extend(
-        "@G%-5s %-30s %-30s" % (mob["num"], mob["name"], mob["location"])  # noqa: UP031  # %-formats keep the old column layout
-        for mob in mobs
-    )
-    msg.append(div)
-    return msg
+    one = [_gq_cells(rows[0], len(mobs), fmt)]
+    return [
+        *fmt.table(f"Global quest {number}", one, GQ_COLUMNS),
+        *fmt.table(GQ_MOB_TITLE, gq_mob_data(mobs), GQ_MOB_COLUMNS),
+    ]
 
 
 def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters) -> list[str]:
@@ -960,7 +993,6 @@ def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
     if number:
         return show_gq(store, number, fmt)
 
-    div = _divider(fmt)
     msg = gq_summary(gq_stats(store.db), fmt)
 
     if count > 0:
@@ -970,12 +1002,7 @@ def gq_report(store: StatStore, count: int, number: int | None, fmt: Formatters)
         )
         if last and isinstance(last, list):
             msg.append("")
-            msg.append(GQ_HEADER)
-            msg.append(div)
-            msg.extend(
-                _gq_line(item, counts.get(item["gq_id"], {}).get("mobcount", 0), fmt)
-                for item in last
-            )
+            msg.extend(fmt.table(GQ_LIST_TITLE, gq_data(last, counts, fmt), GQ_COLUMNS))
     return msg
 
 
@@ -1056,25 +1083,69 @@ def gq_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
 # mob kills
 
 
+MOB_COLUMNS: list[dict[str, str]] = [
+    {"name": "Lvl", "key": "lvl"},
+    {"name": "Mob", "key": "mob"},
+    {"name": "TXP", "key": "txp"},
+    {"name": "XP", "key": "xp"},
+    {"name": "RXP", "key": "rxp"},
+    {"name": "OXP", "key": "oxp"},
+    {"name": "TP", "key": "tp"},
+    {"name": "S", "key": "s"},
+    {"name": "Gold", "key": "gold"},
+]
+MOB_LIST_TITLE = "Recent mobs"
+
+
+def _mob_cells(item: dict[str, Any]) -> dict[str, str]:
+    """Return the cells of a mob kill row; a no-xp kill shows its four xp cells in red."""
+    bonus = ""
+    if int(item["noexp"]) != 1:
+        if int(item["bonusxp"]) != 0:
+            bonus += "D"
+        if int(item["blessingxp"]) != 0:
+            bonus += "E"
+    special = ""
+    for column, letter in SPECIAL_FLAGS:
+        if int(item[column]) == 1:
+            special = letter
+            break
+    xp_cells = {
+        "txp": str(item["totalxp"]),
+        "xp": str(item["xp"]),
+        "rxp": str(item["rarexp"]),
+        "oxp": bonus,
+    }
+    if item["noexp"] == 1:
+        xp_cells = {key: f"@R{value}@w" for key, value in xp_cells.items()}
+    return {
+        "lvl": str(convert_level(item["level"])["level"]),
+        "mob": str(item["name"])[0:18],
+        **xp_cells,
+        "tp": "1" if int(item["tp"]) == 1 else "",
+        "s": special,
+        "gold": str(item["gold"]),
+    }
+
+
+def mob_data(items: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """Return the mob kills as table rows; a name is cut to 18 characters."""
+    return [_mob_cells(item) for item in items]
+
+
 def mob_report(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     """Show mob kill statistics and the last ``count`` kills."""
     guard = report_guard(store.db, "mobkills")
     if guard:
         return [guard]
 
-    div = _divider(fmt)
     msg = mob_summary(mob_stats(store.db), fmt)
 
     if count > 0:
         last = store.db.getlast("mobkills", count)
         if last and isinstance(last, list):
             msg.append("")
-            msg.append(
-                "@G%3s %-18s %-3s %-3s %-3s %-3s %2s %1s %s"  # noqa: UP031  # %-formats keep the old column layout
-                % ("Lvl", "Mob", "TXP", "XP", "RXP", "OXP", "TP", "S", "Gold")
-            )
-            msg.append(div)
-            msg.extend(_mob_line(item) for item in last)
+            msg.extend(fmt.table(MOB_LIST_TITLE, mob_data(last), MOB_COLUMNS))
     return msg
 
 
@@ -1216,33 +1287,3 @@ def mobkill_list(store: StatStore, count: int, fmt: Formatters) -> list[str]:
     if not rows:
         return [NO_KILLS]
     return list(fmt.table(MOBKILL_TITLE, mobkill_data(rows, fmt), MOBKILL_COLUMNS))
-
-
-def _mob_line(item: dict[str, Any]) -> str:
-    """Format a mob kill as a line of the mob list."""
-    bonus = ""
-    if int(item["noexp"]) != 1:
-        if int(item["bonusxp"]) != 0:
-            bonus += "D"
-        if int(item["blessingxp"]) != 0:
-            bonus += "E"
-    special = ""
-    for column, letter in SPECIAL_FLAGS:
-        if int(item[column]) == 1:
-            special = letter
-            break
-    trivia = "1" if int(item["tp"]) == 1 else ""
-    template = "%3s %-18s %-3s %-3s %-3s %-3s %2s %1s %s"
-    if item["noexp"] == 1:
-        template = "%3s %-18s @R%-3s %-3s %-3s %-3s@w %2s %1s %s"
-    return template % (
-        convert_level(item["level"])["level"],
-        item["name"][0:18],
-        item["totalxp"],
-        item["xp"],
-        item["rarexp"],
-        bonus,
-        trivia,
-        special,
-        item["gold"],
-    )

@@ -125,7 +125,7 @@ The commands are `#bp.aardwolf.statdb.<command>`.
 | `mobs [count]` | Mob kill totals and averages, and the last `count` kills. |
 | `mobkills [-c count]` | List the last `count` kills (default the `mobkillcount` setting, 10), newest first, with time (UTC), name, level, total XP, gold, room and special-kill flags (B, V, A, S, D, I). An empty table says "No kills recorded". |
 
-The row lists of `list`, `comp`, `quests`, `levels` and `mobkills` print through the core
+The row lists of `list`, `comp`, `quests`, `levels`, `cps`, `gqs`, `mobs` and `mobkills` print through the core
 `plugins.core.utils:table.format`: cells are left-aligned and the table takes the proxy's line length.
 
 The `-n` option shows one row; a number that is not in the table reports "No such ..." instead of
