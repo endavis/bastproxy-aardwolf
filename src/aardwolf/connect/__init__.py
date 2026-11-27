@@ -12,4 +12,5 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.triggers",
     "plugins.core.proxy",
     "plugins.core.clients",
+    "plugins.core.web",
 ]

@@ -247,12 +247,15 @@ def test_mud_text_is_escaped_by_colorcode_not_html(mapped: Env) -> None:
 
 def test_the_core_renderer_shows_the_escaped_text(mapped: Env) -> None:
     """A name with colour codes and markup reaches the page as visible, html-escaped text."""
+    from bastproxy.plugins.core.colors.libs._spans import line_spans
     from bastproxy.plugins.core.colors.libs._tokenizer import escape_at, tokenize
-    from bastproxy.plugins.core.colors.plugin._colors import _html_line
+    from bastproxy.plugins.core.colors.plugin._colors import _spans_html
     from bastproxy.plugins.core.web.libs._render import _cell_html
 
     def to_html(value: str) -> str:
-        return "\n".join(_html_line(tokenize(line)) for line in value.splitlines())
+        return "\n".join(
+            _spans_html(line_spans(tokenize(line.rstrip()))) for line in value.splitlines()
+        )
 
     mapped.fake.rooms["2"]["name"] = "@RFire & <b>"
     original = mapped.plugin.api
