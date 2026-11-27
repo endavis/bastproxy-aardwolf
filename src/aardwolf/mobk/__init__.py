@@ -11,5 +11,6 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.events",
     "plugins.core.triggers",
     "plugins.core.colors",
+    "plugins.core.utils",
     "plugins.aardwolf.connect",
 ]

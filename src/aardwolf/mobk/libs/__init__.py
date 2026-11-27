@@ -1,6 +1,7 @@
 """Pure helpers for the mobk plugin."""
 
 from ._mobk import (
+    DAMAGE_COLUMNS,
     EQ_WORN_API,
     EVENT_GMCP_STATUS,
     EVENTS,
@@ -11,6 +12,7 @@ from ._mobk import (
     TriggerSpec,
     add_to_damage,
     damage_default,
+    damage_table_data,
     new_kill,
     parse_gold,
     sum_xp,
@@ -19,6 +21,7 @@ from ._mobk import (
 )
 
 __all__ = [
+    "DAMAGE_COLUMNS",
     "EQ_WORN_API",
     "EVENTS",
     "EVENT_GMCP_STATUS",
@@ -29,6 +32,7 @@ __all__ = [
     "TriggerSpec",
     "add_to_damage",
     "damage_default",
+    "damage_table_data",
     "new_kill",
     "parse_gold",
     "sum_xp",

@@ -5,11 +5,13 @@ import re
 import pytest
 
 from aardwolf.mobk.libs import (
+    DAMAGE_COLUMNS,
     EVENTS,
     SUFFIX_KILL,
     TRIGGERS,
     add_to_damage,
     damage_default,
+    damage_table_data,
     new_kill,
     parse_gold,
     sum_xp,
@@ -165,3 +167,26 @@ def test_total_xp() -> None:
     kill = new_kill()
     kill.update({"xp": 100, "rarexp": 10, "bonusxp": 5, "blessingxp": 1})
     assert total_xp(kill) == 116
+
+
+def test_damage_table_columns() -> None:
+    """The damage columns have unique keys and the headers of the table."""
+    assert [column["name"] for column in DAMAGE_COLUMNS] == [
+        "Damage type",
+        "Hits",
+        "Misses",
+        "Damage",
+    ]
+    keys = [column["key"] for column in DAMAGE_COLUMNS]
+    assert keys == ["damtype", "hits", "misses", "damage"]
+    assert all(set(column) == {"name", "key"} for column in DAMAGE_COLUMNS)
+
+
+def test_damage_table_data() -> None:
+    """One dict of text cells per damage type, in insertion order; a missing count is 0."""
+    data = damage_table_data({"slash": {"hits": 4, "misses": 1, "damage": 60}, "bash": {"hits": 2}})
+    assert data == [
+        {"damtype": "slash", "hits": "4", "misses": "1", "damage": "60"},
+        {"damtype": "bash", "hits": "2", "misses": "0", "damage": "0"},
+    ]
+    assert damage_table_data({}) == []

@@ -2,7 +2,7 @@
 
 import logging
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
@@ -14,7 +14,7 @@ from statdb_support import make_db
 
 import aardwolf
 from aardwolf._libs.aardu import actual_level
-from aardwolf.mobk.libs import EQ_WORN_API, TRIGGERS
+from aardwolf.mobk.libs import DAMAGE_COLUMNS, EQ_WORN_API, TRIGGERS
 from aardwolf.mobk.libs import EVENTS as SUFFIX_EVENTS
 
 if TYPE_CHECKING:
@@ -50,6 +50,7 @@ class FakeApi:
         self.record: dict[str, Any] = {}
         self.eq_items: dict[int, Any] | None = None
         self.eq_calls: list[int] = []
+        self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
         self.table: dict[str, Callable[..., Any]] = {
             "plugins.core.events:event.add": self._event_add,
             "plugins.core.events:event.raise": self._event_raise,
@@ -57,6 +58,7 @@ class FakeApi:
             "plugins.core.triggers:trigger.add": self._trigger_add,
             "plugins.core.triggers:trigger.register": self._trigger_register,
             "plugins.core.colors:colorcode.strip": lambda text: re.sub(r"@[a-zA-Z]", "", text),
+            "plugins.core.utils:table.format": self._table_format,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
             "libs.api:api.exists": lambda name: name == EQ_WORN_API and self.eq_items is not None,
             EQ_WORN_API: self._eq_worn,
@@ -65,6 +67,13 @@ class FakeApi:
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name; an unknown name is a KeyError."""
         return self.table[name]
+
+    def _table_format(
+        self, title: str, data: Iterable[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        """Record a table.format call and return its title as the lines."""
+        self.tables.append((title, list(data), columns))
+        return [title]
 
     def _eq_worn(self, slot: int) -> object:
         self.eq_calls.append(slot)
@@ -161,6 +170,7 @@ def test_plugin_is_discovered(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
         "plugins.core.triggers",
         "plugins.core.events",
         "plugins.core.colors",
+        "plugins.core.utils",
     ):
         assert dependency in mobk.PLUGIN_DEPENDENCIES
 
@@ -484,6 +494,7 @@ def test_last_without_a_kill(env: Env) -> None:
     result = env.plugin._command_last()
     assert result.success
     assert result.message == ["No kill since the plugin loaded"]
+    assert env.fake.tables == []
 
 
 def test_last_shows_the_kill(env: Env) -> None:
@@ -508,10 +519,24 @@ def test_last_shows_the_kill(env: Env) -> None:
     assert "Special kills: assassinate" in text
     assert "Gold: 1234" in text
     assert "Fight time: 10.0s" in text
-    assert "slash" in text
-    assert any(
-        line.startswith("@wslash") and "4" in line and "60" in line for line in result.message
-    )
+    assert fake.tables == [
+        (
+            "Damage",
+            [{"damtype": "slash", "hits": "4", "misses": "1", "damage": "60"}],
+            DAMAGE_COLUMNS,
+        )
+    ]
+    assert result.message[-1] == "Damage"
+
+
+def test_last_without_damage_still_makes_one_table_call(env: Env) -> None:
+    """A last kill with no damage still prints the damage table, with no rows."""
+    env.fake.feed(XP, GOLD, SAC)
+    assert env.plugin.last_kill is not None
+    env.plugin.last_kill["damage"] = {}
+    result = env.plugin._command_last()
+    assert result.success
+    assert env.fake.tables == [("Damage", [], DAMAGE_COLUMNS)]
 
 
 def test_last_is_a_copy_kept_after_reset(env: Env) -> None:
