@@ -183,11 +183,14 @@ def read_milestones(db: ReadDb) -> MilestoneList:
 
 
 def milestone_data(names: Sequence[str]) -> list[dict[str, str]]:
-    """Group milestone names three to a row, under the keys of ``MILESTONE_COLUMNS``."""
+    """Group milestone names three to a row, under the keys of ``MILESTONE_COLUMNS``.
+
+    A short last row gets "" for the cells it lacks, as ``table.format`` reads every key.
+    """
     keys = [column["key"] for column in MILESTONE_COLUMNS]
     return [
-        dict(zip(keys, names[start : start + len(keys)], strict=False))
-        for start in range(0, len(names), len(keys))
+        {key: (chunk[index] if index < len(chunk) else "") for index, key in enumerate(keys)}
+        for chunk in (names[start : start + len(keys)] for start in range(0, len(names), len(keys)))
     ]
 
 

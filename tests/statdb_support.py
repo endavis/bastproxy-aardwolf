@@ -44,6 +44,10 @@ class TableRecorder:
     def __call__(
         self, title: str, data: list[dict[str, str]], columns: list[dict[str, str]]
     ) -> list[str]:
+        for row in data:
+            for column in columns:
+                if column["key"] not in row:
+                    raise KeyError(f"table {title!r}: row {row!r} lacks the key {column['key']!r}")
         self.calls.append((title, list(data), columns))
         return [title]
 
