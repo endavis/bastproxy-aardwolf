@@ -667,7 +667,6 @@ TABLE_ROUTES = {
     "gqs",
     "gqmobs",
     "mobs",
-    "mobkills",
 }
 CHART_ROUTES = {"chart/qp-per-day", "chart/gold-per-day", "chart/level-time", "chart/area-kills"}
 
@@ -719,14 +718,14 @@ def _fill_web_data(env: Env) -> None:
 
 
 def test_web_routes_are_registered_under_the_plugin(env: Env) -> None:
-    """Fifteen routes are added by the plugin itself; tables declare their columns."""
+    """Fourteen routes are added by the plugin itself; tables declare their columns."""
     routes = _web_routes(env)
-    assert len(env.fake.routes) == 15
+    assert len(env.fake.routes) == 14
     assert {owner for owner, *_rest in env.fake.routes} == {PLUGIN_ID}
     assert set(routes) == {"", "comp", *TABLE_ROUTES, *CHART_ROUTES}
     for subpath, (_handler, _title, columns) in routes.items():
         assert (columns is not None) == (subpath in TABLE_ROUTES)
-    assert [column["name"] for column in routes["mobs"][2] or []][:3] == ["lvl", "mob", "txp"]
+    assert [column["name"] for column in routes["mobs"][2] or []][:3] == ["time", "lvl", "mob"]
     assert env.fake.unlisted == {"comp"}
 
 
@@ -741,8 +740,8 @@ def test_web_routes_follow_the_unload_contract(env: Env) -> None:
         )
         assert path == f"/aardwolf/statdb/{subpath}".rstrip("/")
         assert table.match(path) is not None
-    assert table.count() == 15
-    assert table.remove(PLUGIN_ID) == 15
+    assert table.count() == 14
+    assert table.remove(PLUGIN_ID) == 14
     assert table.count() == 0
 
 
@@ -750,7 +749,7 @@ def test_web_index_lists_the_pages_as_text(env: Env) -> None:
     """The index page holds one text line per page the web plugin accepted."""
     result = _call(env, "")
     assert result["kind"] == "html"
-    assert len(result["lines"]) == 14
+    assert len(result["lines"]) == 13
     assert "Quests: /aardwolf/statdb/quests" in result["lines"]
     env.fake.routes.clear()
     env.fake.route_paths = False
@@ -767,9 +766,9 @@ def test_table_handler_returns_a_page_with_the_summary(env: Env) -> None:
     assert result["rows"][0][1] == 20
     assert result["rows"][0][0] == {"text": "1", "href": "/aardwolf/statdb/quests?f_id=1"}
     assert any(line.startswith("@GDB Stats") for line in result["lines"])
-    paged = _call(env, "mobkills", {"count": "1", "page": "2"})
+    paged = _call(env, "mobs", {"count": "1", "page": "2"})
     assert paged["total"] == 2
-    assert [row[1] for row in paged["rows"]] == ["a bat"]
+    assert [row[2] for row in paged["rows"]] == ["a bat"]
     filtered = _call(env, "mobs", {"f_mob": "cat"})
     assert filtered["total"] == 1
     assert _call(env, "cpmobs", {"f_cp_id": "1"})["rows"] == [[1, "an orc", "Unknown"]]
@@ -823,9 +822,7 @@ def test_table_handler_links_cells(env: Env) -> None:
     assert _call(env, "levels")["rows"][0][0] == link(f"{base}/levels", "f_id", 2)
     assert _call(env, "cps")["rows"][0][0] == link(f"{base}/cpmobs", "f_cp_id", 1)
     assert _call(env, "gqs")["rows"][0][0] == link(f"{base}/gqmobs", "f_gq_id", 1)
-    cells = [
-        cell for row in _call(env, "mobkills")["rows"] for cell in row if isinstance(cell, dict)
-    ]
+    cells = [cell for row in _call(env, "mobs")["rows"] for cell in row if isinstance(cell, dict)]
     assert cells == [
         link("/client/mapper/room", "uid", 8),
         link("/client/mapper/room", "uid", 7),
@@ -836,15 +833,99 @@ def test_linked_columns_still_sort_filter_and_page(env: Env) -> None:
     """Sorting, filtering and paging work on the linked columns."""
     _fill_web_data(env)
     link = {"text": "8", "href": "/client/mapper/room?uid=8"}
-    desc = _call(env, "mobkills", {"sort": "room", "dir": "desc"})
+    desc = _call(env, "mobs", {"sort": "room", "dir": "desc"})
     assert desc["total"] == 2
     assert link in desc["rows"][0]
-    filtered = _call(env, "mobkills", {"f_room": "7"})
+    filtered = _call(env, "mobs", {"f_room": "7"})
     assert filtered["total"] == 1
     assert {"text": "7", "href": "/client/mapper/room?uid=7"} in filtered["rows"][0]
     paged = _call(env, "cps", {"f_id": "1", "count": "1"})
     assert paged["total"] == 1
     assert paged["rows"][0][0] == {"text": "1", "href": "/aardwolf/statdb/cpmobs?f_cp_id=1"}
+
+
+MOB_COLUMNS = ["time", "lvl", "mob", "txp", "xp", "rxp", "oxp", "tp", "flags", "gold", "room"]
+
+
+def _fill_mob_rows(env: Env) -> None:
+    """Give the plugin's database three made-up kills with distinct values."""
+    _start(env)
+    env.store.save_mobkill(
+        {"name": "a bat", "xp": 3, "totalxp": 4, "time": 2600, "level": 5, "room_id": 0, "gold": 9}
+    )
+    env.store.save_mobkill(
+        {"name": "a cat", "xp": 4, "totalxp": 5, "time": 2700, "level": 6, "room_id": -1}
+    )
+    env.store.save_mobkill(
+        {
+            "name": "a dog", "xp": 6, "totalxp": 12, "rarexp": 2, "bonusxp": 1, "blessingxp": 1,
+            "tp": 1, "time": 2800, "level": 7, "room_id": 42, "gold": 30, "banishment": 1,
+            "vorpal": 1, "assassinate": 1, "slit": 1, "deathblow": 1, "disintegrate": 1,
+        }
+    )  # fmt: skip
+
+
+def test_mobs_page_has_every_column_newest_first(env: Env) -> None:
+    """One mobs page has all eleven columns in order, newest kill first, and the summary."""
+    _fill_mob_rows(env)
+    routes = _web_routes(env)
+    assert [column["name"] for column in routes["mobs"][2] or []] == MOB_COLUMNS
+    result = _call(env, "mobs")
+    assert result["total"] == 3
+    assert [row[2] for row in result["rows"]] == ["a dog", "a cat", "a bat"]
+    assert all(len(row) == len(MOB_COLUMNS) for row in result["rows"])
+    assert result["rows"][0][3:6] == [12, 6, 2]
+    assert result["rows"][0][6] == "DE"
+    assert result["rows"][0][7] == 1
+    assert result["rows"][0][9] == 30
+    assert result["lines"]
+
+
+def test_mobs_page_room_blank_for_0_and_minus_1_and_linked_otherwise(env: Env) -> None:
+    """Rooms 0 and -1 show blank; a known room is a mapper link."""
+    _fill_mob_rows(env)
+    rooms = {row[2]: row[10] for row in _call(env, "mobs")["rows"]}
+    assert rooms["a bat"] is None
+    assert rooms["a cat"] is None
+    assert rooms["a dog"] == {"text": "42", "href": "/client/mapper/room?uid=42"}
+
+
+def test_mobs_page_flags_show_every_special_letter(env: Env) -> None:
+    """A kill with every special set shows every letter; one with none shows none."""
+    from aardwolf.statdb.libs._report import SPECIAL_FLAGS
+
+    _fill_mob_rows(env)
+    flags = {row[2]: row[8] for row in _call(env, "mobs")["rows"]}
+    assert flags["a dog"] == "".join(letter for _column, letter in SPECIAL_FLAGS)
+    assert len(flags["a dog"]) == 6
+    assert not flags["a bat"]
+
+
+def test_mobs_page_sorts_and_filters_on_every_column(env: Env) -> None:
+    """Each column sorts both ways and filters on a value taken from a row."""
+    _fill_mob_rows(env)
+    first = _call(env, "mobs")["rows"][0]
+    for index, name in enumerate(MOB_COLUMNS):
+        for direction in ("asc", "desc"):
+            sorted_page = _call(env, "mobs", {"sort": name, "dir": direction})
+            assert sorted_page["kind"] == "table"
+            assert sorted_page["total"] == 3
+        value = first[index]
+        if isinstance(value, dict):
+            value = value["text"]
+        if value in (None, ""):
+            continue
+        filtered = _call(env, "mobs", {f"f_{name}": str(value)})
+        assert filtered["kind"] == "table"
+        assert 1 <= filtered["total"] <= 3
+        assert any(row[2] == "a dog" for row in filtered["rows"])
+
+
+def test_mobkills_web_route_is_not_registered(env: Env) -> None:
+    """The old mobkills page is gone; the mobs page replaces it."""
+    routes = _web_routes(env)
+    assert "mobkills" not in routes
+    assert "mobs" in routes
 
 
 def test_links_fall_back_to_plain_values_when_a_route_is_refused(env: Env) -> None:
@@ -855,7 +936,7 @@ def test_links_fall_back_to_plain_values_when_a_route_is_refused(env: Env) -> No
     env.plugin._add_web_routes()
     assert _call(env, "quests")["rows"][0][0] == 1
     assert _call(env, "cps")["rows"][0][0] == 1
-    cells = [cell for row in _call(env, "mobkills")["rows"] for cell in row]
+    cells = [cell for row in _call(env, "mobs")["rows"] for cell in row]
     assert {"text": "7", "href": "/client/mapper/room?uid=7"} in cells
 
 
@@ -1023,7 +1104,7 @@ def test_real_web_app_gates_and_serves_the_routes(
     assert get(Request("GET", comp, {}, cookies)).status == 400
     assert get(Request("GET", comp, {"first": "nope", "second": "current"}, cookies)).status == 404
     assert get(Request("GET", comp, {"first": "start", "second": "current"}, cookies)).status == 200
-    kills = get(Request("GET", "/aardwolf/statdb/mobkills", {}, cookies))
+    kills = get(Request("GET", "/aardwolf/statdb/mobs", {}, cookies))
     assert kills.status == 200
     assert b"<a href='/client/mapper/room?uid=7'>7</a>" in kills.body
     assert get(Request("GET", "/aardwolf/statdb/chart/qp-per-day", {}, cookies)).status == 200
@@ -1056,7 +1137,7 @@ def test_mud_text_in_link_text_stays_escaped(env: Env) -> None:
     sessions = SessionStore()
     app = WebApp(PageStore(), routes=routes, sessions=sessions)
     cookies = {SESSION_COOKIE: sessions.create(60)}
-    body = asyncio.run(app.dispatch(Request("GET", "/aardwolf/statdb/mobkills", {}, cookies))).body
+    body = asyncio.run(app.dispatch(Request("GET", "/aardwolf/statdb/mobs", {}, cookies))).body
     assert b"&lt;b&gt;x&amp;&lt;/b&gt;" in body
     assert b"<b>" not in body
     evil = asyncio.run(app.dispatch(Request("GET", "/test/evil", {}, cookies))).body

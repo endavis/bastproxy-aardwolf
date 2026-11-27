@@ -95,14 +95,21 @@ EXPECTED_ROWS: dict[str, list[list[Any]]] = {
     ],
     "gqmobs": [[1, 3, "a troll", "Cave"]],
     "mobs": [
-        [5, "a bat", 0, 0, 0, "", 0, "", 0],
-        [3, "a very long named monster of the deep", 25, 20, 5, "", 0, "", 5],
-        [3, "a rat", 12, 10, 0, "D", 1, "V", 50],
-    ],
-    "mobkills": [
-        ["1970-01-01 00:43", "a bat", 5, 0, 0, None, ""],
-        ["1970-01-01 00:28", "a very long named monster of the deep", 3, 25, 5, None, ""],
-        ["1970-01-01 00:26", "a rat", 3, 12, 50, None, "V"],
+        ["1970-01-01 00:43", 5, "a bat", 0, 0, 0, "", 0, "", 0, None],
+        [
+            "1970-01-01 00:28",
+            3,
+            "a very long named monster of the deep",
+            25,
+            20,
+            5,
+            "",
+            0,
+            "",
+            5,
+            None,
+        ],
+        ["1970-01-01 00:26", 3, "a rat", 12, 10, 0, "D", 1, "V", 50, None],
     ],
 }
 
@@ -135,7 +142,7 @@ def test_every_page_declares_its_columns_once() -> None:
     """The column names are unique per page and the declarations match the web plugin's."""
     from aardwolf.statdb.libs import TABLE_PAGES
 
-    assert len(TABLE_PAGES) == 9
+    assert len(TABLE_PAGES) == 8
     for page in TABLE_PAGES.values():
         names = [column["name"] for column in page.route_columns()]
         assert len(names) == len(set(names))
@@ -184,7 +191,7 @@ def test_sorting_orders_by_the_column_and_breaks_ties_by_key(db_path: Path) -> N
     rows = _rows(db_path, "quests", Params(sort="qp", descending=True))
     assert [row[0] for row in rows] == [1, 2]
     rows = _rows(db_path, "mobs", Params(sort="lvl"))
-    assert rows[0][1] == "a very long named monster of the deep"
+    assert rows[0][2] == "a very long named monster of the deep"
     rows = _rows(db_path, "milestones", Params(sort="date", descending=True))
     assert rows[0][1] == "Now"
 
@@ -257,7 +264,7 @@ def test_level_expressions_equal_convert_level(db_path: Path) -> None:
             )
     quests = {row[16]: row[13] for row in _rows(db_path, "quests", Params(count=500))}
     cps = [row[1] for row in _rows(db_path, "cps", Params(count=500))][: len(totals)][::-1]
-    mobs = {row[1]: row[0] for row in _rows(db_path, "mobs", Params(count=500))}
+    mobs = {row[2]: row[1] for row in _rows(db_path, "mobs", Params(count=500))}
     for index, total in enumerate(totals):
         parts = convert_level(total)
         assert quests[f"q{total}"] == parts["level"]
@@ -272,21 +279,25 @@ def test_mobkill_page_matches_the_text_list(store: "StatStore", db_path: Path) -
     rec = TableRecorder()
     mobkill_list(store, 3, formatters(table=rec))
     text = rec.calls[0][1]
-    rows = _rows(db_path, "mobkills")
+    rows = _rows(db_path, "mobs")
     for cells, row in zip(text, rows, strict=True):
         assert cells["time"] == row[0]
-        assert cells["name"] == row[1][:18]
-        if row[6]:
-            assert cells["flags"] == row[6]
+        assert cells["name"] == row[2][:18]
+        if row[8]:
+            assert cells["flags"] == row[8]
 
 
 def test_empty_pages_have_no_rows(empty_path: Path) -> None:
     """A database without rows gives every page no rows and a total of 0."""
     from aardwolf.statdb.libs import TABLE_PAGES, read_table
 
-    for name in ("cpmobs", "gqmobs", "mobkills", "milestones"):
+    for name in ("cpmobs", "gqmobs", "mobs", "milestones"):
         result = read_table(empty_path, TABLE_PAGES[name], Params())
-        assert result.rows == []
+        if name == "mobs":
+            assert result.rows is None
+            assert result.message == "No stats available"
+        else:
+            assert result.rows == []
         assert result.total == 0
 
 
@@ -595,20 +606,20 @@ def test_link_rows_links_the_mobkill_room(db_path: Path) -> None:
     """A mob kill's room links to the mapper room page."""
     with closing(sqlite3.connect(db_path)) as db, db:
         db.execute("UPDATE mobkills SET room_id = ? WHERE name = ?", (7, "a bat"))
-    rooms = [row[5] for row in _linked(db_path, "mobkills")]
+    rooms = [row[10] for row in _linked(db_path, "mobs")]
     assert rooms == [_link("/client/mapper/room", "uid", 7), None, None]
 
 
 def test_link_rows_leaves_an_unset_room_plain(db_path: Path) -> None:
     """A mob kill without a room has a None cell, and the link keeps it None."""
-    assert [row[5] for row in _linked(db_path, "mobkills")] == [None, None, None]
+    assert [row[10] for row in _linked(db_path, "mobs")] == [None, None, None]
 
 
 def test_link_rows_without_a_target_path_keeps_plain_values(db_path: Path) -> None:
     """A target the web plugin refused has no path, so its cells stay raw values."""
     from aardwolf.statdb.libs import TABLE_PAGES, link_rows
 
-    for route in ("quests", "levels", "cps", "gqs", "mobkills"):
+    for route in ("quests", "levels", "cps", "gqs", "mobs"):
         assert link_rows(TABLE_PAGES[route], _rows(db_path, route), {}) == _rows(db_path, route)
 
 
@@ -621,7 +632,7 @@ def test_linked_columns_keep_names_and_types() -> None:
         ("levels", "id"),
         ("cps", "id"),
         ("gqs", "id"),
-        ("mobkills", "room"),
+        ("mobs", "room"),
     ):
         columns = {column["name"]: column for column in TABLE_PAGES[route].route_columns()}
         assert set(columns[name]) == {"name", "label", "type"}
@@ -638,5 +649,5 @@ def test_mobs_page_shows_no_bonus_flags_on_noexp_kills(empty_path: Path) -> None
         conn.execute(sql, ("a rat", 1000, 10, 15, 2, 3, 0))
         conn.execute(sql, ("a bat", 1001, 100, 150, 20, 30, 1))
         conn.commit()
-    flags = {row[1]: row[5] for row in _rows(empty_path, "mobs")}
+    flags = {row[2]: row[6] for row in _rows(empty_path, "mobs")}
     assert flags == {"a rat": "DE", "a bat": ""}

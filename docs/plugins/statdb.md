@@ -150,8 +150,7 @@ because it needs a query; `/aardwolf/statdb/` still lists it.
 | `cpmobs` | `cps -n` | cp_id, name, location |
 | `gqs` | `gqs` | id, lvl (`T R L`), qp, qm, tp, tn, pr, gold, mobs, mins, won |
 | `gqmobs` | `gqs -n` | gq_id, num, name, location |
-| `mobs` | `mobs` | lvl, mob, txp, xp, rxp, oxp, tp, s, gold |
-| `mobkills` | `mobkills` | time (UTC), name, lvl, txp, gold, room, flags |
+| `mobs` | `mobs` | time (UTC), lvl, mob, txp, xp, rxp, oxp, tp, flags (B V A S D I), gold, room |
 | `comp?first=&second=` | `comp` | the comparison text; both names are required (400), an unknown one is 404 |
 | `chart/qp-per-day` | | quest points per day, the newest `chartdays` days (30) |
 | `chart/gold-per-day` | | gold per day, the newest `chartdays` days (30) |
@@ -160,7 +159,7 @@ because it needs a query; `/aardwolf/statdb/` still lists it.
 
 **Tables.** `quests`, `levels`, `cps`, `gqs` and `mobs` show the summary of their text command above
 the table. Without a sort a table lists the newest row first, so page 1 with `count=N` is the rows
-of `<command> N`. The table parameters are the web plugin's: `sort`, `dir`, `page`, `count` and one
+of `<command> N` (the `mobs` page lists the newest kills first, as the `mobkills` command does). The table parameters are the web plugin's: `sort`, `dir`, `page`, `count` and one
 `f_<column>` filter per column. An unknown column, a bad `dir`, `page` or `count`, an unparsable
 number or a text filter over 200 characters is answered with 400 before this plugin runs. A text
 filter is a case-insensitive part of the value (`%` and `_` match themselves); a number filter is
@@ -174,8 +173,8 @@ the text commands show a formatted length. Dates are UTC. `result` is `Done` or 
 
 - `quests` and `levels` `id` link to `?f_id=<id>` on the same page.
 - `cps` `id` links to `cpmobs?f_cp_id=<id>` and `gqs` `id` to `gqmobs?f_gq_id=<id>`.
-- `mobkills` `room` links to the core mapper's `/client/mapper/room?uid=<room>`. The cell is plain
-  and empty when no room is set.
+- `mobs` `room` links to the core mapper's `/client/mapper/room?uid=<room>`. The cell is plain
+  and empty when no room is set (room 0 or -1).
 
 A link cell keeps its column's name and type, so sorting, filtering and paging work as before. A
 page the web plugin refused to add has no link to it, and the cell stays a plain value. The `-n`
