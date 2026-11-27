@@ -317,3 +317,20 @@ def test_class_names_ignores_bad_items() -> None:
     assert class_names(None) == []
     assert class_names([1, {"class": "mag"}]) == []
     assert class_names([{"class": "MAG", "remort": 1}]) == [{"class": "mage", "remort": 1}]
+
+
+def test_on_milestone_is_called_for_an_added_milestone(db: "Sqldb") -> None:
+    """The hook gets the name after the insert, and not for a refused or powerup change."""
+    from aardwolf.statdb.libs import StatStore
+
+    added: list[str] = []
+    store = StatStore(db, on_milestone=added.append)
+    assert store.add_milestone("early") == -1
+    store.save_whois(WHOIS)
+    assert added == ["start"]
+    assert store.add_milestone("early") > 0
+    assert added == ["start", "early"]
+    assert store.add_milestone("early") == -1
+    assert store.add_milestone("") == -1
+    store.save_level({"type": "pup", "level": 10, "totallevels": 10, "starttime": 5})
+    assert added == ["start", "early"]

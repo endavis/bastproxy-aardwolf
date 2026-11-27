@@ -6,7 +6,7 @@ method takes an event payload and leaves it unchanged.
 """
 
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from aardwolf._libs.aardu import CLASSABB, convert_level
@@ -49,9 +49,10 @@ def class_names(classes: object) -> list[dict[str, Any]]:
 class StatStore:
     """Read and write the statdb tables through a ``Sqldb``."""
 
-    def __init__(self, db: StatsDb) -> None:
-        """Keep the database."""
+    def __init__(self, db: StatsDb, on_milestone: Callable[[str], None] | None = None) -> None:
+        """Keep the database and the hook called with the name of each milestone added."""
         self.db = db
+        self._on_milestone = on_milestone
 
     # stats table
 
@@ -120,7 +121,11 @@ class StatStore:
         current["milestone"] = milestone
         current["time"] = self._now()
         rowid, _ = self.db.modify(self.db.converttoinsert("stats", True), current)
-        return -1 if rowid is None else rowid
+        if rowid is None:
+            return -1
+        if self._on_milestone is not None:
+            self._on_milestone(milestone)
+        return rowid
 
     @staticmethod
     def _now() -> float:

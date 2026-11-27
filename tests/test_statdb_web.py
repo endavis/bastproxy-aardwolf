@@ -651,3 +651,54 @@ def test_mobs_page_shows_no_bonus_flags_on_noexp_kills(empty_path: Path) -> None
         conn.commit()
     flags = {row[2]: row[6] for row in _rows(empty_path, "mobs")}
     assert flags == {"a rat": "DE", "a bat": ""}
+
+
+# the milestones data provider
+
+
+def test_latest_milestones_omit_current_and_run_oldest_first(db_path: Path) -> None:
+    """The provider rows are the milestones page columns, without the ``current`` row."""
+    from aardwolf.statdb.libs import FIELDSTOCOMP, read_latest_milestones
+
+    rows = read_latest_milestones(db_path)
+    assert [row[0] for row in rows] == ["start", "3", "5", "t0r1l5"]
+    assert all(len(row) == 2 + len(FIELDSTOCOMP) for row in rows)
+    assert rows[0][2] == 1
+    assert rows[1][2] == 3
+
+
+def test_latest_milestones_cap_keeps_the_newest(db_path: Path) -> None:
+    """A limit keeps the newest rows, still oldest first."""
+    from aardwolf.statdb.libs import read_latest_milestones
+
+    assert [row[0] for row in read_latest_milestones(db_path, 2)] == ["5", "t0r1l5"]
+
+
+def test_latest_milestones_of_an_empty_database(empty_path: Path) -> None:
+    from aardwolf.statdb.libs import read_latest_milestones
+
+    assert read_latest_milestones(empty_path) == []
+
+
+def test_latest_milestones_of_a_missing_file_raise(tmp_path: Path) -> None:
+    from aardwolf.statdb.libs import read_latest_milestones
+
+    with pytest.raises(sqlite3.Error):
+        read_latest_milestones(tmp_path / "missing.sqlite")
+
+
+def test_the_provider_columns_are_accepted_by_the_real_route_table() -> None:
+    """The real RouteTable takes the route and the provider side by side."""
+    pytest.importorskip("bastproxy")
+    from bastproxy.plugins.core.web.libs._store import RouteTable
+
+    from aardwolf.statdb.libs import MILESTONES_PROVIDER, TABLE_PAGES
+
+    page = TABLE_PAGES["milestones"]
+    table = RouteTable()
+    owner = "plugins.aardwolf.statdb"
+    assert table.add(owner, page.route, lambda _r: {}, page.title, page.route_columns())
+    topic = table.add_provider(
+        owner, MILESTONES_PROVIDER, list, page.route_columns(), "table", None, str
+    )
+    assert topic == "aardwolf.statdb.milestones"

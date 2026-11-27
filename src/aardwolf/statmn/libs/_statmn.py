@@ -18,6 +18,8 @@ EVENT_GQ_COMPLETED = f"{PREFIX}gq_completed"
 EVENT_GQ_DONE = f"{PREFIX}gq_done"
 EVENT_LEVEL_GAIN = f"{PREFIX}level_gain"
 EVENT_DISCONNECT = "ev_libs.net.mud_muddisconnect"
+EVENT_CONNECT = "ev_libs.net.mud_mudconnect"
+EVENT_MOBKILL = f"{PREFIX}mobk_kill"
 # the core trigger that fires on an empty line
 EMPTYLINE_ID = "t_plugins.core.triggers_emptyline"
 # the event the core empty-line trigger raises (the core names a trigger's event
@@ -25,6 +27,10 @@ EMPTYLINE_ID = "t_plugins.core.triggers_emptyline"
 EMPTYLINE_EVENT = f"event_{EMPTYLINE_ID}"
 # the statdb API that runs a select
 SELECT_API = "plugins.aardwolf.statdb:stats.select"
+WEB_PROVIDER_ADD = "plugins.core.web:web.provider.add"
+WEB_PROVIDER_CHANGED = "plugins.core.web:web.provider.changed.raise"
+MUD_CONNECTION_API = "plugins.core.proxy:mud.connection.get"
+SESSION_PROVIDER = "session"
 
 NO_DB = "The stats database is not available"
 
@@ -70,6 +76,7 @@ LEVEL_KILLS_SQL = (
     "SELECT COUNT(*) AS count, COALESCE(AVG(totalxp), 0) AS average FROM mobkills "
     "WHERE time > ? AND time < ? AND xp > 0 AND noexp = 0"
 )
+LEVEL_WINDOW_SQL = "SELECT COUNT(*) AS total FROM levels WHERE type = 'level' AND starttime > ?"
 
 # the order of the stats on a level message
 LEVEL_STATS = ("str", "dex", "con", "luc", "int", "wis")
@@ -357,6 +364,63 @@ def window_stats(select: Select, start: float) -> list[StatRow] | None:
             )
         )
     return rows
+
+
+# the numbers of a session, in the order of the provider's fields
+SESSION_TOTALS = (
+    "xp",
+    "gold",
+    "qp",
+    "tp",
+    "kills",
+    "quests",
+    "campaigns",
+    "gqs",
+    "levels",
+)
+
+
+def session_totals(select: Select, start: float) -> dict[str, int] | None:
+    """Return the totals since ``start``: xp, gold, qp, tp and the count of each kind of event.
+
+    Failed quests and campaigns are not counted, nor are powerups. Returns None when a select
+    returns nothing, as when the database is not available.
+    """
+    rows = window_stats(select, start)
+    if rows is None:
+        return None
+    levels = _first(select(LEVEL_WINDOW_SQL, (start,)))
+    if levels is None:
+        return None
+    by_label = {row.label: row for row in rows}
+    quests, cps, gqs, mobs = (by_label[name] for name in ("Quests", "CPs", "GQs", "Mobs"))
+    return {
+        "xp": mobs.xp + quests.xp + cps.xp + gqs.xp,
+        "gold": quests.gold + cps.gold + gqs.gold + mobs.gold,
+        "qp": quests.qp + cps.qp + gqs.qp + mobs.qp,
+        "tp": quests.tp + cps.tp + gqs.tp + mobs.tp,
+        "kills": mobs.total,
+        "quests": quests.total,
+        "campaigns": cps.total,
+        "gqs": gqs.total,
+        "levels": int(_f(levels, "total")),
+    }
+
+
+def session_snapshot(select: Select, start: float | None) -> tuple[dict[str, Any], bool]:
+    """Return the session provider's data and whether the totals could not be read.
+
+    Before a session starts (``start`` is None) every field is None and nothing is missing. When
+    the database cannot be read the totals are None and the second value is True.
+    """
+    snapshot: dict[str, Any] = {"start": start, **dict.fromkeys(SESSION_TOTALS)}
+    if start is None:
+        return snapshot, False
+    totals = session_totals(select, start)
+    if totals is None:
+        return snapshot, True
+    snapshot.update(totals)
+    return snapshot, False
 
 
 STAT_TABLE_TITLE = "Totals"

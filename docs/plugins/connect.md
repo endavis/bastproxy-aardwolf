@@ -63,7 +63,7 @@ The plugin offers the character vitals through bastproxy's web plugin (ADR-0025)
 | :--- | :--- |
 | Provider | `vitals` |
 | Topic | `aardwolf.connect.vitals` |
-| Page | `/aardwolf/connect/vitals` |
+| Page | `/data/aardwolf/connect/vitals` |
 
 The data is a JSON object built from the cached GMCP `char.vitals`, `char.maxstats`,
 `char.status` and `char.base`. A value that is not cached is `null`. Values pass through as the

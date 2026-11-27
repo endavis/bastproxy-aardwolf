@@ -109,9 +109,34 @@ When the stats database is not available the command says so.
 
 The plugin listens to `ev_plugins.aardwolf.quest_comp`, `cp_comp`, `gq_won`, `gq_completed`,
 `gq_done` and `level_gain`, to `ev_libs.net.mud_muddisconnect`, and to its own
-`ev_plugins.aardwolf.statmn_var_show_modified`. It registers on the core empty-line trigger
+`ev_plugins.aardwolf.statmn_var_show_modified`. It also listens to `ev_plugins.aardwolf.mobk_kill`
+and `ev_libs.net.mud_mudconnect` for the session provider below, and each of its completion events
+raises a change of that provider. It registers on the core empty-line trigger
 (`t_plugins.core.triggers_emptyline`) only while a message is held, and reads `plugins.core.events:event.stack.get` to tell when that
 event is running, so it does not register on it then. It raises no events.
+
+## Web data provider
+
+The plugin offers the totals of the current session through bastproxy's web plugin (ADR-0025):
+
+| | |
+| :--- | :--- |
+| Provider | `session` (json) |
+| Topic | `aardwolf.statmn.session` |
+| Page | `/data/aardwolf/statmn/session` |
+
+The fields are `start` (seconds since the epoch), `xp`, `gold`, `qp`, `tp`, `kills`, `quests`,
+`campaigns`, `gqs` and `levels`. Totals are computed from statdb for each snapshot: failed quests
+and campaigns are left out, and `levels` counts levels, not powerups.
+
+The session starts at each MUD connect (`ev_libs.net.mud_mudconnect`), so a reconnect resets it.
+Before the first connect every field is `null`. A plugin loaded while the MUD is connected, with no
+restored start, takes the time of that connection from `plugins.core.proxy:mud.connection.get`;
+the start survives a plugin reload. When there is no stats database the start is set and the
+totals are `null`, and a warning is logged.
+
+A change is raised on connect, a mob kill, and a finished quest, campaign, global quest or level.
+When the web plugin refuses the provider, nothing is raised.
 
 ## Old to new
 

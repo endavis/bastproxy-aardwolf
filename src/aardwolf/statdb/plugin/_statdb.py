@@ -30,6 +30,8 @@ from ..libs import (
     JOURNAL_MODE,
     MAPPER_ROOM_PATH,
     MIGRATIONS,
+    MILESTONES_PROVIDER,
+    MILESTONES_PROVIDER_LIMIT,
     SETTING_CHART_AREAS,
     SETTING_CHART_DAYS,
     SETTING_CHART_LEVELS,
@@ -56,6 +58,7 @@ from ..libs import (
     page_lines,
     quest_report,
     read_chart,
+    read_latest_milestones,
     read_milestone_rows,
     read_room_kills,
     read_table,
@@ -103,6 +106,8 @@ NO_DB = "The stats database is not available"
 DB_UNREADABLE = "The stats database could not be read"
 MAPPER = "plugins.client.mapper"
 MAX_MILESTONE_NAME = 200
+WEB_PROVIDER_ADD = "plugins.core.web:web.provider.add"
+WEB_PROVIDER_CHANGED = "plugins.core.web:web.provider.changed.raise"
 LOOKUPS_PER_YIELD = 50
 
 
@@ -115,6 +120,7 @@ class StatdbPlugin(BasePlugin):
         self.statdb: StatStore | None = None
         self._web_pages: list[tuple[str, str]] = []
         self._web_paths: dict[str, str] = {}
+        self._web_providers: set[str] = set()
 
     @property
     def _backup_start_timer(self) -> str:
@@ -193,7 +199,7 @@ class StatdbPlugin(BasePlugin):
             log_to(self.plugin_id, logging.ERROR, "could not open the stats database: %s", exc)
             self.statdb = None
         else:
-            self.statdb = StatStore(db)
+            self.statdb = StatStore(db, on_milestone=self._milestone_added)
 
         result = self.api("plugins.core.triggers:trigger.add")(DEAD_TRIGGER, DEAD_REGEX)
         if result.success:
@@ -524,6 +530,42 @@ class StatdbPlugin(BasePlugin):
         for name, spec in CHARTS.items():
             register(f"chart/{name}", self._chart_handler(name), spec.title)
         register("chart/area-kills", self._web_area_chart, AREA_CHART_TITLE)
+
+    @RegisterPluginHook("after_load", priority=60)
+    def _phook_add_web_providers(self) -> None:
+        """Offer the milestones as a web data provider; a refusal is logged by the web plugin."""
+        self._web_providers = set()
+        page = TABLE_PAGES["milestones"]
+        if self.api(WEB_PROVIDER_ADD)(
+            self.plugin_id,
+            MILESTONES_PROVIDER,
+            self._provider_milestones,
+            page.route_columns(),
+            "table",
+        ):
+            self._web_providers.add(MILESTONES_PROVIDER)
+
+    def _milestone_added(self, name: str) -> None:
+        """Tell the web plugin the milestones changed, when the provider was accepted."""
+        if MILESTONES_PROVIDER in self._web_providers:
+            self.api(WEB_PROVIDER_CHANGED)(self.plugin_id, MILESTONES_PROVIDER)
+
+    async def _provider_milestones(self) -> list[list[Any]]:
+        """Return the newest milestones, oldest first; empty when the database cannot be read."""
+        path = self._db_path()
+        if path is None:
+            log_to(self.plugin_id, logging.WARNING, "the milestones provider has no database")
+            return []
+        try:
+            return await asyncio.to_thread(read_latest_milestones, path, MILESTONES_PROVIDER_LIMIT)
+        except sqlite3.Error:
+            log_to(
+                self.plugin_id,
+                logging.ERROR,
+                "could not read the milestones for the provider",
+                exc_info=True,
+            )
+            return []
 
     @staticmethod
     def _message_page(title: str, message: str) -> dict[str, Any]:

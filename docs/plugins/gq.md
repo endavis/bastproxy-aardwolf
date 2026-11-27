@@ -98,8 +98,8 @@ provider, so a page updates without polling.
 
 | Topic | Page path | Kind |
 | :--- | :--- | :--- |
-| `aardwolf.gq.mobsleft` | `/aardwolf/gq/mobsleft` | table |
-| `aardwolf.gq.summary` | `/aardwolf/gq/summary` | json |
+| `aardwolf.gq.mobsleft` | `/data/aardwolf/gq/mobsleft` | table |
+| `aardwolf.gq.summary` | `/data/aardwolf/gq/summary` | json |
 
 `mobsleft` has one row for each target mob and these columns:
 

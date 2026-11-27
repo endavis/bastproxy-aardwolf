@@ -195,6 +195,29 @@ the proxy and cannot write. The SQL is a fixed fragment per column; a request va
 a bound parameter. A page says "The stats database is not available" when the database did not
 open, and "The stats database could not be read" when a read fails (the error is logged).
 
+## Web data provider
+
+Beside the unchanged `milestones` page, the plugin offers the milestones through bastproxy's web
+plugin (ADR-0025):
+
+| | |
+| :--- | :--- |
+| Provider | `milestones` (a table) |
+| Topic | `aardwolf.statdb.milestones` |
+| Page | `/data/aardwolf/statdb/milestones` |
+
+The columns are those of the `milestones` page by name: `milestone`, `date` (UTC text), then one
+integer column for each compared stat. The rows are the 200 newest milestones, oldest first, and
+leave out the `current` row, which changes on every write. A read runs in a worker thread on a
+read-only connection. When the database is not open the provider returns no rows and logs a
+warning; a read error returns no rows and is logged.
+
+Every milestone added (start, level, hero, superhero, tier and remort milestones, and any added by
+`add_milestone`) raises `web.provider.changed.raise`, so a page updates without polling. A
+milestone that already exists adds nothing and raises nothing. When the web plugin refuses the
+provider, nothing is raised. The provider is added in a separate `after_load` hook (priority 60)
+and runs beside the page; the page is unchanged.
+
 ## Settings
 
 | Setting | Default | Description |

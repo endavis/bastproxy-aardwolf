@@ -410,3 +410,65 @@ def test_report_lines_line_length_parameter() -> None:
     assert narrow[1].endswith("[20]")
     assert rec_narrow.calls == rec_wide.calls
     assert wide[1].endswith("[50]")
+
+
+# the session snapshot
+
+
+def test_session_snapshot_before_a_session_is_all_none() -> None:
+    from aardwolf.statmn.libs import SESSION_TOTALS, session_snapshot
+
+    snapshot, unreadable = session_snapshot(FakeSelect([]), None)
+    assert snapshot == {"start": None, **dict.fromkeys(SESSION_TOTALS)}
+    assert unreadable is False
+
+
+def test_session_totals_without_a_database_is_none() -> None:
+    from aardwolf.statmn.libs import session_snapshot, session_totals
+
+    assert session_totals(FakeSelect(None), 1.0) is None
+    snapshot, unreadable = session_snapshot(FakeSelect(None), 500.0)
+    assert snapshot["start"] == 500.0
+    assert snapshot["xp"] is None
+    assert unreadable is True
+
+
+def test_session_totals_sum_after_the_start(db: "Sqldb") -> None:
+    from aardwolf.statmn.libs import session_snapshot, session_totals
+
+    quest = "INSERT INTO quests(finishtime, totqp, gold, tp, failed) VALUES (?, ?, ?, ?, ?)"
+    db.modify(quest, (1000, 10, 100, 1, 0))
+    db.modify(quest, (1100, 50, 500, 5, 1))
+    db.modify(quest, (500, 99, 99, 9, 0))
+    db.modify(
+        "INSERT INTO campaigns(finishtime, qp, bonusqp, gold, tp, failed) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (1000, 5, 2, 30, 1, 0),
+    )
+    db.modify(
+        "INSERT INTO gquests(finishtime, qp, qpmobs, gold, tp) VALUES (?, ?, ?, ?, ?)",
+        (1000, 10, 4, 0, 3),
+    )
+    mob = "INSERT INTO mobkills(time, totalxp, gold, tp) VALUES (?, ?, ?, ?)"
+    db.modify(mob, (1000, 25, 10, 0))
+    db.modify(mob, (1001, 35, 20, 1))
+    db.modify(mob, (500, 1000, 0, 0))
+    level = "INSERT INTO levels(starttime, type) VALUES (?, ?)"
+    db.modify(level, (600, "level"))
+    db.modify(level, (700, "pup"))
+    db.modify(level, (500, "level"))
+    assert session_totals(_select(db), 500) == {
+        "xp": 60,
+        "gold": 160,
+        "qp": 31,
+        "tp": 6,
+        "kills": 2,
+        "quests": 1,
+        "campaigns": 1,
+        "gqs": 1,
+        "levels": 1,
+    }
+    snapshot, unreadable = session_snapshot(_select(db), 500)
+    assert snapshot["start"] == 500
+    assert snapshot["levels"] == 1
+    assert unreadable is False

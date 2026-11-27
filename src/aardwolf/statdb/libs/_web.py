@@ -613,6 +613,27 @@ def read_milestone_rows(path: Path, names: Sequence[str]) -> list[dict[str, Any]
     return [rows[0] if rows else None for rows in found]
 
 
+MILESTONES_PROVIDER = "milestones"
+MILESTONES_PROVIDER_LIMIT = 200
+
+
+def read_latest_milestones(path: Path, limit: int = MILESTONES_PROVIDER_LIMIT) -> list[list[Any]]:
+    """Read the newest ``limit`` milestone rows, oldest first, without the ``current`` row.
+
+    Each row holds the cells of the ``milestones`` table page, in its column order.
+
+    Raises:
+        sqlite3.Error: The database cannot be read.
+    """
+    page = TABLE_PAGES["milestones"]
+    select = ", ".join(column.expr for column in page.columns)
+    # the select list is the fixed column expressions of TABLE_PAGES
+    inner = "SELECT * FROM stats WHERE milestone IS NOT ? ORDER BY stat_id DESC LIMIT ?"
+    sql = "SELECT {} FROM ({}) ORDER BY stat_id ASC".format(select, inner)  # noqa: UP032  # nosec B608  # fixed fragments
+    with closing(open_readonly(path)) as db:
+        return [list(row) for row in db.rows(sql, ("current", limit))]
+
+
 @dataclass(frozen=True)
 class ChartSpec:
     """A chart: its title, unit and the fixed SQL that gives ``(label, value)``, newest first.

@@ -48,6 +48,11 @@ class FakeApi:
             tuple[str, str, Callable[..., Any], str, list[dict[str, str]] | None]
         ] = []
         self.route_paths: bool = True
+        self.provider_ok = True
+        self.providers: dict[
+            str, tuple[Callable[..., Any], list[dict[str, str]] | None, str, str | None]
+        ] = {}
+        self.provider_changes: list[tuple[str, str]] = []
         self.unlisted: set[str] = set()
         self.mapper_rooms: dict[str, dict[str, Any]] | None = None
         self.mapper_areas: dict[str, dict[str, Any]] = {}
@@ -73,6 +78,8 @@ class FakeApi:
             "plugins.core.proxy:line.length.get": lambda: 40,
             "plugins.core.utils:table.format": self._table_format,
             "plugins.core.web:web.route.add": self._route_add,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_changed,
             "libs.api:api.exists": self._api_exists,
             "plugins.client.mapper:room.get": lambda uid: (self.mapper_rooms or {}).get(uid),
             "plugins.client.mapper:area.get": lambda uid: self.mapper_areas.get(uid),
@@ -102,6 +109,26 @@ class FakeApi:
         if not self.route_paths:
             return None
         return f"/aardwolf/statdb/{subpath}".rstrip("/")
+
+    def _provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+        event: str | None = None,
+    ) -> str | None:
+        """Record a web.provider.add call; return the topic, or None when refused."""
+        if not self.provider_ok:
+            return None
+        self.providers[name] = (snapshot, columns, kind, event)
+        return f"{owner}.{name}"
+
+    def _provider_changed(self, owner: str, name: str) -> bool:
+        """Record a web.provider.changed.raise call."""
+        self.provider_changes.append((owner, name))
+        return True
 
     def _api_exists(self, name: str) -> bool:
         return self.mapper_rooms is not None or not name.startswith("plugins.client.mapper:")
@@ -1142,3 +1169,111 @@ def test_mud_text_in_link_text_stays_escaped(env: Env) -> None:
     assert b"<b>" not in body
     evil = asyncio.run(app.dispatch(Request("GET", "/test/evil", {}, cookies))).body
     assert b"<a href='/aardwolf/statdb/quests?f_id=1'>&lt;i&gt;</a>" in evil
+
+
+# the milestones data provider
+
+
+def _load_providers(env: Env) -> None:
+    """Run the after_load hook that offers the providers."""
+    env.plugin._phook_add_web_providers()
+
+
+def _snapshot(env: Env) -> list[list[Any]]:
+    """Run the milestones provider's snapshot the way the web plugin does."""
+    import asyncio
+
+    snapshot = env.fake.providers["milestones"][0]
+    result = asyncio.run(snapshot())
+    assert isinstance(result, list)
+    return result
+
+
+def test_milestones_provider_is_offered_with_the_page_columns(env: Env) -> None:
+    from aardwolf.statdb.libs import FIELDSTOCOMP, TABLE_PAGES
+
+    _load_providers(env)
+    assert set(env.fake.providers) == {"milestones"}
+    _, columns, kind, event = env.fake.providers["milestones"]
+    assert columns == TABLE_PAGES["milestones"].route_columns()
+    assert kind == "table"
+    assert event is None
+    assert columns is not None
+    assert len(columns) == 2 + len(FIELDSTOCOMP)
+    assert {column["type"] for column in columns} == {"text", "int"}
+
+
+def test_milestones_provider_returns_the_named_milestones_without_current(env: Env) -> None:
+    _start(env)
+    env.fake.gmcp = {"char.status.level": 3, "char.base.remorts": 1, "char.base.tier": 1}
+    _send(env, "_eventcb_hero", {})
+    _load_providers(env)
+    rows = _snapshot(env)
+    assert [row[0] for row in rows] == ["start", "t1r1l3"]
+
+
+def test_milestones_provider_without_a_database_is_empty(
+    env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    import logging
+
+    _load_providers(env)
+    env.plugin.statdb = None
+    with caplog.at_level(logging.WARNING):
+        assert _snapshot(env) == []
+
+
+def test_milestones_provider_logs_a_sqlite_error_and_is_empty(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from aardwolf.statdb.plugin import _statdb
+
+    logged: list[tuple[Any, ...]] = []
+
+    def fail(*_args: object) -> object:
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(_statdb, "read_latest_milestones", fail)
+    monkeypatch.setattr(_statdb, "log_to", lambda *args, **kwargs: logged.append(args))
+    _load_providers(env)
+    assert _snapshot(env) == []
+    assert logged
+    assert logged[0][1] == 40  # logging.ERROR
+
+
+def test_milestones_provider_change_is_raised_per_new_milestone(env: Env) -> None:
+    _load_providers(env)
+    changes = env.fake.provider_changes
+    _start(env)
+    assert changes == [(PLUGIN_ID, "milestones")]
+    _send(env, "_eventcb_level_gain", {"type": "level", "totallevels": 11, "starttime": 5})
+    assert len(changes) == 2
+    env.fake.gmcp = {"char.status.level": 3, "char.base.remorts": 1, "char.base.tier": 1}
+    _send(env, "_eventcb_hero", {})
+    assert len(changes) == 3
+    _send(env, "_eventcb_hero", {})
+    assert len(changes) == 3
+    env.fake.gmcp = {"char.status.level": 1, "char.base.remorts": 2, "char.base.tier": 0}
+    _send(env, "_eventcb_remort", {})
+    assert len(changes) == 4
+
+
+def test_a_refused_milestones_provider_never_raises_a_change(env: Env) -> None:
+    env.fake.provider_ok = False
+    _load_providers(env)
+    _start(env)
+    env.fake.gmcp = {"char.status.level": 3, "char.base.remorts": 1, "char.base.tier": 1}
+    _send(env, "_eventcb_hero", {})
+    assert env.fake.provider_changes == []
+
+
+def test_the_real_route_table_accepts_the_route_and_the_provider(env: Env) -> None:
+    from bastproxy.plugins.core.web.libs._store import RouteTable
+
+    _load_providers(env)
+    table = RouteTable()
+    for owner, subpath, handler, title, columns in env.fake.routes:
+        table.add(owner, subpath, handler, title, columns, listed=subpath not in env.fake.unlisted)
+    snapshot, columns, kind, event = env.fake.providers["milestones"]
+    topic = table.add_provider(PLUGIN_ID, "milestones", snapshot, columns, kind, event, str)
+    assert topic == "aardwolf.statdb.milestones"
