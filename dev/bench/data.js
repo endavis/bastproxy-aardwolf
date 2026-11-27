@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795815759093,
+  "lastUpdate": 1795818523065,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3875,6 +3875,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000017350927980105337",
             "extra": "mean: 5.37859404040792 usec\nrounds: 107608"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8bc7903025825619f14cf101f2fece69acd8adbb",
+          "message": "feat: offer session stats and milestones as web data providers (merges PR #215, addresses #211)\n\nstatmn registers a JSON provider, aardwolf.statmn.session, with the\ntotals since the MUD connection opened (xp, gold, qp, tp, kills, quests,\ncampaigns, gqs, levels) and the session start. The totals come from the\nstats database through window_stats and are null before the first\nconnect or without a database. It raises web.provider.changed on\nconnect, kill, quest, campaign, GQ and level gain.\n\nstatdb registers a table provider, aardwolf.statdb.milestones, with the\n200 newest named milestones in the columns of the milestones page, which\nis unchanged. It raises web.provider.changed when a milestone is added.\n\nThe provider page paths in the cp, gq, quest and connect docs now start\nwith /data, and uv.lock pins the core that serves them there.\n\nAddresses #211\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T22:28:04Z",
+          "tree_id": "83c817ba182db455e68de74c1515e8e6e7647e6c",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/8bc7903025825619f14cf101f2fece69acd8adbb"
+        },
+        "date": 1795818522655,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5099570.287017811,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5567321637044023e-8",
+            "extra": "mean: 196.09495383282427 nsec\nrounds: 53718"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 265165.867528099,
+            "unit": "iter/sec",
+            "range": "stddev: 5.650493833827863e-7",
+            "extra": "mean: 3.771224438960012 usec\nrounds: 141925"
           }
         ]
       }
