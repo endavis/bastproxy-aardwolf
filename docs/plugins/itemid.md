@@ -148,11 +148,12 @@ stats, resists, skill mods, enchants, spells, food, reward, drink and furniture 
 
 Each of these was a bug in the old plugin unless it says changed.
 
-- **Fixed: `format` crashed.** `item.itype.capitalize()` ran on an int type, so the box raised for
-  every item with a type and level and `id` never showed anything. The type name now comes from
-  the object type table.
-- **Fixed: Light and Portal.** `itype == 'Light'` and `'Portal'` compared an int with a string, so
-  "Duration: permanent" and the uses of a portal were never shown.
+- **Changed: the item type is a number.** A real `{invheader}` line carries the type as a name
+  such as `Weapon`. The old plugin kept that name, so `format`'s `itype.capitalize()` and its
+  `'Light'` and `'Portal'` comparisons worked on it. The new `parse_item_data` maps the name to
+  its `OBJECTTYPES` number, case-insensitively; an unknown name stays text. `format` takes the
+  shown name from the table and compares the number with `OBJECTTYPESREV["light"]` and
+  `["portal"]`. What is shown is unchanged.
 - **Fixed: zeros in the item.** `formatstats` and `formatresist` wrote a zero for every missing
   stat into the item's own `statmod` and `resistmod`, which then went into eqdb as zero rows.
   Formatting no longer changes the item.
