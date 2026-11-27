@@ -61,6 +61,7 @@ from ..libs import (
     PORTAL_WEARLOC,
     SEARCHES,
     SETTING_CEXIT_TIMEOUT,
+    TERRAIN_COLORS,
     WEB_ROUTE_ADD,
     WEB_ROUTE_REMOVE,
     MushDbError,
@@ -89,6 +90,7 @@ from ..libs import (
     resolve_portal,
     room_from_gmcp,
     room_link,
+    room_markers,
     room_uid,
     serial_arg,
     table_data,
@@ -161,6 +163,8 @@ class MapperPlugin(BasePlugin):
         self._add_trigger("norecall", NORECALL_REGEX, self._trigger_norecall)
         self._mapper_api("requirement.register")(self.plugin_id, self._requirement)
         self._mapper_api("movement.register")(self.plugin_id, self._movement)
+        self._mapper_api("room.marker.register")(self.plugin_id, self._room_markers)
+        self._mapper_api("terrain.color.register")(self.plugin_id, dict(TERRAIN_COLORS))
         info = self._gmcp(GMCP_ROOM)
         if room_uid(info) is not None:
             self._process_room(info)
@@ -188,6 +192,8 @@ class MapperPlugin(BasePlugin):
         self._cancel_walk()
         self._mapper_api("requirement.unregister")(self.plugin_id)
         self._mapper_api("movement.unregister")(self.plugin_id)
+        self._mapper_api("room.marker.unregister")(self.plugin_id)
+        self._mapper_api("terrain.color.unregister")(self.plugin_id)
         if self.api("libs.api:api.exists")(WEB_ROUTE_REMOVE):
             self.api(WEB_ROUTE_REMOVE)(self.plugin_id)
 
@@ -367,6 +373,10 @@ class MapperPlugin(BasePlugin):
         if not allowed:
             self._debug("exit %s blocked by %s", exit_dict, requirement)
         return allowed
+
+    def _room_markers(self, room: dict[str, Any]) -> list[str]:
+        """Return the markers the core mapper draws in a room's box."""
+        return room_markers(room)
 
     def _movement(self, steps: list[dict[str, Any]]) -> list[str]:
         """Turn walk steps into commands; the commands after a wait are sent later."""

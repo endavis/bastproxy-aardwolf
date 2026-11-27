@@ -75,6 +75,39 @@ WEB_ROUTE_REMOVE = "plugins.core.web:web.route.remove"
 CORE_ROOM_PAGE = "/client/mapper/room"
 CORE_AREA_PAGE = "/client/mapper/area"
 PLACE_KINDS = (*SEARCHES, "notes")
+# room detail item -> the marker drawn in the room box on the core area map; the order of this
+# table is the order of a room's markers, and every marker is distinct
+ROOM_MARKERS: dict[str, str] = {
+    "shop": "$",
+    "bank": "B",
+    "healer": "H",
+    "trainer": "T",
+    "questor": "Q",
+    "pk": "P",
+    "graffiti": "G",
+}
+# Aardwolf terrain -> map colour. They are chosen to be close to the MUSHclient mapper's where
+# known and are otherwise reasonable picks, not sourced from a reference.
+TERRAIN_COLORS: dict[str, str] = {
+    "air": "#87ceeb",
+    "cave": "#6b5b4b",
+    "city": "#a9a9a9",
+    "desert": "#e6c875",
+    "dungeon": "#4b4b5a",
+    "field": "#9acd32",
+    "forest": "#228b22",
+    "hills": "#8f9f5f",
+    "inside": "#c8b89a",
+    "jungle": "#006400",
+    "lava": "#ff4500",
+    "mountain": "#8b7d7b",
+    "road": "#d2b48c",
+    "sand": "#f0e68c",
+    "shore": "#e0d0a0",
+    "swamp": "#556b2f",
+    "underwater": "#1e5aa0",
+    "water": "#4169e1",
+}
 # longest `area` query value a page accepts; a real area id is far shorter
 MAX_AREA_ARG = 100
 PORTAL_COLUMNS: list[dict[str, str]] = [
@@ -512,6 +545,18 @@ def detail_matches(details: object, wanted: Iterable[str]) -> list[str]:
     wanted_set = {w.lower() for w in wanted}
     items = (item.strip().lower() for item in text.split(","))
     return [item.capitalize() for item in items if item in wanted_set]
+
+
+def room_markers(room: object) -> list[str]:
+    """Return the markers of a room, one per notable detail, in ROOM_MARKERS order.
+
+    The details are those of ``room["details"]`` (see ``detail_matches``). A room without a
+    notable detail, or that is not a dict, gives an empty list.
+    """
+    if not isinstance(room, dict):
+        return []
+    found = {item.lower() for item in detail_matches(room.get("details"), ROOM_MARKERS)}
+    return [marker for detail, marker in ROOM_MARKERS.items() if detail in found]
 
 
 def table_data(
