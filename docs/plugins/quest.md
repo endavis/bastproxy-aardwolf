@@ -24,8 +24,8 @@ The plugin id is `plugins.aardwolf.quest`:
 #bp.core.pluginm.load plugins.aardwolf.quest
 ```
 
-It depends on the events core plugin and on the [connect plugin](connect.md), which sets up GMCP,
-so loading it loads `connect` too.
+It depends on the events and web core plugins and on the [connect plugin](connect.md), which sets
+up GMCP, so loading it loads `connect` too.
 
 ## Behaviour
 
@@ -60,6 +60,23 @@ The plugin registers to `ev_libs.net.mud_gmcp_comm.quest` and reads the `action`
 | `ev_plugins.aardwolf.quest_reset` | none |
 
 Every payload is a plain dict copy; changing it does not change the saved state.
+
+## Web data providers
+
+The plugin registers one data provider with the core web plugin (`plugins.core.web:web.provider.add`), so
+the web client can show them. The web plugin removes them when this plugin unloads, and
+`#bp.core.web.status` lists them. Every change raises `web.provider.changed.raise` for the
+provider, so a page updates without polling.
+
+| Topic | Page path | Kind |
+| :--- | :--- | :--- |
+| `aardwolf.quest.current` | `/aardwolf/quest/current` | json |
+
+`current` is json with `active` (true from the start message until the quest is completed or
+fails), `target`, `area`, `room`, `starttime`, `endtime` (the start plus the timer of the start
+message, null when the timer is unknown), `timeleft` (seconds, only while active, never below 0),
+`killed`, `complete` and `failed`. With no quest the text and time fields are null and the flags
+are false. The provider changes on every quest message the plugin handles.
 
 ## From the old plugin
 

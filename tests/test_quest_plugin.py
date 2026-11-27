@@ -38,6 +38,11 @@ class FakeApi:
         self.events_added: list[tuple[str, str]] = []
         self.raised: list[tuple[str, dict[str, Any]]] = []
         self.record: dict[str, Any] = {}
+        self.provider_ok = True
+        self.providers: dict[
+            str, tuple[Callable[[], Any], list[dict[str, str]] | None, str, Any]
+        ] = {}
+        self.provider_changes: list[tuple[str, str]] = []
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name."""
@@ -46,8 +51,30 @@ class FakeApi:
             "plugins.core.events:event.raise": self._event_raise,
             "plugins.core.events:event.current.record.get": lambda: self.record,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_changed,
         }
         return table[name]
+
+    def _provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+        event: str | None = None,
+    ) -> str | None:
+        """Record a web.provider.add call; return the topic, or None when refused."""
+        if not self.provider_ok:
+            return None
+        self.providers[name] = (snapshot, columns, kind, event)
+        return f"{owner}.{name}"
+
+    def _provider_changed(self, owner: str, name: str) -> bool:
+        """Record a web.provider.changed.raise call."""
+        self.provider_changes.append((owner, name))
+        return True
 
     def _event_add(self, name: str, created_by: str, **kwargs: object) -> None:
         self.events_added.append((name, created_by))
@@ -109,6 +136,7 @@ def test_dependencies() -> None:
 
     assert "plugins.aardwolf.connect" in quest.PLUGIN_DEPENDENCIES
     assert "plugins.core.events" in quest.PLUGIN_DEPENDENCIES
+    assert "plugins.core.web" in quest.PLUGIN_DEPENDENCIES
 
 
 def test_after_load_adds_all_events(env: Env) -> None:
@@ -303,3 +331,73 @@ def test_live_status_keys_are_described(env: Env) -> None:
     assert [name for name, _ in env.fake.raised] == ["ev_plugins.aardwolf.quest_status"] * 2
     assert env.fake.raised[0][1]["wait"] == 5
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+CHANGED = [(PLUGIN_ID, "current")]
+
+
+def test_web_provider_is_registered(env: Env) -> None:
+    """The current quest is a json provider with no event."""
+    snapshot, columns, kind, event = env.fake.providers["current"]
+    assert (columns, kind, event) == (None, "json", None)
+    assert snapshot()["active"] is False
+
+
+def test_web_snapshot_follows_the_quest(env: Env) -> None:
+    """The snapshot has the target after the start, then the kill and the completion."""
+    env.send(START)
+    current = env.fake.providers["current"][0]()
+    assert current["active"] is True
+    assert (current["target"], current["area"], current["room"]) == ("a rat", "Sewers", "Dark Hall")
+    assert current["timeleft"] == 30 * 60
+    env.send({"action": "killed"})
+    assert env.fake.providers["current"][0]()["killed"] is True
+    env.send(COMP)
+    current = env.fake.providers["current"][0]()
+    assert (current["active"], current["complete"]) == (False, True)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        START,
+        {"action": "killed"},
+        COMP,
+        {"action": "fail"},
+        {"action": "timeout"},
+        {"action": "status", "status": "ready"},
+        {"action": "ready"},
+        {"action": "reset"},
+    ],
+)
+def test_each_handled_action_raises_a_change(env: Env, data: dict[str, Any]) -> None:
+    """Every action the plugin handles tells the web plugin once."""
+    env.send(data)
+    assert env.fake.provider_changes == CHANGED
+
+
+def test_a_failed_quest_is_reported(env: Env) -> None:
+    """A fail makes the quest not active and failed."""
+    env.send(START)
+    env.send({"action": "fail"})
+    current = env.fake.providers["current"][0]()
+    assert (current["active"], current["failed"], current["complete"]) == (False, True, False)
+
+
+@pytest.mark.parametrize("data", ["text", None, {"action": "bogus"}, {"action": 5}, {}])
+def test_unhandled_messages_raise_nothing(env: Env, data: object) -> None:
+    """A message that is not a known action changes nothing."""
+    env.send(data)
+    assert env.fake.provider_changes == []
+
+
+def test_a_refused_provider_raises_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """When the web plugin refuses the provider no change is raised."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    fake = FakeApi()
+    fake.provider_ok = False
+    plugin = build(tmp_path, fake)
+    fake.record = {"package": "Comm.Quest", "data": START}
+    plugin._eventcb_quest()
+    assert fake.providers == {}
+    assert fake.provider_changes == []

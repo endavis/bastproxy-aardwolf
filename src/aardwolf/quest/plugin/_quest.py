@@ -13,7 +13,16 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from aardwolf._libs import aardu
 from aardwolf._libs.eventu import own_event, own_events
 
-from ..libs import ACTION_EVENTS, EVENT_GMCP_QUEST, EVENTS, start_state
+from ..libs import (
+    ACTION_EVENTS,
+    EVENT_GMCP_QUEST,
+    EVENTS,
+    PROVIDER_CURRENT,
+    WEB_PROVIDER_ADD,
+    WEB_PROVIDER_CHANGED,
+    quest_current,
+    start_state,
+)
 
 
 class QuestPlugin(BasePlugin):
@@ -25,6 +34,8 @@ class QuestPlugin(BasePlugin):
         self.quest = PersistentDict(
             self.plugin_id, self.plugin_info.data_directory / "quest.txt", "c"
         )
+        # the web providers the web plugin accepted
+        self._web_providers: set[str] = set()
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -37,6 +48,22 @@ class QuestPlugin(BasePlugin):
                 description=info["description"],
                 arg_descriptions=info["arg_descriptions"],
             )
+        self._add_web_providers()
+
+    def _add_web_providers(self) -> None:
+        """Offer the current quest as a web data provider."""
+        self._web_providers = set()
+        if self.api(WEB_PROVIDER_ADD)(self.plugin_id, PROVIDER_CURRENT, self._provider_current):
+            self._web_providers.add(PROVIDER_CURRENT)
+
+    def _provider_current(self) -> dict[str, Any]:
+        """The current quest: target, area, room, end, time left and outcome."""
+        return quest_current(self.quest, self._now())
+
+    def _provider_changed(self, name: str) -> None:
+        """Tell the web plugin a provider changed, when it was accepted."""
+        if name in self._web_providers:
+            self.api(WEB_PROVIDER_CHANGED)(self.plugin_id, name)
 
     @staticmethod
     def _now() -> float:
@@ -83,6 +110,7 @@ class QuestPlugin(BasePlugin):
             own_event(self.plugin_id, suffix), event_args=payload
         )
         self.quest.sync()
+        self._provider_changed(PROVIDER_CURRENT)
 
     @RegisterPluginHook("save")
     def _phook_save(self) -> None:

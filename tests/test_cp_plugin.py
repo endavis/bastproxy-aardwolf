@@ -25,6 +25,7 @@ from aardwolf.cp.libs import (
     HIDE_MAX_LINES,
     INFO_HIDE_START,
     MOBS_LEFT_COLUMNS,
+    MOBSLEFT_PROVIDER_COLUMNS,
     TRIGGERS,
 )
 from aardwolf.cp.libs import EVENTS as SUFFIX_EVENTS
@@ -121,6 +122,11 @@ class FakeApi:
         self.enabled: dict[str, bool] = {}
         self.toggles: list[tuple[str, bool]] = []
         self.add_ok = True
+        self.provider_ok = True
+        self.providers: dict[
+            str, tuple[Callable[[], Any], list[dict[str, str]] | None, str, Any]
+        ] = {}
+        self.provider_changes: list[tuple[str, str]] = []
         self.questmasters = ["Commander Barcett", "A QuestoR"]
         self.record: dict[str, Any] = {}
         self.active = False
@@ -153,12 +159,34 @@ class FakeApi:
             "plugins.core.mudcmds:command.finish": self._command_finish,
             "plugins.core.utils:table.format": self._table_format,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_changed,
             "libs.api:character.is.active": lambda: self.active,
         }
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name; an unknown name is a KeyError."""
         return self.table[name]
+
+    def _provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+        event: str | None = None,
+    ) -> str | None:
+        """Record a web.provider.add call; return the topic, or None when refused."""
+        if not self.provider_ok:
+            return None
+        self.providers[name] = (snapshot, columns, kind, event)
+        return f"{owner}.{name}"
+
+    def _provider_changed(self, owner: str, name: str) -> bool:
+        """Record a web.provider.changed.raise call."""
+        self.provider_changes.append((owner, name))
+        return True
 
     def _event_add(self, name: str, created_by: str, **kwargs: object) -> None:
         self.events_added[name] = kwargs
@@ -339,6 +367,7 @@ def test_dependencies() -> None:
     assert "plugins.core.utils" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.connect" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.config" in cp.PLUGIN_DEPENDENCIES
+    assert "plugins.core.web" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.mobk" not in cp.PLUGIN_DEPENDENCIES
 
 
@@ -1238,3 +1267,108 @@ def test_without_promptfix_a_queued_check_closes_at_cp_time(env: Env) -> None:
     assert not is_hiding(env)
     fake.feed(PROMPT, prompt=True)
     assert fake.shown == [PROMPT]
+
+
+def test_web_providers_are_registered(env: Env) -> None:
+    """The mobs left are a table of the three columns and the summary is json, with no event."""
+    providers = env.fake.providers
+    assert set(providers) == {"mobsleft", "summary"}
+    _, columns, kind, event = providers["mobsleft"]
+    assert (columns, kind, event) == (MOBSLEFT_PROVIDER_COLUMNS, "table", None)
+    _, columns, kind, event = providers["summary"]
+    assert (columns, kind, event) == (None, "json", None)
+
+
+def test_web_snapshots_without_a_campaign(env: Env) -> None:
+    """With no campaign the table is empty and the summary says so."""
+    assert env.fake.providers["mobsleft"][0]() == []
+    summary = env.fake.providers["summary"][0]()
+    assert summary["oncp"] is False
+    assert summary["mobsleft"] == 0
+
+
+def test_web_snapshots_on_a_campaign(env: Env) -> None:
+    """The rows follow the mobs left, and the summary has the level and the time left."""
+    env.take_cp(RAT, BAT)
+    assert env.fake.providers["mobsleft"][0]() == [
+        ["A rat", "Sewers", 0],
+        ["A bat", "Cave", 1],
+    ]
+    summary = env.fake.providers["summary"][0]()
+    assert summary["oncp"] is True
+    assert summary["level"] == LEVEL
+    assert summary["mobsleft"] == 2
+    assert summary["endtime"] == summary["starttime"] + CP_DURATION
+    assert summary["timeleft"] == int(summary["endtime"] - NOW)
+
+
+def changes(env: Env) -> list[tuple[str, str]]:
+    """Return the provider changes raised so far."""
+    return list(env.fake.provider_changes)
+
+
+def both(name_owner: str = PLUGIN_ID) -> list[tuple[str, str]]:
+    """Return one change of each provider."""
+    return [(name_owner, "mobsleft"), (name_owner, "summary")]
+
+
+def test_taking_a_campaign_raises_both_changes(env: Env) -> None:
+    """The info output, then the check output, each tell the web plugin."""
+    env.fake.feed(NEW, *info_for(RAT))
+    assert changes(env) == both()
+    env.fake.provider_changes.clear()
+    env.fake.feed(RAT, TIME)
+    assert changes(env) == both()
+
+
+def test_a_kill_raises_both_changes(env: Env) -> None:
+    """A kill that removes a mob raises both providers."""
+    env.take_cp(RAT, BAT)
+    env.fake.provider_changes.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    assert changes(env) == both()
+
+
+def test_a_kill_without_a_dead_line_raises_nothing(env: Env) -> None:
+    """A kill with no mob-dead line is not a campaign kill."""
+    env.take_cp(RAT, BAT)
+    env.fake.provider_changes.clear()
+    env.kill("A rat")
+    assert changes(env) == []
+
+
+def test_not_on_a_campaign_raises_both_changes(env: Env) -> None:
+    """The not-on-a-campaign line of the check and of the info output both raise."""
+    env.take_cp(RAT)
+    env.fake.provider_changes.clear()
+    env.plugin._trigger_none()
+    assert changes(env) == both()
+    assert env.fake.providers["mobsleft"][0]() == []
+    env.fake.provider_changes.clear()
+    env.plugin._trigger_info_none()
+    assert changes(env) == both()
+
+
+def test_completion_raises_both_changes(env: Env) -> None:
+    """The completion line raises both providers and the summary is off the campaign."""
+    env.take_cp(RAT)
+    env.fake.provider_changes.clear()
+    env.fake.feed(COMPLETE)
+    assert changes(env) == both()
+    assert env.fake.providers["summary"][0]()["oncp"] is False
+
+
+def test_a_refused_provider_raises_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """When the web plugin refuses both providers no change is raised."""
+    from aardwolf.cp.plugin import _cp
+
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    monkeypatch.setattr(_cp.CpPlugin, "_now", staticmethod(lambda: NOW))
+    fake = FakeApi()
+    fake.provider_ok = False
+    plugin = build(tmp_path, fake)
+    assert fake.providers == {}
+    fake.feed(NEW, *info_for(RAT), RAT, TIME)
+    assert plugin.cp["oncp"]
+    assert fake.provider_changes == []

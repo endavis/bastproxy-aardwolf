@@ -39,17 +39,24 @@ from ..libs import (
     HIDE_MAX_LINES,
     INFO_HIDE_START,
     MOBS_LEFT_COLUMNS,
+    MOBSLEFT_PROVIDER_COLUMNS,
     NEW_TRIGGER,
+    PROVIDER_MOBSLEFT,
+    PROVIDER_SUMMARY,
     SUFFIX_COMP,
     SUFFIX_FAILED,
     SUFFIX_MOBSLEFT,
     SUFFIX_MOBSORIG,
     TRIGGERS,
+    WEB_PROVIDER_ADD,
+    WEB_PROVIDER_CHANGED,
     TriggerSpec,
     bonus_qp,
+    cp_summary,
     info_mobs,
     info_starttime,
     is_count_line,
+    mobs_left_rows,
     mobs_left_table_data,
     name_has_several_locations,
     new_campaign_regex,
@@ -79,6 +86,8 @@ class CpPlugin(BasePlugin):
         self._info: dict[str, Any] = {}
         # True while _after_info_none is registered on the every-line trigger
         self._waiting_info = False
+        # the web providers the web plugin accepted
+        self._web_providers: set[str] = set()
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -119,6 +128,40 @@ class CpPlugin(BasePlugin):
         if self.api("libs.api:character.is.active")():
             self._queue_info()
             self._queue_check()
+        self._add_web_providers()
+
+    def _add_web_providers(self) -> None:
+        """Offer the mobs left and the campaign summary as web data providers."""
+        add = self.api(WEB_PROVIDER_ADD)
+        self._web_providers = set()
+        if add(
+            self.plugin_id,
+            PROVIDER_MOBSLEFT,
+            self._provider_mobsleft,
+            MOBSLEFT_PROVIDER_COLUMNS,
+            "table",
+        ):
+            self._web_providers.add(PROVIDER_MOBSLEFT)
+        if add(self.plugin_id, PROVIDER_SUMMARY, self._provider_summary):
+            self._web_providers.add(PROVIDER_SUMMARY)
+
+    def _provider_mobsleft(self) -> list[list[Any]]:
+        """The mobs left of the campaign, one row each."""
+        return mobs_left_rows(self.cp)
+
+    def _provider_summary(self) -> dict[str, Any]:
+        """The level, start, end, time left and mob count of the campaign."""
+        return cp_summary(self.cp, self._now())
+
+    def _provider_changed(self, name: str) -> None:
+        """Tell the web plugin a provider changed, when it was accepted."""
+        if name in self._web_providers:
+            self.api(WEB_PROVIDER_CHANGED)(self.plugin_id, name)
+
+    def _targets_changed(self) -> None:
+        """The campaign changed: tell the web plugin about both providers."""
+        self._provider_changed(PROVIDER_MOBSLEFT)
+        self._provider_changed(PROVIDER_SUMMARY)
 
     def _questmasters(self) -> list[str]:
         """Return the questmaster names from the config plugin."""
@@ -273,6 +316,7 @@ class CpPlugin(BasePlugin):
         self.cp.update(state)
         self.cp.sync()
         self._raise(SUFFIX_MOBSORIG, {"mobsleft": copy.deepcopy(mobs)})
+        self._targets_changed()
         self._queue_check()
 
     # triggers
@@ -314,6 +358,7 @@ class CpPlugin(BasePlugin):
         """Not on a campaign, in the info output: wait for the limit lines or the prompt."""
         self.cp["oncp"] = False
         self.cp.sync()
+        self._targets_changed()
         for suffix in (GROUP_IN, GROUP_REW, GROUP_DONE):
             self._toggle_group(suffix, False)
         if self._waiting_info:
@@ -345,6 +390,7 @@ class CpPlugin(BasePlugin):
         """The character is not on a campaign."""
         self.cp["oncp"] = False
         self.cp.sync()
+        self._targets_changed()
         # finish first: the after function of the check turns the in group on
         self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
         self._toggle_all_groups(False)
@@ -357,6 +403,7 @@ class CpPlugin(BasePlugin):
             self._raise(SUFFIX_MOBSORIG, self._mobsleft_payload())
         self.cp.sync()
         self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+        self._targets_changed()
         self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
 
     def _trigger_mob(self) -> None:
@@ -399,6 +446,7 @@ class CpPlugin(BasePlugin):
         self.cp["finishtime"] = self._now()
         self.cp["oncp"] = False
         self.cp.sync()
+        self._targets_changed()
 
     def _trigger_reward(self) -> None:
         """A reward of the campaign."""
@@ -463,6 +511,7 @@ class CpPlugin(BasePlugin):
             self.cp["mobsleft"] = mobsleft
             self.cp.sync()
             self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+            self._targets_changed()
             if ambiguous:
                 log_to(
                     [self.plugin_id],

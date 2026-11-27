@@ -1,6 +1,6 @@
 """Constants, regexes and state helpers of the gq plugin. No bastproxy imports."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, NamedTuple
 
 from aardwolf._libs import aardu
@@ -32,6 +32,18 @@ WATCH_REGEX = r"^(gq|gqu|gque|gques|gquest) (c|ch|che|chec|check)$"  # codespell
 GROUP_CHECK = "gqcheck"
 GROUP_IN = "gqin"
 GROUP_REW = "gqrew"
+
+# the core web plugin APIs, used by name because a plugin never imports another plugin
+WEB_PROVIDER_ADD = "plugins.core.web:web.provider.add"
+WEB_PROVIDER_CHANGED = "plugins.core.web:web.provider.changed.raise"
+PROVIDER_MOBSLEFT = "mobsleft"
+PROVIDER_SUMMARY = "summary"
+# the columns of the mobsleft web provider; a row has one cell per column, in this order
+MOBSLEFT_PROVIDER_COLUMNS: list[dict[str, str]] = [
+    {"name": "name", "label": "Mob", "type": "text"},
+    {"name": "location", "label": "Location", "type": "text"},
+    {"name": "count", "label": "Left", "type": "int"},
+]
 
 _STATE_KEYS = {
     "mobs": "the mobs of the gquest when it was first checked, each with name, location and num",
@@ -297,3 +309,40 @@ def name_has_several_locations(mobs: list[dict[str, Any]], name: str) -> bool:
 def reward_key(rtype: str) -> str | None:
     """Return the state key of a reward type, or None when the type is unknown."""
     return aardu.REWARDTABLE.get(rtype)
+
+
+def mobs_left_rows(mobsleft: Iterable[Mapping[str, Any]], joined: bool) -> list[list[Any]]:
+    """Return the mobs left as rows of name, location and kills left; none when not joined."""
+    if not joined:
+        return []
+    return [
+        [str(mob.get("name", "")), str(mob.get("location", "")), int(mob.get("num", 1))]
+        for mob in mobsleft
+    ]
+
+
+def gq_summary(
+    state: Mapping[str, Any], mobsleft: Iterable[Mapping[str, Any]], gqnum: int
+) -> dict[str, Any]:
+    """Return the gquest number, level, start, extended flag and kills left for the web page.
+
+    ``gqnum`` is -1 when no gquest is joined. A gquest has no end time that the proxy knows,
+    so there is no time left.
+    """
+    if gqnum < 0:
+        return {
+            "joined": False,
+            "gqnum": None,
+            "level": None,
+            "starttime": None,
+            "extended": False,
+            "mobsleft": 0,
+        }
+    return {
+        "joined": True,
+        "gqnum": gqnum,
+        "level": state.get("level"),
+        "starttime": state.get("starttime") or None,
+        "extended": bool(state.get("extended")),
+        "mobsleft": sum(int(mob.get("num", 1)) for mob in mobsleft),
+    }

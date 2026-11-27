@@ -13,6 +13,7 @@ PLUGIN_DEPENDENCIES = [
     "plugins.core.mudcmds",
     "plugins.core.commands",
     "plugins.core.utils",
+    "plugins.core.web",
     "plugins.aardwolf.connect",
     "plugins.aardwolf.config",
 ]
