@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795738382474,
+  "lastUpdate": 1795741460150,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3343,6 +3343,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 8.791408378844165e-7",
             "extra": "mean: 4.910553942620319 usec\nrounds: 108050"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c15d3ad1da8d1bae575efb9120535859b66e0a0",
+          "message": "refactor: print the mapper tables through the core table.format (merges PR #192, addresses #191)\n\nshops, train, quest, notes, cexits, the lockexit exit list and portals\nnow print through plugins.core.utils:table.format, like the core\nmapper's find. Columns line up, colour codes no longer throw them off,\nand long cells wrap to the line length. Before, the cells were joined\nwith \" | \".\n\nThe libs gain the column lists and table_data, which turns the row\ntuples the plugin already builds (and the web pages share) into dicts.\ntable_lines and search_lines are removed. plugins.core.utils is now\nin PLUGIN_DEPENDENCIES.\n\nThe test fake records each table.format call, so the tests check the\ncells the plugin passes in. Assertions that only checked the old \" | \"\nlines were rewritten to check the same cells, with the user's approval.\n\nPart 1 of 5 under #191; statmn, mobk, cp and statdb follow.\n\nAddresses #191\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T01:03:40Z",
+          "tree_id": "1e9d781a38047c894cf427f3e38bbe087a58ae6f",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/5c15d3ad1da8d1bae575efb9120535859b66e0a0"
+        },
+        "date": 1795741459380,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3133417.783429858,
+            "unit": "iter/sec",
+            "range": "stddev: 4.272769666323454e-8",
+            "extra": "mean: 319.1403346493406 nsec\nrounds: 189072"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 173940.2736980696,
+            "unit": "iter/sec",
+            "range": "stddev: 8.677097182380342e-7",
+            "extra": "mean: 5.749099841798731 usec\nrounds: 179534"
           }
         ]
       }
