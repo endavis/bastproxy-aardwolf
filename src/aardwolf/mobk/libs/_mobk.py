@@ -160,6 +160,31 @@ def add_to_damage(
     return table
 
 
+# the columns of the damage table: the header of a column and the key of its cell
+DAMAGE_COLUMNS: list[dict[str, str]] = [
+    {"name": "Damage type", "key": "damtype"},
+    {"name": "Hits", "key": "hits"},
+    {"name": "Misses", "key": "misses"},
+    {"name": "Damage", "key": "damage"},
+]
+
+
+def damage_table_data(damage: Mapping[str, Mapping[str, Any]]) -> list[dict[str, str]]:
+    """Return the damage table as one dict of text cells per damage type, in insertion order.
+
+    A missing count is ``0``.
+    """
+    return [
+        {
+            "damtype": damtype,
+            "hits": str(to_int(entry.get("hits", 0))),
+            "misses": str(to_int(entry.get("misses", 0))),
+            "damage": str(to_int(entry.get("damage", 0))),
+        }
+        for damtype, entry in damage.items()
+    ]
+
+
 def sum_xp(text: str) -> int:
     """Return the experience of text such as ``123`` or ``123+45``, 0 when it is not numeric."""
     try:

@@ -15,6 +15,7 @@ from aardwolf._libs import aardu
 from aardwolf._libs.eventu import own_event, own_events
 
 from ..libs import (
+    DAMAGE_COLUMNS,
     EQ_WORN_API,
     EVENT_GMCP_STATUS,
     EVENTS,
@@ -25,6 +26,7 @@ from ..libs import (
     TriggerSpec,
     add_to_damage,
     damage_default,
+    damage_table_data,
     new_kill,
     parse_gold,
     sum_xp,
@@ -332,12 +334,10 @@ class MobkPlugin(BasePlugin):
             f"Gold: {kill.get('gold', 0)}",
             f"Special kills: {', '.join(flags) if flags else 'none'}",
             f"Fight time: {fight}",
-            f"{'Damage type':<20} {'Hits':>6} {'Misses':>7} {'Damage':>10}",
-            "@G" + "-" * 46,
         ]
-        for damtype, entry in kill.get("damage", {}).items():
-            lines.append(
-                f"@w{damtype:<20} {entry.get('hits', 0):>6} "
-                f"{entry.get('misses', 0):>7} {entry.get('damage', 0):>10}"
+        lines.extend(
+            self.api("plugins.core.utils:table.format")(
+                "Damage", damage_table_data(kill.get("damage", {})), DAMAGE_COLUMNS
             )
+        )
         return CommandResult(True, lines)

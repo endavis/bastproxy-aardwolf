@@ -78,7 +78,8 @@ which asks the MUD for the GMCP `char` module. Loading the plugin loads `connect
 | `#bp.aard.mobk.last` | show the last kill the plugin raised |
 
 `last` shows the mob name, room, level, xp (normal, rare, bonus, blessing and total), gold, the
-special-kill flags that are set, the fight time and the damage table (type, hits, misses, damage).
+special-kill flags that are set, the fight time and the damage table (type, hits, misses, damage), which is printed through the core
+`table.format`.
 The plugin keeps a copy of the last raised kill in memory only, so it is gone when the plugin
 unloads. With no kill since the plugin loaded, the command says so.
 
