@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795736162985,
+  "lastUpdate": 1795738382474,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3305,6 +3305,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000010164183155975552",
             "extra": "mean: 5.8801447844452195 usec\nrounds: 177305"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fad5f14ed80db1b9c2dc8546915b68a3353b14bf",
+          "message": "feat: add the Aardwolf mapper commands under #bp.client.mapper (merges PR #190, addresses #189)\n\nOn load, the Aardwolf mapper adds each of its own user commands under\nplugins.client.mapper with plugins.core.commands:command.add.for.plugin\n(endavis/bastproxy#839, ADR-0024). They work as\n#bp.client.mapper.<name> and are listed in an aardwolf.mapper section.\nThe old #bp.aardwolf.mapper.<name> names keep working and are documented\nas deprecated.\n\nThe commands are the class's own _command_* methods, so the base\nhelp/save/reset/set are left out and a new command is picked up without\na list to update. A test checks the names never clash with the core\nmapper's commands.\n\nuv.lock moves bastproxy from d3e4d509 to b2b81bf6, the first core commit\nwith the API.\n\nAddresses #189\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T00:12:26Z",
+          "tree_id": "cde0673a5c7faa95824030c72a653671b4b2bf94",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/fad5f14ed80db1b9c2dc8546915b68a3353b14bf"
+        },
+        "date": 1795738382038,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3767136.1176111796,
+            "unit": "iter/sec",
+            "range": "stddev: 3.802464046423064e-8",
+            "extra": "mean: 265.45364138159175 nsec\nrounds: 197123"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 203643.0129237905,
+            "unit": "iter/sec",
+            "range": "stddev: 8.791408378844165e-7",
+            "extra": "mean: 4.910553942620319 usec\nrounds: 108050"
           }
         ]
       }
