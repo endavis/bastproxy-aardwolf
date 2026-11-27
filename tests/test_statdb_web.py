@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from statdb_old_db import build_old_database
-from statdb_support import formatters, make_db
+from statdb_support import TableRecorder, formatters, make_db
 
 if TYPE_CHECKING:
     from aardwolf.statdb.libs import StatStore
@@ -269,13 +269,15 @@ def test_mobkill_page_matches_the_text_list(store: "StatStore", db_path: Path) -
     """The mobkills page shows the same time, name, level, xp and flags as ``mobkills``."""
     from aardwolf.statdb.libs import mobkill_list
 
-    text = mobkill_list(store, 3, formatters())[2:]
+    rec = TableRecorder()
+    mobkill_list(store, 3, formatters(table=rec))
+    text = rec.calls[0][1]
     rows = _rows(db_path, "mobkills")
-    for line, row in zip(text, rows, strict=True):
-        assert line.startswith(row[0])
-        assert row[1][:18] in line
+    for cells, row in zip(text, rows, strict=True):
+        assert cells["time"] == row[0]
+        assert cells["name"] == row[1][:18]
         if row[6]:
-            assert line.rstrip().endswith(row[6])
+            assert cells["flags"] == row[6]
 
 
 def test_empty_pages_have_no_rows(empty_path: Path) -> None:
@@ -312,7 +314,7 @@ def test_summaries_equal_the_text_report_summaries(store: "StatStore", db_path: 
         "cps": cp_report(store, 0, None, fmt),
         "gqs": gq_report(store, 0, None, fmt),
         "mobs": mob_report(store, 0, fmt),
-        "milestones": list_milestones(store),
+        "milestones": list_milestones(store, fmt),
     }
     for route, text in reports.items():
         page = TABLE_PAGES[route]

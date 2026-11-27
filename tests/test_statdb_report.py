@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from statdb_old_db import build_old_database
-from statdb_support import formatters, make_db
+from statdb_support import TableRecorder, formatters, make_db
 
 if TYPE_CHECKING:
     from aardwolf.statdb.libs import StatStore
@@ -41,6 +41,11 @@ def empty(tmp_path: Path) -> "Iterator[StatStore]":
     db = make_db(tmp_path / "empty")
     yield StatStore(db)
     db.close()
+
+
+def _recorded(rec: TableRecorder, index: int = 0) -> list[dict[str, str]]:
+    """Return the rows of one recorded table.format call."""
+    return rec.calls[index][1]
 
 
 def _text(lines: list[str]) -> str:
@@ -84,57 +89,86 @@ def test_commands_report_no_rows_for_an_empty_table(empty: "StatStore") -> None:
 
 
 def test_list_milestones(full: "StatStore") -> None:
-    """The list shows the level range and the named milestones."""
+    """The list shows the level range and a table of the named milestones."""
+    from aardwolf.statdb.libs import MILESTONE_COLUMNS, MILESTONE_TITLE, list_milestones
+
+    rec = TableRecorder()
+    lines = list_milestones(full, formatters(table=rec))
+    assert lines == ["Levels between 3 and 5", MILESTONE_TITLE]
+    ((title, data, columns),) = rec.calls
+    assert title == MILESTONE_TITLE
+    assert columns == MILESTONE_COLUMNS
+    assert data == [{"first": "current", "second": "start", "third": "t0r1l5"}]
+
+
+def test_list_milestones_three_to_a_row(empty: "StatStore") -> None:
+    """Named milestones are three to a row of the table; without names there is no table."""
     from aardwolf.statdb.libs import list_milestones
 
-    lines = list_milestones(full)
-    assert lines[0] == "Levels between 3 and 5"
-    assert lines[1].split() == ["current", "start", "t0r1l5"]
-
-
-def test_list_milestones_line_widths(empty: "StatStore") -> None:
-    """Named milestones are three to a line, each padded to 15 characters."""
-    from aardwolf.statdb.libs import list_milestones
-
-    assert list_milestones(empty) == ["No milestones"]
+    rec = TableRecorder()
+    fmt = formatters(table=rec)
+    assert list_milestones(empty, fmt) == ["No milestones"]
+    assert rec.calls == []
     empty.save_whois({"name": "Tester"})
     empty.add_milestone("a")
-    assert list_milestones(empty) == [f"{'current':<15} {'start':<15} {'a':<15}"]
+    list_milestones(empty, fmt)
+    assert _recorded(rec, -1) == [{"first": "current", "second": "start", "third": "a"}]
     for extra in ("b", "c"):
         empty.add_milestone(extra)
-    lines = list_milestones(empty)
-    assert len(lines) == 2
-    assert lines[1] == f"{'b':<15} {'c':<15}"
+    list_milestones(empty, fmt)
+    assert len(_recorded(rec, -1)) == 2
+    assert _recorded(rec, -1)[1] == {"first": "b", "second": "c"}
     empty.add_milestone("d")
-    assert list_milestones(empty)[1] == f"{'b':<15} {'c':<15} {'d':<15}"
+    list_milestones(empty, fmt)
+    assert _recorded(rec, -1)[1] == {"first": "b", "second": "c", "third": "d"}
 
 
 def test_compare_defaults_to_start_and_current(full: "StatStore") -> None:
     """With no names it compares start to current, with the difference of each stat."""
-    from aardwolf.statdb.libs import compare_milestones
+    from aardwolf.statdb.libs import COMPARE_TITLE, compare_milestones
 
-    lines = compare_milestones(full, "", "", formatters(), now=5000)
-    assert lines[0].split() == ["Milestone", "start", "current", "Difference"]
-    assert "Now" in lines[2]
-    assert "4000s" in lines[2]
-    levels = next(line for line in lines if line.startswith("totallevels"))
-    assert levels.split() == ["totallevels", "1", "5", "4"]
-    kills = next(line for line in lines if line.startswith("monsterskilled"))
-    assert kills.split() == ["monsterskilled", "0", "4", "4"]
+    rec = TableRecorder()
+    lines = compare_milestones(full, "", "", formatters(table=rec), now=5000)
+    assert lines == [COMPARE_TITLE]
+    ((title, data, columns),) = rec.calls
+    assert title == COMPARE_TITLE
+    assert [c["name"] for c in columns] == ["Milestone", "start", "current", "Difference"]
+    assert data[0]["field"] == "Date"
+    assert data[0]["second"] == "Now"
+    assert data[0]["difference"] == "4000s"
+    rows = {row["field"]: row for row in data}
+    assert rows["totallevels"] == {
+        "field": "totallevels",
+        "first": "1",
+        "second": "5",
+        "difference": "4",
+    }
+    assert rows["monsterskilled"] == {
+        "field": "monsterskilled",
+        "first": "0",
+        "second": "4",
+        "difference": "4",
+    }
 
 
 def test_compare_one_and_two_names_in_either_order(full: "StatStore") -> None:
     """One name compares to current, and two names are put in time order."""
     from aardwolf.statdb.libs import compare_milestones
 
-    fmt = formatters()
-    one = compare_milestones(full, "3", "", fmt, now=5000)
-    assert one[0].split() == ["Milestone", "3", "current", "Difference"]
-    two = compare_milestones(full, "5", "3", fmt, now=5000)
-    assert two[0].split() == ["Milestone", "5", "3", "Difference"]
-    levels = next(line for line in two if line.startswith("totallevels"))
-    assert levels.split() == ["totallevels", "3", "5", "2"]
-    assert "1000s" in two[2]
+    rec = TableRecorder()
+    fmt = formatters(table=rec)
+    compare_milestones(full, "3", "", fmt, now=5000)
+    assert [c["name"] for c in rec.calls[0][2]] == ["Milestone", "3", "current", "Difference"]
+    compare_milestones(full, "5", "3", fmt, now=5000)
+    assert [c["name"] for c in rec.calls[1][2]] == ["Milestone", "5", "3", "Difference"]
+    rows = {row["field"]: row for row in _recorded(rec, 1)}
+    assert rows["totallevels"] == {
+        "field": "totallevels",
+        "first": "3",
+        "second": "5",
+        "difference": "2",
+    }
+    assert rows["Date"]["difference"] == "1000s"
 
 
 def test_compare_names_a_missing_milestone(full: "StatStore") -> None:
@@ -160,15 +194,21 @@ def test_compare_with_no_stats(empty: "StatStore") -> None:
 
 
 def test_quest_report(full: "StatStore") -> None:
-    """The quest report shows the totals, averages and the last quests."""
-    from aardwolf.statdb.libs import quest_report
+    """The quest report shows the totals, averages and a table of the last quests."""
+    from aardwolf.statdb.libs import QUEST_COLUMNS, QUEST_LIST_TITLE, quest_report
 
     text = _text(quest_report(full, 5, None, formatters()))
     assert "Quests         : @W4            @W2" in text
     assert "20.000/level" in text
     assert "Gold           : @W<300>        @W300/quest" in text
-    lines = quest_report(full, 5, None, formatters())
-    assert lines[-1].split() == [
+    rec = TableRecorder()
+    lines = quest_report(full, 5, None, formatters(table=rec))
+    assert lines[-1] == QUEST_LIST_TITLE
+    ((title, data, columns),) = rec.calls
+    assert title == QUEST_LIST_TITLE
+    assert columns == QUEST_COLUMNS
+    keys = [c["key"] for c in columns]
+    assert [data[-1][key] for key in keys] == [
         "1",
         "20",
         "3",
@@ -185,16 +225,27 @@ def test_quest_report(full: "StatStore") -> None:
         "5",
         "60s",
     ]
-    assert lines[-2].split()[-1] == "Failed"
-    assert len(quest_report(full, 0, None, formatters())) == len(lines) - 5
+    assert data[-2]["time"] == "Failed"
+    assert len(quest_report(full, 0, None, formatters())) == len(lines) - 2
 
 
 def test_show_quest(full: "StatStore") -> None:
     """One quest shows its row, its mob and where it was."""
-    from aardwolf.statdb.libs import quest_report
+    from aardwolf.statdb.libs import (
+        QUEST_MOB_COLUMNS,
+        QUEST_MOB_TITLE,
+        QUEST_SHOW_COLUMNS,
+        quest_report,
+    )
 
-    lines = quest_report(full, 0, 1, formatters())
-    assert lines[2].split() == [
+    rec = TableRecorder()
+    lines = quest_report(full, 0, 1, formatters(table=rec))
+    assert lines == ["Quest 1", QUEST_MOB_TITLE]
+    (shown, mob) = rec.calls
+    assert shown[0] == "Quest 1"
+    assert shown[2] == QUEST_SHOW_COLUMNS
+    keys = [c["key"] for c in QUEST_SHOW_COLUMNS]
+    assert [shown[1][0][key] for key in keys] == [
         "1",
         "20",
         "3",
@@ -209,22 +260,35 @@ def test_show_quest(full: "StatStore") -> None:
         "5",
         "60s",
     ]
-    assert lines[4].split() == ["a", "rat", "A", "pipe", "Sewer"]
+    assert mob[2] == QUEST_MOB_COLUMNS
+    assert mob[1] == [{"mob": "a rat", "room": "A pipe", "area": "Sewer"}]
     assert quest_report(full, 0, 99, formatters()) == ["No such quest: 99"]
 
 
 def test_level_report(full: "StatStore") -> None:
-    """The level report totals levels and pups and lists the last rows."""
-    from aardwolf.statdb.libs import level_report
+    """The level report totals levels and pups and tables the last rows."""
+    from aardwolf.statdb.libs import LEVEL_COLUMNS, LEVEL_LIST_TITLE, level_report
 
-    lines = level_report(full, 5, None, formatters())
+    rec = TableRecorder()
+    lines = level_report(full, 5, None, formatters(table=rec))
     text = _text(lines)
     assert "Total Overall  : @W5            @W1" in text
     assert "Total In DB    : @W2            @W1" in text
     assert "Ave Bon Trains : @W0.500" in text
-    assert lines[-1].split()[:3] == ["1", "3", "L"]
-    assert lines[-1].endswith("500s")
-    assert lines[-3].split()[:6] == ["3", "5", "L", "4", "1", "0"]
+    assert lines[-1] == LEVEL_LIST_TITLE
+    ((title, data, columns),) = rec.calls
+    assert title == LEVEL_LIST_TITLE
+    assert columns == LEVEL_COLUMNS
+    assert [data[-1][k] for k in ("id", "lvl", "t")] == ["1", "3", "L"]
+    assert data[-1]["time"] == "500s"
+    assert [data[-3][k] for k in ("id", "lvl", "t", "tr", "bt", "pr")] == [
+        "3",
+        "5",
+        "L",
+        "4",
+        "1",
+        "0",
+    ]
 
 
 def test_show_level(full: "StatStore") -> None:
@@ -263,93 +327,148 @@ def test_show_level_with_kills_in_its_time(full: "StatStore") -> None:
 
 def test_campaign_report(full: "StatStore") -> None:
     """The campaign report counts mobs, and a campaign without mobs counts 0."""
-    from aardwolf.statdb.libs import cp_report
+    from aardwolf.statdb.libs import CP_COLUMNS, CP_LIST_TITLE, cp_report
 
-    lines = cp_report(full, 5, None, formatters())
+    rec = TableRecorder()
+    lines = cp_report(full, 5, None, formatters(table=rec))
     assert "Overall        : @W3            @W2" in _text(lines)
-    assert lines[-1].split()[-2:] == ["2", "60s"]
-    assert lines[-2].split()[-2:] == ["0", "Failed"]
+    assert lines[-1] == CP_LIST_TITLE
+    ((title, data, columns),) = rec.calls
+    assert (title, columns) == (CP_LIST_TITLE, CP_COLUMNS)
+    assert [row["mobs"] for row in data[-2:]] == ["0", "2"]
+    assert [row["time"] for row in data[-2:]] == ["Failed", "60s"]
 
 
 def test_show_campaign(full: "StatStore") -> None:
     """One campaign lists its mobs; a campaign without mobs lists none."""
-    from aardwolf.statdb.libs import cp_report
+    from aardwolf.statdb.libs import CP_COLUMNS, CP_MOB_COLUMNS, CP_MOB_TITLE, cp_report
 
-    lines = cp_report(full, 0, 1, formatters())
-    assert lines[-3].split()[:3] == ["@Ga", "goblin", "Forest"]
-    assert lines[-2].split()[:3] == ["@Gan", "orc", "Hills"]
-    none = cp_report(full, 0, 2, formatters())
-    assert none[2].split()[-1] == "Failed"
-    assert none[-1] == none[-2]
+    rec = TableRecorder()
+    lines = cp_report(full, 0, 1, formatters(table=rec))
+    assert lines == ["Campaign 1", CP_MOB_TITLE]
+    (_, one, columns), (_, mobs, mob_columns) = rec.calls
+    assert columns == CP_COLUMNS
+    assert mob_columns == CP_MOB_COLUMNS
+    assert len(one) == 1
+    assert one[0]["mobs"] == "2"
+    assert [(mob["name"], mob["location"]) for mob in mobs] == [
+        ("a goblin", "Forest"),
+        ("an orc", "Hills"),
+    ]
+    rec_none = TableRecorder()
+    cp_report(full, 0, 2, formatters(table=rec_none))
+    assert _recorded(rec_none)[0]["time"] == "Failed"
+    assert _recorded(rec_none)[0]["mobs"] == "0"
+    assert _recorded(rec_none, 1) == []
     assert cp_report(full, 0, 99, formatters()) == ["No such campaign: 99"]
 
 
 def test_gquest_report(full: "StatStore") -> None:
     """The global quest report shows won and lost, and the mob count of each."""
-    from aardwolf.statdb.libs import gq_report
+    from aardwolf.statdb.libs import GQ_COLUMNS, GQ_LIST_TITLE, gq_report
 
-    lines = gq_report(full, 5, None, formatters())
+    rec = TableRecorder()
+    lines = gq_report(full, 5, None, formatters(table=rec))
     text = _text(lines)
     assert "Won            : @W1            @W1" in text
     assert "Lost           : @W             @W1" in text
-    assert lines[-1].split()[-2:] == ["3", "60s"]
-    assert lines[-2].split()[-2:] == ["0", "20s"]
+    assert lines[-1] == GQ_LIST_TITLE
+    ((title, data, columns),) = rec.calls
+    assert (title, columns) == (GQ_LIST_TITLE, GQ_COLUMNS)
+    assert [row["mobs"] for row in data[-2:]] == ["0", "3"]
+    assert [row["time"] for row in data[-2:]] == ["20s", "60s"]
 
 
 def test_show_gquest(full: "StatStore") -> None:
     """One global quest lists its mobs."""
-    from aardwolf.statdb.libs import gq_report
+    from aardwolf.statdb.libs import GQ_COLUMNS, GQ_MOB_COLUMNS, GQ_MOB_TITLE, gq_report
 
-    lines = gq_report(full, 0, 1, formatters())
-    assert lines[-2].split()[:4] == ["@G3", "a", "troll", "Cave"]
-    none = gq_report(full, 0, 2, formatters())
-    assert none[2].split()[-2:] == ["0", "20s"]
-    assert none[-1] == none[-2]
+    rec = TableRecorder()
+    lines = gq_report(full, 0, 1, formatters(table=rec))
+    assert lines == ["Global quest 1", GQ_MOB_TITLE]
+    (_, one, columns), (_, mobs, mob_columns) = rec.calls
+    assert columns == GQ_COLUMNS
+    assert mob_columns == GQ_MOB_COLUMNS
+    assert len(one) == 1
+    assert mobs == [{"num": "3", "name": "a troll", "location": "Cave"}]
+    rec_none = TableRecorder()
+    gq_report(full, 0, 2, formatters(table=rec_none))
+    assert [_recorded(rec_none)[0][key] for key in ("mobs", "time")] == ["0", "20s"]
+    assert _recorded(rec_none, 1) == []
     assert gq_report(full, 0, 99, formatters()) == ["No such global quest: 99"]
 
 
 def test_mob_report(full: "StatStore") -> None:
     """The mob report totals the kills and lists the last ones with their marks."""
-    from aardwolf.statdb.libs import mob_report
+    from aardwolf.statdb.libs import MOB_COLUMNS, MOB_LIST_TITLE, mob_report
 
-    lines = mob_report(full, 5, formatters())
+    rec = TableRecorder()
+    lines = mob_report(full, 5, formatters(table=rec))
     text = _text(lines)
     assert "Overall        : @W4            @W3" in text
     assert "Vorpal         : @W1            @W0.333/kill" in text
-    assert lines[-1].split()[:6] == ["3", "a", "rat", "12", "10", "0"]
-    assert lines[-1].split()[-3:] == ["1", "V", "50"]
-    assert lines[-2].startswith("  3 a very long named ")
-    assert "monster" not in lines[-2]
-    assert "@R0" in lines[-3]
+    assert lines[-1] == MOB_LIST_TITLE
+    ((title, data, columns),) = rec.calls
+    assert (title, columns) == (MOB_LIST_TITLE, MOB_COLUMNS)
+    last = data[-1]
+    assert [last[key] for key in ("lvl", "mob", "txp", "xp", "rxp")] == [
+        "3",
+        "a rat",
+        "12",
+        "10",
+        "0",
+    ]
+    assert [last[key] for key in ("tp", "s", "gold")] == ["1", "V", "50"]
+    assert data[-2]["lvl"] == "3"
+    assert data[-2]["mob"].startswith("a very long named")
+    assert "monster" not in data[-2]["mob"]
+    assert "@R0" in data[-3]["txp"]
 
 
 def test_mobkill_list(full: "StatStore") -> None:
     """The kill list shows the newest first with time, level, gold and flags."""
-    from aardwolf.statdb.libs import mobkill_list
+    from aardwolf.statdb.libs import MOBKILL_COLUMNS, MOBKILL_TITLE, mobkill_list
 
-    lines = mobkill_list(full, 10, formatters())
-    assert lines[0].startswith("@GTime")
-    assert lines[1].startswith("@B-")
-    assert len(lines) == 5
-    assert "a bat" in lines[2]
-    assert "very long named" in lines[3]
-    assert "monster" not in lines[3]
-    assert lines[4].split() == ["1970-01-01", "00:26", "a", "rat", "3", "12", "<50>", "V"]
-    assert len(mobkill_list(full, 1, formatters())) == 3
+    rec = TableRecorder()
+    assert mobkill_list(full, 10, formatters(table=rec)) == [MOBKILL_TITLE]
+    ((title, data, columns),) = rec.calls
+    assert title == MOBKILL_TITLE
+    assert columns == MOBKILL_COLUMNS
+    assert len(data) == 3
+    assert "a bat" in data[0]["name"]
+    assert "very long named" in data[1]["name"]
+    assert "monster" not in data[1]["name"]
+    last = data[2]
+    assert [last[k] for k in ("time", "name", "lvl", "txp", "gold", "flags")] == [
+        "1970-01-01 00:26",
+        "a rat",
+        "3",
+        "12",
+        "<50>",
+        "V",
+    ]
+    rec_one = TableRecorder()
+    mobkill_list(full, 1, formatters(table=rec_one))
+    assert len(_recorded(rec_one)) == 1
 
 
 def test_mobkill_list_edges(empty: "StatStore") -> None:
     """No kills, a bad count, unknown values and several flags."""
     from aardwolf.statdb.libs import NO_KILLS, mobkill_list
 
-    fmt = formatters()
+    rec = TableRecorder()
+    fmt = formatters(table=rec)
     assert mobkill_list(empty, 10, fmt) == [NO_KILLS]
     assert mobkill_list(empty, 0, fmt) == ["The count must be at least 1"]
     assert mobkill_list(empty, -1, fmt) == ["The count must be at least 1"]
+    assert rec.calls == []
     empty.save_mobkill({"name": "x"})
-    assert mobkill_list(empty, 10, fmt)[-1].split() == ["x", "0", "<0>"]
+    mobkill_list(empty, 10, fmt)
+    last = _recorded(rec, -1)[-1]
+    assert (last["name"], last["txp"], last["gold"]) == ("x", "0", "<0>")
     empty.save_mobkill({"name": "y", "vorpal": 1, "slit": 1})
-    assert mobkill_list(empty, 10, fmt)[2].split()[-1] == "VS"
+    mobkill_list(empty, 10, fmt)
+    assert _recorded(rec, -1)[0]["flags"] == "VS"
 
 
 def test_reports_survive_missing_current_row(full: "StatStore") -> None:
@@ -395,17 +514,15 @@ def test_level_report_times_from_the_next_start(empty: "StatStore") -> None:
     _save_new_style(
         empty, [("level", 1000, 3), ("pup", 1300, 0), ("level", 1900, 2), ("level", 2500, 1)]
     )
-    lines = level_report(empty, 4, None, formatters())
+    rec = TableRecorder()
+    lines = level_report(empty, 4, None, formatters(table=rec))
     text = _text(lines)
     assert "Time           : @W450s" in text
-    assert text.count("600s") >= 1
+    data = _recorded(rec)
     # newest row first in the list: no time for the current row
-    assert lines[-4].split()[-1] != "600s"
-    assert lines[-4].split()[0] == "4"
-    assert len(lines[-4].split()) == 15
-    assert lines[-3].endswith("600s")
-    assert lines[-2].endswith("600s")
-    assert lines[-1].endswith("300s")
+    assert data[0]["id"] == "4"
+    assert data[0]["time"] == ""
+    assert [row["time"] for row in data[1:]] == ["600s", "600s", "300s"]
 
 
 def test_level_report_filters_after_the_window(empty: "StatStore") -> None:
@@ -415,10 +532,11 @@ def test_level_report_filters_after_the_window(empty: "StatStore") -> None:
     _save_new_style(
         empty, [("level", 1000, 3), ("level", 1100, 0), ("level", 2000, 2), ("pup", 2600, 0)]
     )
-    lines = level_report(empty, 4, None, formatters())
+    rec = TableRecorder()
+    lines = level_report(empty, 4, None, formatters(table=rec))
     # levels with trains: 1000 -> 1100 = 100s and 2000 -> 2600 = 600s
     assert "Time           : @W350s" in _text(lines)
-    assert lines[-1].endswith("100s")
+    assert _recorded(rec)[-1]["time"] == "100s"
 
 
 def test_show_level_on_new_style_rows(empty: "StatStore") -> None:
@@ -508,14 +626,14 @@ def test_mob_line_has_no_bonus_flags_on_noexp_kills(empty: "StatStore") -> None:
     empty.db.modify("INSERT INTO stats (name, milestone) VALUES ('Tester', 'current')")
     empty.save_mobkill(dict(NORMAL_KILL))
     empty.save_mobkill(dict(NOEXP_KILL))
-    lines = mob_report(empty, 5, formatters())
-    normal_line, noexp_line = lines[-1], lines[-2]
-    assert "@R" not in normal_line
-    assert "DE" in normal_line.split()
-    assert "@R" in noexp_line
-    assert "D" not in noexp_line.split() and "DE" not in noexp_line.split()
-    assert "E" not in noexp_line.split()
-    assert "V" in noexp_line.split()
+    rec = TableRecorder()
+    mob_report(empty, 5, formatters(table=rec))
+    normal_row, noexp_row = _recorded(rec)[-1], _recorded(rec)[-2]
+    assert "@R" not in "".join(normal_row.values())
+    assert normal_row["oxp"] == "DE"
+    assert all("@R" in noexp_row[key] for key in ("txp", "xp", "rxp", "oxp"))
+    assert noexp_row["oxp"] == "@R@w"
+    assert noexp_row["s"] == "V"
 
 
 def test_show_level_leaves_noexp_kills_out(empty: "StatStore") -> None:
@@ -535,3 +653,110 @@ def test_show_level_with_only_noexp_kills_has_no_mob_line(empty: "StatStore") ->
     empty.save_mobkill({"name": "a bat", "xp": 50, "totalxp": 500, "time": 1600, "noexp": 1})
     lines = level_report(empty, 0, 1, formatters(), 6000.0)
     assert not any("mobs killed" in line for line in lines)
+
+
+def test_column_lists_have_unique_keys_and_both_fields() -> None:
+    """Every column list names a header and a key, and no key repeats."""
+    from aardwolf.statdb.libs import (
+        LEVEL_COLUMNS,
+        MILESTONE_COLUMNS,
+        MOBKILL_COLUMNS,
+        QUEST_COLUMNS,
+        QUEST_MOB_COLUMNS,
+        QUEST_SHOW_COLUMNS,
+        comparison_columns,
+    )
+
+    for columns in (
+        LEVEL_COLUMNS,
+        MILESTONE_COLUMNS,
+        MOBKILL_COLUMNS,
+        QUEST_COLUMNS,
+        QUEST_MOB_COLUMNS,
+        QUEST_SHOW_COLUMNS,
+        comparison_columns("a", "b"),
+    ):
+        keys = [column["key"] for column in columns]
+        assert len(set(keys)) == len(keys)
+        assert all(set(column) == {"name", "key"} for column in columns)
+    assert [c["name"] for c in QUEST_COLUMNS if c not in QUEST_SHOW_COLUMNS] == ["PK", "HC"]
+    assert [c["name"] for c in comparison_columns("a", 2)] == [
+        "Milestone",
+        "a",
+        "2",
+        "Difference",
+    ]
+
+
+def test_milestone_data_groups_names_three_to_a_row() -> None:
+    from aardwolf.statdb.libs import milestone_data
+
+    assert milestone_data([]) == []
+    assert milestone_data(["a", "b", "c", "d"]) == [
+        {"first": "a", "second": "b", "third": "c"},
+        {"first": "d"},
+    ]
+
+
+def test_milestone_text_without_names_has_no_table() -> None:
+    from aardwolf.statdb.libs import MilestoneList, milestone_text
+
+    rec = TableRecorder()
+    fmt = formatters(table=rec)
+    assert milestone_text(MilestoneList("", []), fmt) == ["No milestones"]
+    assert milestone_text(MilestoneList("Levels between 1 and 2", []), fmt) == [
+        "Levels between 1 and 2"
+    ]
+    assert rec.calls == []
+
+
+def test_quest_data_keeps_only_the_keys_of_the_columns(full: "StatStore") -> None:
+    from aardwolf.statdb.libs import QUEST_COLUMNS, quest_data
+
+    items = full.db.getlast("quests", 2)
+    assert isinstance(items, list)
+    fmt = formatters()
+    assert all(
+        set(row) == {c["key"] for c in QUEST_COLUMNS}
+        for row in quest_data(items, fmt, QUEST_COLUMNS)
+    )
+    only = quest_data(items, fmt, [{"name": "ID", "key": "id"}])
+    assert all(set(row) == {"id"} for row in only)
+    assert len(only) == 2
+
+
+def test_cp_gq_and_mob_columns_have_unique_keys_and_every_cell_is_text(full: "StatStore") -> None:
+    """Each column list has unique keys, and the rows hold exactly those keys as str."""
+    from aardwolf.statdb.libs import (
+        CP_COLUMNS,
+        CP_MOB_COLUMNS,
+        GQ_COLUMNS,
+        GQ_MOB_COLUMNS,
+        MOB_COLUMNS,
+        cp_report,
+        gq_report,
+        mob_report,
+    )
+
+    for columns in (CP_COLUMNS, CP_MOB_COLUMNS, GQ_COLUMNS, GQ_MOB_COLUMNS, MOB_COLUMNS):
+        keys = [column["key"] for column in columns]
+        assert len(keys) == len(set(keys))
+    assert [column["name"] for column in CP_COLUMNS] == [
+        "ID", "Lvl", "QP", "BN", "TP", "TN", "PR", "Gold", "Mobs", "Time",
+    ]  # fmt: skip
+    assert [column["name"] for column in GQ_COLUMNS][3] == "QM"
+    assert [column["name"] for column in MOB_COLUMNS] == [
+        "Lvl", "Mob", "TXP", "XP", "RXP", "OXP", "TP", "S", "Gold",
+    ]  # fmt: skip
+    for report, columns in (
+        (lambda f: cp_report(full, 5, None, f), CP_COLUMNS),
+        (lambda f: cp_report(full, 0, 1, f), CP_COLUMNS),
+        (lambda f: gq_report(full, 5, None, f), GQ_COLUMNS),
+        (lambda f: gq_report(full, 0, 1, f), GQ_COLUMNS),
+        (lambda f: mob_report(full, 5, f), MOB_COLUMNS),
+    ):
+        rec = TableRecorder()
+        report(formatters(table=rec))
+        for row in _recorded(rec):
+            assert list(row) == [column["key"] for column in columns]
+            assert all(isinstance(value, str) for value in row.values())

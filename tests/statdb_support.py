@@ -35,12 +35,29 @@ def make_db(directory: Path, *, journal_mode: str | None = None) -> "Sqldb":
     )
 
 
-def formatters(line_length: int = 40) -> "Formatters":
-    """Return report formatters that need no bastproxy plugin."""
+class TableRecorder:
+    """A stand-in for table.format: records each call and returns the title as the one line."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
+
+    def __call__(
+        self, title: str, data: list[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        self.calls.append((title, list(data), columns))
+        return [title]
+
+
+def formatters(line_length: int = 40, table: TableRecorder | None = None) -> "Formatters":
+    """Return report formatters that need no bastproxy plugin.
+
+    ``table`` records the table.format calls; without one a recorder is made.
+    """
     from aardwolf.statdb.libs import Formatters
 
     return Formatters(
         format_time=lambda seconds: f"{int(seconds)}s",
         readable=lambda number: f"<{number}>",
+        table=table if table is not None else TableRecorder(),
         line_length=line_length,
     )

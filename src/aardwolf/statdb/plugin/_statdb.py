@@ -356,6 +356,9 @@ class StatdbPlugin(BasePlugin):
         return Formatters(
             format_time=self.api("plugins.core.utils:timelength.format"),
             readable=self.api("plugins.core.utils:number.to.readable"),
+            table=lambda title, data, columns: list(
+                self.api("plugins.core.utils:table.format")(title, data, columns)
+            ),
             line_length=int(self.api("plugins.core.proxy:line.length.get")()),
             time_format=str(self._setting(SETTING_TIME_FORMAT)),
         )
@@ -375,7 +378,7 @@ class StatdbPlugin(BasePlugin):
         """List milestones."""
         if self.statdb is None:
             return CommandResult(True, [NO_DB])
-        return CommandResult(True, list_milestones(self.statdb))
+        return CommandResult(True, list_milestones(self.statdb, self._formatters()))
 
     @AddCommand(group="Milestones")
     @AddParser(description="compare milestones")
