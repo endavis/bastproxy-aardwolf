@@ -117,7 +117,7 @@ def test_list_milestones_three_to_a_row(empty: "StatStore") -> None:
         empty.add_milestone(extra)
     list_milestones(empty, fmt)
     assert len(_recorded(rec, -1)) == 2
-    assert _recorded(rec, -1)[1] == {"first": "b", "second": "c"}
+    assert _recorded(rec, -1)[1] == {"first": "b", "second": "c", "third": ""}
     empty.add_milestone("d")
     list_milestones(empty, fmt)
     assert _recorded(rec, -1)[1] == {"first": "b", "second": "c", "third": "d"}
@@ -710,8 +710,31 @@ def test_milestone_data_groups_names_three_to_a_row() -> None:
     assert milestone_data([]) == []
     assert milestone_data(["a", "b", "c", "d"]) == [
         {"first": "a", "second": "b", "third": "c"},
-        {"first": "d"},
+        {"first": "d", "second": "", "third": ""},
     ]
+
+
+@pytest.mark.parametrize("count", [1, 2, 4, 5])
+def test_milestone_data_rows_have_every_column_key(count: int) -> None:
+    """A short last row has every key of the columns, "" for the missing cells."""
+    from aardwolf.statdb.libs import MILESTONE_COLUMNS, milestone_data
+
+    names = [f"m{number}" for number in range(count)]
+    keys = [column["key"] for column in MILESTONE_COLUMNS]
+    data = milestone_data(names)
+    assert all(list(row) == keys for row in data)
+    cells = [cell for row in data for cell in row.values()]
+    assert cells[:count] == names
+    assert set(cells[count:]) <= {""}
+
+
+def test_milestone_text_pads_the_short_row_for_the_table() -> None:
+    """The recorded table of four names has a last row with every key."""
+    from aardwolf.statdb.libs import MilestoneList, milestone_text
+
+    rec = TableRecorder()
+    milestone_text(MilestoneList("", ["a", "b", "c", "d"]), formatters(table=rec))
+    assert rec.calls[0][1][1] == {"first": "d", "second": "", "third": ""}
 
 
 def test_milestone_text_without_names_has_no_table() -> None:
