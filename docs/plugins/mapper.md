@@ -36,8 +36,9 @@ core `plugins.client.mapper`, so loading it loads them too.
 
 - **Capture.** On `ev_plugins.aardwolf.move_room` the room in `to` is added with `room.add` and made
   the current room with `room.current.set`. The room dict maps `num` to `uid`, `zone` to `area`,
-  `coord.x` and `coord.y` to `x` and `y` (`z` is 0), and keeps `details`, the coord id and the
-  continent in `details`. The name has its colour codes stripped. The exits go inside the `room.add`
+  `coord.x` and `coord.y` to `x` and `y` only when the coord's `cont` is 1 (a continent, real
+  coordinates; `z` is 0). Other rooms leave `x` and `y` unset (None) because their coordinates are
+  shared by the whole area. It keeps `details`, the coord id and `cont` in `details`. The name has its colour codes stripped. The exits go inside the `room.add`
   payload, as `{direction: uid}`; an exit to an unknown room is `-1`. The core stores each exit and
   compares them with the stored ones.
 - **First room.** The first room after a load or a reconnect raises no `move_room`, so the plugin

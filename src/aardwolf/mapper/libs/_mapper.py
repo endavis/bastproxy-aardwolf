@@ -176,13 +176,15 @@ def room_from_gmcp(info: Mapping[str, Any], name: str, flags: list[str]) -> dict
     coord = coord if isinstance(coord, dict) else {}
     exits = info.get("exits")
     exits = exits if isinstance(exits, dict) else {}
+    # Only a continent (cont == 1) has real coordinates; other rooms share their area's.
+    on_continent = coord.get("cont") == 1
     return {
         "uid": room_uid(info),
         "name": name,
         "area": info.get("zone"),
         "terrain": info.get("terrain"),
-        "x": _maybe_int(coord.get("x")),
-        "y": _maybe_int(coord.get("y")),
+        "x": _maybe_int(coord.get("x")) if on_continent else None,
+        "y": _maybe_int(coord.get("y")) if on_continent else None,
         "z": 0,
         "details": {
             "details": info.get("details"),
