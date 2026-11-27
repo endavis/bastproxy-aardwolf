@@ -142,7 +142,10 @@ class MapperPlugin(BasePlugin):
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
-        """Add the setting and triggers, register the callbacks and seed the room."""
+        """Add the setting and triggers, register the callbacks and seed the room.
+
+        Last, it adds the mapper commands under the core mapper (#189).
+        """
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             SETTING_CEXIT_TIMEOUT,
@@ -159,6 +162,17 @@ class MapperPlugin(BasePlugin):
         if room_uid(info) is not None:
             self._process_room(info)
         self._add_routes()
+        self._add_client_commands()
+
+    def _add_client_commands(self) -> None:
+        """Add each command of this plugin under the core mapper as well.
+
+        They keep their own names too. The core logs a refusal to this plugin's log.
+        """
+        add = self.api("plugins.core.commands:command.add.for.plugin")
+        for name in sorted(vars(MapperPlugin)):
+            if name.startswith("_command_"):
+                add(MAPPER, getattr(self, name))
 
     def _setting(self, name: str) -> object:
         """Return the value of a setting of this plugin."""

@@ -65,6 +65,8 @@ class FakeApi:
         self.routes: dict[str, tuple[Callable[..., Any], str, list[dict[str, str]]]] = {}
         self.route_result: str | None = "/aardwolf/mapper"
         self.removed: list[str] = []
+        self.hosted: list[tuple[str, Callable[..., Any]]] = []
+        self.host_accepts = True
         self.settings: dict[str, Any] = {}
         self.validators: dict[str, Callable[..., Any]] = {}
 
@@ -99,6 +101,7 @@ class FakeApi:
             f"{MAPPER}:exit.remove": lambda *args: True,
             "libs.asynch:task.add": lambda coro, name: self.tasks.append(coro),
             "plugins.core.commands:command.current.args.get": lambda: self.args,
+            "plugins.core.commands:command.add.for.plugin": self._host_add,
             "plugins.core.settings:setting.add": self._setting_add,
             "plugins.core.settings:setting.get": lambda pid, name: self.settings[name],
             f"{MAPPER}:area.add": lambda **kwargs: True,
@@ -124,6 +127,12 @@ class FakeApi:
             ),
         }
         return record if name in table else table[name]
+
+    def _host_add(self, host_id: str, func: Callable[..., Any]) -> bool:
+        if not self.host_accepts:
+            return False
+        self.hosted.append((host_id, func))
+        return True
 
     def _setting_add(self, pid: str, name: str, default: object, *a: object, **kw: object) -> None:
         self.settings.setdefault(name, default)
@@ -229,6 +238,71 @@ def test_after_load_registers(env: Env) -> None:
     assert env.fake.trigger_adds == [("noportal", NOPORTAL_REGEX), ("norecall", NORECALL_REGEX)]
     assert set(env.fake.trigger_regs) == {"noportal", "norecall"}
     assert set(env.fake.callbacks) == {"requirement", "movement"}
+
+
+def own_command_names() -> set[str]:
+    """Return the _command_ names this plugin class defines."""
+    from aardwolf.mapper.plugin._mapper import MapperPlugin
+
+    return {n for n in vars(MapperPlugin) if n.startswith("_command_")}
+
+
+def test_after_load_adds_commands_under_client_mapper(env: Env) -> None:
+    """Every command of the class is added under the core mapper, bound to the plugin."""
+    hosted = env.fake.hosted
+    assert {host for host, _ in hosted} == {MAPPER}
+    assert all(func.__self__ is env.plugin for _, func in hosted)  # type: ignore[attr-defined]
+    names = {func.__name__ for _, func in hosted}
+    assert names == own_command_names()
+    assert len(names) == 17
+    assert not names & {"_command_help", "_command_save", "_command_reset", "_command_set"}
+
+
+def test_hosted_command_runs_the_aardwolf_function(env: Env) -> None:
+    """A hosted command gives the same lines as calling the method directly."""
+    func = next(f for _, f in env.fake.hosted if f.__name__ == "_command_shops")
+    assert func() == env.plugin._command_shops()
+
+
+def test_refused_command_does_not_stop_load(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When the core mapper refuses the commands, the rest of the load still happens."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    fake = FakeApi()
+    fake.host_accepts = False
+    build(fake, [])
+    assert fake.hosted == []
+    assert set(fake.trigger_regs) == {"noportal", "norecall"}
+    assert set(fake.callbacks) == {"requirement", "movement"}
+    assert fake.routes
+
+
+def test_commands_keep_their_old_names(env: Env) -> None:
+    """Each hosted command still has autoadd set, so it keeps its own name."""
+    for _, func in env.fake.hosted:
+        assert func.command_data.command["autoadd"] is True  # type: ignore[attr-defined]
+
+
+def test_no_clash_with_core_mapper_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The command names of the two plugins stay apart, so hosting cannot clash."""
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    from bastproxy.plugins.client.mapper.plugin._mapper import MapperPlugin as CoreMapper
+
+    def names(cls: type) -> set[str]:
+        return {
+            n.removeprefix("_command_")
+            for n, f in vars(cls).items()
+            if n.startswith("_command_") and hasattr(f, "command_data")
+        }
+
+    from aardwolf.mapper.plugin._mapper import MapperPlugin
+
+    core = names(CoreMapper)
+    assert core
+    assert not core & names(MapperPlugin)
 
 
 def test_seed_from_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
