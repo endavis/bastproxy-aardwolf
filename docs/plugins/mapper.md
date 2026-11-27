@@ -128,11 +128,14 @@ core `plugins.client.mapper`, so loading it loads them too.
 - A blind character may see the noportal and norecall lines differently; the old MUSHclient plugin
   checked for blindness first, this one does not.
 - If the core mapper is reloaded without this plugin, the callbacks are lost until the plugin is
-  reloaded.
+  reloaded. The commands under `#bp.client.mapper` come back by themselves when the core mapper
+  reloads.
 
 ## Commands
 
-The commands are `#bp.aardwolf.mapper.<command>`.
+The commands are `#bp.client.mapper.<command>`, listed in an `aardwolf.mapper` section, with "Added
+by aardwolf.mapper" in their help. The old `#bp.aardwolf.mapper.<command>` names still work but are
+deprecated.
 
 | Command | Output |
 | :--- | :--- |
