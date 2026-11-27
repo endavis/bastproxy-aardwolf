@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795742516100,
+  "lastUpdate": 1795742855693,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3419,6 +3419,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00000768183605438982",
             "extra": "mean: 5.970716225517797 usec\nrounds: 175717"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97bba6986a57c393f22de204bb4fbcd4ad15e418",
+          "message": "refactor: print the statmn totals table through the core table.format API (merges PR #194, addresses #191)\n\nThe per-type totals table of the statmn report was laid out by hand with a\nfixed format string and two dividers. It now goes through\nplugins.core.utils:table.format, passed into the libs through Formatters.\nThe libs hold the column list and a pure stat_data helper; colour stays in\nthe cells. The centre title line keeps the linelength setting; the table\nitself takes the proxy's line length and left-aligns its cells.\n\nTests rewritten because they only checked the old layout: the report layout\nand line-length tests in test_statmn_libs.py, and the line-length and timer\nreport tests in test_statmn_plugin.py. The cells, order and counts they\nassert are unchanged.\n\nPart 2 of 5 under #191. Addresses #191\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T01:27:01Z",
+          "tree_id": "d14e43f0d8767f3c30c31938725b57ad76fb9c0b",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/97bba6986a57c393f22de204bb4fbcd4ad15e418"
+        },
+        "date": 1795742855049,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3110209.416250026,
+            "unit": "iter/sec",
+            "range": "stddev: 4.680628289383276e-8",
+            "extra": "mean: 321.5217582376489 nsec\nrounds: 190877"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 152034.1196067736,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000002712762247554549",
+            "extra": "mean: 6.577470916307703 usec\nrounds: 175717"
           }
         ]
       }
