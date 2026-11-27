@@ -14,7 +14,9 @@ from aardwolf.mapper.libs import (
     PLACE_TEXT_COLUMNS,
     PORTAL_PREFIX,
     PORTAL_TEXT_COLUMNS,
+    ROOM_MARKERS,
     SEARCHES,
+    TERRAIN_COLORS,
     PortalStep,
     area_arg,
     area_from_gmcp,
@@ -35,6 +37,7 @@ from aardwolf.mapper.libs import (
     resolve_portal,
     room_from_gmcp,
     room_link,
+    room_markers,
     room_uid,
     serial_arg,
     split_command,
@@ -596,3 +599,63 @@ def test_movement_plan() -> None:
     assert movement_plan(steps[1:2]) == [PortalStep(9)]
     # a marker that is not from * is a plain command
     assert movement_plan([{"fromuid": "1", "dir": marker}]) == [(0.0, [marker])]
+
+
+def made_up_room(details: object) -> dict[str, Any]:
+    """Return a made-up room dict carrying the given details."""
+    return {"uid": "9001", "details": details, "flags": [], "terrain": "city"}
+
+
+@pytest.mark.parametrize(
+    ("text", "markers"),
+    [
+        ("graffiti", ["G"]),
+        ("pk", ["P"]),
+        ("shop", ["$"]),
+        ("healer", ["H"]),
+        ("bank", ["B"]),
+        ("trainer", ["T"]),
+        ("questor", ["Q"]),
+        ("graffiti,shop,pk", ["$", "P", "G"]),
+        ("  PK , Shop ,Healer", ["$", "H", "P"]),
+        ("shop,shop", ["$"]),
+        ("fountain,Shop,unknown", ["$"]),
+        ("fountain, unknown", []),
+        ("", []),
+    ],
+)
+def test_room_markers(text: str, markers: list[str]) -> None:
+    """Notable details give their markers, once each, in table order."""
+    assert room_markers(made_up_room({"details": text, "coord_id": 1, "cont": 0})) == markers
+
+
+@pytest.mark.parametrize("details", [None, "shop", 5, {}, {"details": None}, {"details": 7}])
+def test_room_markers_malformed_details(details: object) -> None:
+    """Details that are not a dict with text give no markers."""
+    assert room_markers(made_up_room(details)) == []
+
+
+def test_room_markers_without_details_key_or_dict() -> None:
+    """A room without details, or not a dict, gives no markers."""
+    assert room_markers({"uid": "1"}) == []
+    assert room_markers(None) == []
+
+
+def test_marker_letters_are_unique() -> None:
+    """Every detail has its own marker and no two share one."""
+    markers = list(ROOM_MARKERS.values())
+    assert len(set(markers)) == len(markers)
+    assert all(len(marker) == 1 for marker in markers)
+    assert not set(markers) & {"N", "R"}
+
+
+def test_terrain_colors_cover_known_terrains() -> None:
+    """Every known Aardwolf terrain has a valid #rgb or #rrggbb colour."""
+    known = {
+        "air", "cave", "city", "desert", "dungeon", "field", "forest", "hills", "inside",
+        "jungle", "lava", "mountain", "road", "sand", "shore", "swamp", "underwater", "water",
+    }  # fmt: skip
+    assert known <= set(TERRAIN_COLORS)
+    for terrain, color in TERRAIN_COLORS.items():
+        assert terrain == terrain.lower()
+        assert re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})", color), terrain

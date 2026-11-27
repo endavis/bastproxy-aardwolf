@@ -56,6 +56,7 @@ class FakeApi:
         self.trigger_adds: list[tuple[str, str]] = []
         self.trigger_regs: dict[str, Callable[..., Any]] = {}
         self.callbacks: dict[str, Callable[..., Any]] = {}
+        self.map_display: dict[str, object] = {}
         self.current: str | None = None
         self.args: dict[str, Any] = {}
         self.tasks: list[Coroutine[Any, Any, None]] = []
@@ -110,6 +111,10 @@ class FakeApi:
             f"{MAPPER}:requirement.unregister": lambda owner: None,
             f"{MAPPER}:movement.register": self._register("movement"),
             f"{MAPPER}:movement.unregister": lambda owner: None,
+            f"{MAPPER}:room.marker.register": self._register_extra("marker"),
+            f"{MAPPER}:room.marker.unregister": lambda owner: None,
+            f"{MAPPER}:terrain.color.register": self._register_extra("terrain"),
+            f"{MAPPER}:terrain.color.unregister": lambda owner: None,
             "libs.api:api.exists": lambda name: (
                 (self.web and name.startswith(WEB)) or (self.eq.present and name in self.eq.table())
             ),
@@ -141,6 +146,13 @@ class FakeApi:
 
     def _set_current(self, uid: str) -> None:
         self.current = uid
+
+    def _register_extra(self, kind: str) -> Callable[[str, object], None]:
+        def register(owner: str, value: object) -> None:
+            assert owner == PLUGIN_ID
+            self.map_display[kind] = value
+
+        return register
 
     def _register(self, kind: str) -> Callable[[str, Callable[..., Any]], None]:
         def register(owner: str, callback: Callable[..., Any]) -> None:
@@ -239,6 +251,17 @@ def test_after_load_registers(env: Env) -> None:
     assert env.fake.trigger_adds == [("noportal", NOPORTAL_REGEX), ("norecall", NORECALL_REGEX)]
     assert set(env.fake.trigger_regs) == {"noportal", "norecall"}
     assert set(env.fake.callbacks) == {"requirement", "movement"}
+    assert set(env.fake.map_display) == {"marker", "terrain"}
+
+
+def test_registered_marker_callback_and_colours(env: Env) -> None:
+    """The marker callback marks a room and the colours are the terrain table."""
+    from aardwolf.mapper.libs import TERRAIN_COLORS
+
+    room = {"details": {"details": "Shop, graffiti"}, "flags": [], "terrain": "city"}
+    marker = cast("Callable[..., Any]", env.fake.map_display["marker"])
+    assert marker(room) == ["$", "G"]
+    assert env.fake.map_display["terrain"] == dict(TERRAIN_COLORS)
 
 
 def own_command_names() -> set[str]:
@@ -476,6 +499,8 @@ def test_uninitialize(env: Env) -> None:
     env.plugin._phook_uninitialize()
     assert env.fake.called(f"{MAPPER}:requirement.unregister") == [(PLUGIN_ID,)]
     assert env.fake.called(f"{MAPPER}:movement.unregister") == [(PLUGIN_ID,)]
+    assert env.fake.called(f"{MAPPER}:room.marker.unregister") == [(PLUGIN_ID,)]
+    assert env.fake.called(f"{MAPPER}:terrain.color.unregister") == [(PLUGIN_ID,)]
 
 
 CEXIT = "open north;wait(2);north"

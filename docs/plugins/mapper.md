@@ -110,7 +110,43 @@ core `plugins.client.mapper`, so loading it loads them too.
   changed exit targets until `#bp.client.mapper.accept <uid>`. A replaced area can still be dropped
   with `#bp.client.mapper.purge -a <old>`, and a room whose exits vary can be set with
   `#bp.client.mapper.ignoreexits <uid>`.
+- **Map markers and colours.** On initialize the plugin registers a room marker callback
+  (`room.marker.register`) and the terrain colours (`terrain.color.register`) with the core mapper,
+  and takes both back on uninitialize. The core area map draws the markers inside the room box and
+  fills it with the terrain colour; see the two tables under [Map markers and terrain
+  colours](#map-markers-and-terrain-colours).
 - **Disconnect.** Clears the current room and the pending area requests.
+
+### Map markers and terrain colours
+
+A room gets one marker per matching item in its comma separated details (case and spaces ignored),
+once each, in the order of this table. Flags are drawn by the core mapper and get no marker here.
+
+| Detail | Marker |
+| :--- | :--- |
+| `shop` | `$` |
+| `bank` | `B` |
+| `healer` | `H` |
+| `trainer` | `T` |
+| `questor` | `Q` |
+| `pk` | `P` |
+| `graffiti` | `G` |
+
+The terrain colours are chosen to be close to the MUSHclient mapper's where known and are otherwise
+reasonable picks; they are not sourced from a reference. A terrain not in the table gets the core
+mapper's stable fallback colour.
+
+| Terrain | Colour | Terrain | Colour |
+| :--- | :--- | :--- | :--- |
+| `air` | `#87ceeb` | `mountain` | `#8b7d7b` |
+| `cave` | `#6b5b4b` | `road` | `#d2b48c` |
+| `city` | `#a9a9a9` | `sand` | `#f0e68c` |
+| `desert` | `#e6c875` | `shore` | `#e0d0a0` |
+| `dungeon` | `#4b4b5a` | `swamp` | `#556b2f` |
+| `field` | `#9acd32` | `underwater` | `#1e5aa0` |
+| `forest` | `#228b22` | `water` | `#4169e1` |
+| `hills` | `#8f9f5f` | `lava` | `#ff4500` |
+| `inside` | `#c8b89a` | `jungle` | `#006400` |
 
 ### Limitations
 
