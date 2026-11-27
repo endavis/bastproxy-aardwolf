@@ -25,7 +25,7 @@ The plugin id is `plugins.aardwolf.cp`:
 #bp.core.pluginm.load plugins.aardwolf.cp
 ```
 
-It depends on the events, triggers, mudcmds and commands core plugins and on the
+It depends on the events, triggers, mudcmds, commands and utils core plugins and on the
 [connect plugin](connect.md) and on the [config plugin](config.md). The [mobk plugin](mobk.md) is optional: without it the mobs left are only
 refreshed by a new `campaign check`.
 
@@ -128,7 +128,7 @@ Each payload is a deep copy; changing it does not change the state. statdb store
 
 | Command | Does |
 | :--- | :--- |
-| `show` | lists the mobs left, dead ones in red, or says the character is not on a campaign |
+| `show` | lists the mobs left in a table, dead ones in red, or says the character is not on a campaign |
 | `refresh` | queues a `campaign check` when on a campaign |
 
 ## Changes from the old plugin

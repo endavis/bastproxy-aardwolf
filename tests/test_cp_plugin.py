@@ -2,7 +2,7 @@
 
 import logging
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -24,6 +24,7 @@ from aardwolf.cp.libs import (
     EVENT_QUESTMASTERS_CHANGED,
     HIDE_MAX_LINES,
     INFO_HIDE_START,
+    MOBS_LEFT_COLUMNS,
     TRIGGERS,
 )
 from aardwolf.cp.libs import EVENTS as SUFFIX_EVENTS
@@ -135,6 +136,7 @@ class FakeApi:
         self.started: list[str] = []
         self.finished: list[str] = []
         self.current: str | None = None
+        self.tables: list[tuple[str, list[dict[str, str]], list[dict[str, str]]]] = []
         self.table: dict[str, Callable[..., Any]] = {
             "plugins.core.events:event.add": self._event_add,
             "plugins.core.events:event.raise": self._event_raise,
@@ -149,6 +151,7 @@ class FakeApi:
             "plugins.core.mudcmds:command.queue": self._command_queue,
             "plugins.core.mudcmds:command.start": self.started.append,
             "plugins.core.mudcmds:command.finish": self._command_finish,
+            "plugins.core.utils:table.format": self._table_format,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
             "libs.api:character.is.active": lambda: self.active,
         }
@@ -188,6 +191,13 @@ class FakeApi:
         for name, kwargs in self.kwargs.items():
             if kwargs.get("group") == group:
                 self.enabled[name] = flag
+
+    def _table_format(
+        self, title: str, data: Iterable[dict[str, str]], columns: list[dict[str, str]]
+    ) -> list[str]:
+        """Record a table.format call and return its title as the lines."""
+        self.tables.append((title, list(data), columns))
+        return [title]
 
     def _type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: object) -> None:
         self.types[cmdtype] = dict(kwargs)
@@ -326,6 +336,7 @@ def test_dependencies() -> None:
     from aardwolf import cp
 
     assert "plugins.core.mudcmds" in cp.PLUGIN_DEPENDENCIES
+    assert "plugins.core.utils" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.connect" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.config" in cp.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.mobk" not in cp.PLUGIN_DEPENDENCIES
@@ -700,9 +711,26 @@ def test_show_command(env: Env) -> None:
     env.take_cp(RAT, BAT)
     result = env.plugin._command_show()
     assert result.success is True
-    assert result.message[0] == "Mobs left:"
-    assert any(line.startswith("@wA rat") for line in result.message)
-    assert any(line.startswith("@RA bat") for line in result.message)
+    assert result.message == ["Mobs left"]
+    assert env.fake.tables == [
+        (
+            "Mobs left",
+            [
+                {"name": "@wA rat", "location": "@wSewers"},
+                {"name": "@RA bat", "location": "@RCave"},
+            ],
+            MOBS_LEFT_COLUMNS,
+        )
+    ]
+
+
+def test_show_command_with_no_mobs_left(env: Env) -> None:
+    """show prints the table once with no rows when no mob is left."""
+    env.take_cp(RAT)
+    env.plugin.cp["mobsleft"] = []
+    result = env.plugin._command_show()
+    assert result.success is True
+    assert env.fake.tables == [("Mobs left", [], MOBS_LEFT_COLUMNS)]
 
 
 def test_refresh_command(env: Env) -> None:

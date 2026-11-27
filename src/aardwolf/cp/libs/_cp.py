@@ -1,7 +1,7 @@
 """Constants, regexes and state helpers of the cp plugin. No bastproxy imports."""
 
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, NamedTuple
 
 from aardwolf._libs import aardu
@@ -348,6 +348,31 @@ def new_state(now: float, level: int) -> dict[str, Any]:
 def new_mob(name: str, location: str, dead: object) -> dict[str, Any]:
     """Return a mob of the campaign; the trigger matches the name without colour."""
     return {"name": name, "nocolorname": name, "location": location, "mobdead": bool(dead)}
+
+
+# the columns of the mobs left table: the header of a column and the key of its cell
+MOBS_LEFT_COLUMNS: list[dict[str, str]] = [
+    {"name": "Mob Name", "key": "name"},
+    {"name": "Area/Room", "key": "location"},
+]
+
+
+def mobs_left_table_data(mobs: Iterable[Mapping[str, Any]]) -> list[dict[str, str]]:
+    """Return the mobs left as one dict of coloured text cells per mob, in order.
+
+    Each cell starts with ``@R`` for a dead mob and ``@w`` for a live one, because the table
+    resets the colour after every cell.
+    """
+    rows: list[dict[str, str]] = []
+    for mob in mobs:
+        color = "@R" if mob.get("mobdead") else "@w"
+        rows.append(
+            {
+                "name": f"{color}{mob.get('name', '')}",
+                "location": f"{color}{mob.get('location', '')}",
+            }
+        )
+    return rows
 
 
 def parse_time_left(text: str) -> int | None:
