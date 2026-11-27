@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795787293401,
+  "lastUpdate": 1795792924399,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3685,6 +3685,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 9.14936234762223e-7",
             "extra": "mean: 5.810075657362242 usec\nrounds: 178859"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7081d89a148d7232fa7637ab2d27869bb9c2b450",
+          "message": "fix: store mapper room coordinates only for continent rooms (merges PR #204, addresses #203)\n\nfix: store room x and y only for continent rooms\n\nRooms outside a continent (coord.cont 0) share one x/y pair for the\nwhole area, so storing it put unrelated rooms on the same map spot.\nroom_from_gmcp now sets x and y from the GMCP coord only when cont is 1\nand leaves them unset (None) otherwise. coord_id and cont stay in details.\nThe core room_differences skips a None update, so such a room is not\nreported as a mismatch on every visit.\n\nThe MUSHclient import is unchanged: the old map db has no cont column.\n\nAddresses #203\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T15:21:24Z",
+          "tree_id": "6a3eadd78d03cb444d41cc90c27f7fed9ea5bd66",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/7081d89a148d7232fa7637ab2d27869bb9c2b450"
+        },
+        "date": 1795792923672,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3094350.4173344844,
+            "unit": "iter/sec",
+            "range": "stddev: 4.617181862507515e-8",
+            "extra": "mean: 323.1696043208363 nsec\nrounds: 187618"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 165753.121243169,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000013827779104342787",
+            "extra": "mean: 6.0330688948713345 usec\nrounds: 175717"
           }
         ]
       }
