@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795771849125,
+  "lastUpdate": 1795772659685,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3609,6 +3609,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 6.420350031719799e-7",
             "extra": "mean: 5.03475016544524 usec\nrounds: 105776"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d3a04ca20a2dce9b56bab9b714fad197fe14c7c",
+          "message": "docs: correct the itemid notes that say the old itype was a number (merges PR #200, addresses #172)\n\nTwo \"Changes from the old plugin\" entries said the old itype was an int,\nso format crashed and the Light and Portal checks never matched. In the\nold code path itype was the name from the {invheader} line, so those\nworked. The two entries become one \"Changed\" entry that says what did\nchange: parse_item_data maps the name to its OBJECTTYPES number, and\nformat takes the shown name from the table and compares the number with\nOBJECTTYPESREV.\n\nAddresses #172\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T09:43:47Z",
+          "tree_id": "2697a44aa2e1a1c9bc072423865fdf3a782c7fe6",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/6d3a04ca20a2dce9b56bab9b714fad197fe14c7c"
+        },
+        "date": 1795772659197,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3043825.1195261716,
+            "unit": "iter/sec",
+            "range": "stddev: 5.136067260232688e-8",
+            "extra": "mean: 328.5339862612306 nsec\nrounds: 195351"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 168705.46500789083,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000011350282252698244",
+            "extra": "mean: 5.9274902561883644 usec\nrounds: 174521"
           }
         ]
       }
