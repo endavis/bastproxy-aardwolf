@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795815450055,
+  "lastUpdate": 1795815759093,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3837,6 +3837,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 4.769942191123686e-7",
             "extra": "mean: 4.534448531453955 usec\nrounds: 113341"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "166c303863a96de9767d89a4d7396d6844b19fcf",
+          "message": "feat: offer the character vitals as a web data provider (merges PR #214, addresses #210)\n\nThe connect plugin registers a JSON provider, aardwolf.connect.vitals,\nbuilt from the GMCP char.vitals, char.maxstats, char.status and\nchar.base data (hp, mana, moves with maxima, level, tier, remorts, tnl,\nalignment, state, position, enemy and enemy percentage). A field not\nsent yet is null. It raises web.provider.changed once per package and on\nMUD disconnect. The fields are documented in docs/plugins/connect.md.\n\nuv.lock moves bastproxy to current core main, which has\nweb.provider.add and brings websockets in transitively. That bump\nremoved core's private _html_line, so\ntest_the_core_renderer_shows_the_escaped_text now builds its to_html\nfrom the current core renderer; its assertions are unchanged.\n\nAddresses #210\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T21:42:01Z",
+          "tree_id": "cabeef538eea47ad0ec49354ddd1d451884faa27",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/166c303863a96de9767d89a4d7396d6844b19fcf"
+        },
+        "date": 1795815758669,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3667091.1502274442,
+            "unit": "iter/sec",
+            "range": "stddev: 4.0522373929998905e-8",
+            "extra": "mean: 272.6957032246054 nsec\nrounds: 196310"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 185922.19313955857,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000017350927980105337",
+            "extra": "mean: 5.37859404040792 usec\nrounds: 107608"
           }
         ]
       }
