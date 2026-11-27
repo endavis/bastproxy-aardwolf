@@ -25,7 +25,7 @@ The plugin id is `plugins.aardwolf.cp`:
 #bp.core.pluginm.load plugins.aardwolf.cp
 ```
 
-It depends on the events, triggers, mudcmds, commands and utils core plugins and on the
+It depends on the events, triggers, mudcmds, commands, utils and web core plugins and on the
 [connect plugin](connect.md) and on the [config plugin](config.md). The [mobk plugin](mobk.md) is optional: without it the mobs left are only
 refreshed by a new `campaign check`.
 
@@ -123,6 +123,34 @@ Each payload is a deep copy; changing it does not change the state. statdb store
 | :--- | :--- |
 | `plugins.aardwolf.cp:oncp` | True when the character is on a campaign |
 | `plugins.aardwolf.cp:mobs.left.get` | a copy of the mobs left |
+
+## Web data providers
+
+The plugin registers two data providers with the core web plugin (`plugins.core.web:web.provider.add`), so
+the web client can show them. The web plugin removes them when this plugin unloads, and
+`#bp.core.web.status` lists them. Every change raises `web.provider.changed.raise` for the
+provider, so a page updates without polling.
+
+| Topic | Page path | Kind |
+| :--- | :--- | :--- |
+| `aardwolf.cp.mobsleft` | `/aardwolf/cp/mobsleft` | table |
+| `aardwolf.cp.summary` | `/aardwolf/cp/summary` | json |
+
+`mobsleft` has one row for each mob left and these columns:
+
+| Column | Label | Type |
+| :--- | :--- | :--- |
+| `name` | Mob | text |
+| `location` | Location | text |
+| `dead` | Dead | int (1 for a dead mob, else 0) |
+
+The table is empty when the character is not on a campaign. Cell text is plain: the core web
+plugin escapes colour codes.
+
+`summary` is json with `oncp`, `level` (the total level when the campaign started),
+`completeby` (the Complete By text of the server), `starttime`, `endtime` (the start plus 7 days),
+`timeleft` (seconds, never below 0) and `mobsleft` (the count). Off a campaign `oncp` is false,
+the count is 0 and the other fields are null.
 
 ## Commands
 

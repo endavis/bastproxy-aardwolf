@@ -17,6 +17,11 @@ ACTION_EVENTS: dict[str, str] = {
     "reset": "reset",
 }
 
+# the core web plugin APIs, used by name because a plugin never imports another plugin
+WEB_PROVIDER_ADD = "plugins.core.web:web.provider.add"
+WEB_PROVIDER_CHANGED = "plugins.core.web:web.provider.changed.raise"
+PROVIDER_CURRENT = "current"
+
 _STATE_KEYS = {
     "starttime": "the time the quest started, in seconds since the epoch",
     "finishtime": "the time the quest ended, or -1",
@@ -96,4 +101,34 @@ def start_state(data: Mapping[str, Any], now: float, level: int) -> dict[str, An
         "stimer": data.get("timer", -1),
         "level": level,
         "failed": 0,
+    }
+
+
+def quest_current(state: Mapping[str, Any], now: float) -> dict[str, Any]:
+    """Return the current quest for the web page: target, area, room, end and the outcome.
+
+    ``active`` is True from the start message until the quest is completed or fails. The end
+    time is the start plus the timer of the start message, and the time left only counts
+    while the quest is active. An empty state gives None values and False flags.
+    """
+    name = state.get("mobname") or None
+    failed = bool(state.get("failed"))
+    finished = state.get("finishtime", -1) != -1
+    active = name is not None and not finished and not failed
+    starttime = state.get("starttime") or None
+    stimer = state.get("stimer", -1)
+    endtime = None
+    if starttime is not None and isinstance(stimer, int | float) and stimer >= 0:
+        endtime = starttime + stimer * 60
+    return {
+        "active": active,
+        "target": name,
+        "area": (state.get("mobarea") or None) if name else None,
+        "room": (state.get("mobroom") or None) if name else None,
+        "starttime": starttime,
+        "endtime": endtime,
+        "timeleft": max(0, int(endtime - now)) if active and endtime is not None else None,
+        "killed": state.get("killedtime", -1) != -1,
+        "complete": finished and not failed,
+        "failed": failed,
     }

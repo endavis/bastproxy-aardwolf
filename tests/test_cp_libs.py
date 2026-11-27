@@ -10,13 +10,16 @@ from aardwolf.cp.libs import (
     EVENTS,
     INFO_HIDE_START,
     MOBS_LEFT_COLUMNS,
+    MOBSLEFT_PROVIDER_COLUMNS,
     NEVER_REGEX,
     SUFFIX_COMP,
     TRIGGERS,
     bonus_qp,
+    cp_summary,
     info_mobs,
     info_starttime,
     is_count_line,
+    mobs_left_rows,
     mobs_left_table_data,
     name_has_several_locations,
     new_campaign_regex,
@@ -431,3 +434,67 @@ def test_mobs_left_table_data() -> None:
     ]
     assert mobs_left_table_data([{}]) == [{"name": "@w", "location": "@w"}]
     assert mobs_left_table_data([]) == []
+
+
+def test_provider_columns_match_the_row_cells() -> None:
+    """Each web column has a name, a label and a known type, and a row has a cell for each."""
+    assert [c["name"] for c in MOBSLEFT_PROVIDER_COLUMNS] == ["name", "location", "dead"]
+    for column in MOBSLEFT_PROVIDER_COLUMNS:
+        assert re.fullmatch("[a-z0-9_]+", column["name"])
+        assert column["type"] in ("text", "int", "float")
+    state = new_state(1000.0, 50)
+    state["mobsleft"] = [new_mob("A rat", "Sewers", ""), new_mob("A bat", "Cave", True)]
+    for row in mobs_left_rows(state):
+        assert len(row) == len(MOBSLEFT_PROVIDER_COLUMNS)
+
+
+def test_mobs_left_rows_are_empty_off_a_campaign() -> None:
+    """Off a campaign there are no rows, even with old mobs in the state."""
+    state = new_state(1000.0, 50)
+    state["mobsleft"] = [new_mob("A rat", "Sewers", "")]
+    state["oncp"] = False
+    assert mobs_left_rows(state) == []
+    assert mobs_left_rows({}) == []
+
+
+def test_mobs_left_rows_flag_the_dead() -> None:
+    """A row is the name, the location and 1 for a dead mob, else 0."""
+    state = new_state(1000.0, 50)
+    state["mobsleft"] = [new_mob("A rat", "Sewers", ""), new_mob("A bat", "Cave", True)]
+    assert mobs_left_rows(state) == [["A rat", "Sewers", 0], ["A bat", "Cave", 1]]
+
+
+def test_cp_summary_off_a_campaign() -> None:
+    """Off a campaign the summary says so, with no times and no mobs."""
+    assert cp_summary({}, 1000.0) == {
+        "oncp": False,
+        "level": None,
+        "completeby": None,
+        "starttime": None,
+        "endtime": None,
+        "timeleft": None,
+        "mobsleft": 0,
+    }
+
+
+def test_cp_summary_on_a_campaign() -> None:
+    """The end is the start plus the duration, and the time left counts down to it."""
+    state = new_state(1000.0, 50)
+    state["starttime"] = 1000.0
+    state["completeby"] = "12:34PM on 30 Nov 2026"
+    state["mobsleft"] = [new_mob("A rat", "Sewers", ""), new_mob("A bat", "Cave", "")]
+    summary = cp_summary(state, 1060.0)
+    assert summary["oncp"] is True
+    assert summary["level"] == 50
+    assert summary["completeby"] == "12:34PM on 30 Nov 2026"
+    assert summary["starttime"] == 1000.0
+    assert summary["endtime"] == 1000.0 + CP_DURATION
+    assert summary["timeleft"] == CP_DURATION - 60
+    assert summary["mobsleft"] == 2
+
+
+def test_cp_summary_clamps_the_time_left_at_zero() -> None:
+    """Past the end the time left is 0, not negative."""
+    state = new_state(1000.0, 50)
+    state["starttime"] = 1000.0
+    assert cp_summary(state, 1000.0 + CP_DURATION + 500)["timeleft"] == 0

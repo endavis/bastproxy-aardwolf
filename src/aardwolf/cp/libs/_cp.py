@@ -38,6 +38,18 @@ GROUP_REW = "cprew"
 GROUP_DONE = "cpdone"
 GROUP_INFO = "cpinfo"
 
+# the core web plugin APIs, used by name because a plugin never imports another plugin
+WEB_PROVIDER_ADD = "plugins.core.web:web.provider.add"
+WEB_PROVIDER_CHANGED = "plugins.core.web:web.provider.changed.raise"
+PROVIDER_MOBSLEFT = "mobsleft"
+PROVIDER_SUMMARY = "summary"
+# the columns of the mobsleft web provider; a cell is a row entry in this order
+MOBSLEFT_PROVIDER_COLUMNS: list[dict[str, str]] = [
+    {"name": "name", "label": "Mob", "type": "text"},
+    {"name": "location", "label": "Location", "type": "text"},
+    {"name": "dead", "label": "Dead", "type": "int"},
+]
+
 # a campaign lasts 7 days from the moment it is taken
 CP_DURATION = 7 * 24 * 3600
 
@@ -435,3 +447,41 @@ def bonus_qp(line: str) -> int | None:
 def is_count_line(line: str) -> bool:
     """Return True for the line that counts the campaigns completed today."""
     return re.match(COUNT_REGEX, line) is not None
+
+
+def mobs_left_rows(state: Mapping[str, Any]) -> list[list[Any]]:
+    """Return the mobs left as rows of name, location and dead (0 or 1); none off a campaign."""
+    if not state.get("oncp"):
+        return []
+    return [
+        [str(mob.get("name", "")), str(mob.get("location", "")), 1 if mob.get("mobdead") else 0]
+        for mob in state.get("mobsleft", [])
+    ]
+
+
+def cp_summary(state: Mapping[str, Any], now: float) -> dict[str, Any]:
+    """Return the campaign level, start, end, time left and mob count for the web page.
+
+    Off a campaign ``oncp`` is False, the other values are None and ``mobsleft`` is 0.
+    """
+    if not state.get("oncp"):
+        return {
+            "oncp": False,
+            "level": None,
+            "completeby": None,
+            "starttime": None,
+            "endtime": None,
+            "timeleft": None,
+            "mobsleft": 0,
+        }
+    starttime = state.get("starttime")
+    endtime = starttime + CP_DURATION if starttime else None
+    return {
+        "oncp": True,
+        "level": state.get("level"),
+        "completeby": state.get("completeby") or None,
+        "starttime": starttime or None,
+        "endtime": endtime,
+        "timeleft": max(0, int(endtime - now)) if endtime is not None else None,
+        "mobsleft": len(state.get("mobsleft", [])),
+    }

@@ -16,6 +16,7 @@ import aardwolf
 from aardwolf._libs.aardu import actual_level
 from aardwolf.gq.libs import (
     CMDTYPE,
+    MOBSLEFT_PROVIDER_COLUMNS,
     TRIGGERS,
 )
 from aardwolf.gq.libs import EVENTS as SUFFIX_EVENTS
@@ -99,6 +100,11 @@ class FakeApi:
         self.enabled: dict[str, bool] = {}
         self.toggles: list[tuple[str, bool]] = []
         self.add_ok = True
+        self.provider_ok = True
+        self.providers: dict[
+            str, tuple[Callable[[], Any], list[dict[str, str]] | None, str, Any]
+        ] = {}
+        self.provider_changes: list[tuple[str, str]] = []
         self.record: dict[str, Any] = {}
         self.active = False
         self.types: dict[str, dict[str, Any]] = {}
@@ -123,12 +129,34 @@ class FakeApi:
             "plugins.core.mudcmds:command.start": self.started.append,
             "plugins.core.mudcmds:command.finish": self._command_finish,
             "libs.net.protocols:gmcp.value.get": self.gmcp.get,
+            "plugins.core.web:web.provider.add": self._provider_add,
+            "plugins.core.web:web.provider.changed.raise": self._provider_changed,
             "libs.api:character.is.active": lambda: self.active,
         }
 
     def __call__(self, name: str) -> Callable[..., Any]:
         """Return the fake for an API name; an unknown name is a KeyError."""
         return self.table[name]
+
+    def _provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+        event: str | None = None,
+    ) -> str | None:
+        """Record a web.provider.add call; return the topic, or None when refused."""
+        if not self.provider_ok:
+            return None
+        self.providers[name] = (snapshot, columns, kind, event)
+        return f"{owner}.{name}"
+
+    def _provider_changed(self, owner: str, name: str) -> bool:
+        """Record a web.provider.changed.raise call."""
+        self.provider_changes.append((owner, name))
+        return True
 
     def _event_add(self, name: str, created_by: str, **kwargs: object) -> None:
         self.events_added[name] = kwargs
@@ -289,6 +317,7 @@ def test_dependencies() -> None:
     for needed in ("watch", "mudcmds", "settings", "events", "triggers"):
         assert f"plugins.core.{needed}" in gq.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.connect" in gq.PLUGIN_DEPENDENCIES
+    assert "plugins.core.web" in gq.PLUGIN_DEPENDENCIES
     assert "plugins.aardwolf.mobk" not in gq.PLUGIN_DEPENDENCIES
 
 
@@ -870,3 +899,112 @@ def test_raised_keys_are_all_described(env: Env) -> None:
     env.win()
     assert env.fake.events(EVENT_WON)
     assert_raised_described(env.fake.raised, EVENTS)
+
+
+def provider_changes(env: Env) -> list[tuple[str, str]]:
+    """Return the provider changes raised so far."""
+    return list(env.fake.provider_changes)
+
+
+BOTH = [(PLUGIN_ID, "mobsleft"), (PLUGIN_ID, "summary")]
+
+
+def test_web_providers_are_registered(env: Env) -> None:
+    """The mobs left are a table of the three columns and the summary is json, with no event."""
+    providers = env.fake.providers
+    assert set(providers) == {"mobsleft", "summary"}
+    _, columns, kind, event = providers["mobsleft"]
+    assert (columns, kind, event) == (MOBSLEFT_PROVIDER_COLUMNS, "table", None)
+    _, columns, kind, event = providers["summary"]
+    assert (columns, kind, event) == (None, "json", None)
+
+
+def test_web_snapshots_when_not_joined(env: Env) -> None:
+    """Not joined, the table is empty and the summary says so."""
+    assert env.fake.providers["mobsleft"][0]() == []
+    assert env.fake.providers["summary"][0]()["joined"] is False
+
+
+def test_web_snapshots_when_joined(env: Env) -> None:
+    """The rows have the kills left, and the summary has the number and the sum."""
+    env.join(RAT, BAT)
+    assert env.fake.providers["mobsleft"][0]() == [["A rat", "Sewers", 2], ["A bat", "Cave", 1]]
+    summary = env.fake.providers["summary"][0]()
+    assert summary["joined"] is True
+    assert summary["gqnum"] == 12
+    assert summary["level"] == LEVEL
+    assert summary["starttime"] == NOW
+    assert summary["extended"] is False
+    assert summary["mobsleft"] == 3
+    assert "endtime" not in summary
+    assert "timeleft" not in summary
+
+
+def test_joining_and_the_check_raise_changes(env: Env) -> None:
+    """Joining, starting and the check output tell the web plugin."""
+    env.fake.feed(DECLARED, JOINED)
+    assert provider_changes(env)
+    assert set(provider_changes(env)) == set(BOTH)
+    env.fake.provider_changes.clear()
+    env.fake.feed(STARTED, RAT, WINS)
+    assert set(provider_changes(env)) == set(BOTH)
+
+
+def test_a_kill_raises_both_changes(env: Env) -> None:
+    """A counted-down kill raises both providers."""
+    env.join(RAT)
+    env.fake.provider_changes.clear()
+    env.fake.feed(DEAD)
+    env.kill("A rat")
+    assert provider_changes(env) == BOTH
+    assert env.fake.providers["mobsleft"][0]() == [["A rat", "Sewers", 1]]
+
+
+def test_a_kill_without_a_dead_line_raises_nothing(env: Env) -> None:
+    """A kill with no mob-dead line is not a gquest kill."""
+    env.join(RAT)
+    env.fake.provider_changes.clear()
+    env.kill("A rat")
+    assert provider_changes(env) == []
+
+
+def test_extended_time_raises_the_summary(env: Env) -> None:
+    """The extended line changes only the summary, and only for the joined gquest."""
+    env.join(RAT)
+    env.fake.provider_changes.clear()
+    env.fake.feed(EXTENDED.replace("# 12", "# 13"))
+    assert provider_changes(env) == []
+    env.fake.feed(EXTENDED)
+    assert provider_changes(env) == [(PLUGIN_ID, "summary")]
+    assert env.fake.providers["summary"][0]()["extended"] is True
+
+
+def test_leaving_and_not_started_raise_changes(env: Env) -> None:
+    """Quitting, winning and a gquest that is not on all raise both providers."""
+    env.join(RAT)
+    env.fake.provider_changes.clear()
+    env.fake.feed(QUIT)
+    assert set(provider_changes(env)) == set(BOTH)
+    assert env.fake.providers["summary"][0]()["joined"] is False
+    env.join(RAT)
+    env.fake.provider_changes.clear()
+    env.win()
+    assert set(provider_changes(env)) == set(BOTH)
+    env.fake.provider_changes.clear()
+    env.plugin._trigger_notstarted()
+    assert set(provider_changes(env)) == set(BOTH)
+
+
+def test_a_refused_provider_raises_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """When the web plugin refuses both providers no change is raised."""
+    from aardwolf.gq.plugin import _gq
+
+    monkeypatch.setenv("BASTPROXY_HOME", str(tmp_path))
+    monkeypatch.setattr(_gq.GqPlugin, "_now", staticmethod(lambda: NOW))
+    fake = FakeApi()
+    fake.provider_ok = False
+    plugin = build(tmp_path, fake)
+    assert fake.providers == {}
+    fake.feed(DECLARED, JOINED, STARTED, RAT, WINS)
+    assert plugin._joined() == 12
+    assert fake.provider_changes == []

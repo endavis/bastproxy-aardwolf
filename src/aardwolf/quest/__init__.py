@@ -9,5 +9,6 @@ PLUGIN_VERSION = 1
 PLUGIN_REQUIRED = False
 PLUGIN_DEPENDENCIES = [
     "plugins.core.events",
+    "plugins.core.web",
     "plugins.aardwolf.connect",
 ]

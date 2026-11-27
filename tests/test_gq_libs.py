@@ -4,8 +4,11 @@ import re
 
 from aardwolf.gq.libs import (
     EVENTS,
+    MOBSLEFT_PROVIDER_COLUMNS,
     TRIGGERS,
     count_down,
+    gq_summary,
+    mobs_left_rows,
     name_has_several_locations,
     new_mob,
     new_state,
@@ -263,3 +266,54 @@ def test_name_has_several_locations_ignores_same_location_duplicates() -> None:
     """Two mobs with the name at the same location are not ambiguous."""
     left = [new_mob("A rat", "Sewers", 1), new_mob("A rat", "Sewers", 2)]
     assert name_has_several_locations(left, "A rat") is False
+
+
+def test_provider_columns_match_the_row_cells() -> None:
+    """Each web column has a valid name and type, and a row has a cell for each."""
+    assert [c["name"] for c in MOBSLEFT_PROVIDER_COLUMNS] == ["name", "location", "count"]
+    for column in MOBSLEFT_PROVIDER_COLUMNS:
+        assert re.fullmatch("[a-z0-9_]+", column["name"])
+        assert column["type"] in ("text", "int", "float")
+    for row in mobs_left_rows([new_mob("A rat", "Sewers", 2)], True):
+        assert len(row) == len(MOBSLEFT_PROVIDER_COLUMNS)
+
+
+def test_mobs_left_rows() -> None:
+    """A row is the name, the location and the kills left; none when not joined."""
+    mobs = [new_mob("A rat", "Sewers", 2), new_mob("A bat", "Cave", 1)]
+    assert mobs_left_rows(mobs, True) == [["A rat", "Sewers", 2], ["A bat", "Cave", 1]]
+    assert mobs_left_rows(mobs, False) == []
+
+
+def test_gq_summary_when_not_joined() -> None:
+    """Not joined gives empty values, whatever the old state holds."""
+    state = new_state(50)
+    state["starttime"] = 900.0
+    assert gq_summary(state, [new_mob("A rat", "Sewers", 2)], -1) == {
+        "joined": False,
+        "gqnum": None,
+        "level": None,
+        "starttime": None,
+        "extended": False,
+        "mobsleft": 0,
+    }
+
+
+def test_gq_summary_when_joined() -> None:
+    """The summary has the number, level, start, extended flag and the sum of the kills left."""
+    state = new_state(50)
+    state["starttime"] = 900.0
+    mobs = [new_mob("A rat", "Sewers", 2), new_mob("A bat", "Cave", 1)]
+    assert gq_summary(state, mobs, 12) == {
+        "joined": True,
+        "gqnum": 12,
+        "level": 50,
+        "starttime": 900.0,
+        "extended": False,
+        "mobsleft": 3,
+    }
+    state["extended"] = 1
+    state["starttime"] = 0
+    summary = gq_summary(state, [], 12)
+    assert summary["extended"] is True
+    assert summary["starttime"] is None

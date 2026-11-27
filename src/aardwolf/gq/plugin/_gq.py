@@ -25,6 +25,9 @@ from ..libs import (
     GROUP_CHECK,
     GROUP_IN,
     GROUP_REW,
+    MOBSLEFT_PROVIDER_COLUMNS,
+    PROVIDER_MOBSLEFT,
+    PROVIDER_SUMMARY,
     SUFFIX_AVAILABLE,
     SUFFIX_CANCELLED,
     SUFFIX_COMPLETED,
@@ -38,8 +41,12 @@ from ..libs import (
     TRIGGERS,
     WATCH_NAME,
     WATCH_REGEX,
+    WEB_PROVIDER_ADD,
+    WEB_PROVIDER_CHANGED,
     TriggerSpec,
     count_down,
+    gq_summary,
+    mobs_left_rows,
     name_has_several_locations,
     new_mob,
     new_state,
@@ -65,6 +72,8 @@ class GqPlugin(BasePlugin):
         self._groups_ready: set[str] = set()
         # True after a gquest mob died, until the mobk kill event for it arrives
         self._await_kill = False
+        # the web providers the web plugin accepted
+        self._web_providers: set[str] = set()
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -89,6 +98,40 @@ class GqPlugin(BasePlugin):
         for spec in TRIGGERS:
             self._add_trigger(spec, callbacks.get(spec.name))
         self._check_if_joined()
+        self._add_web_providers()
+
+    def _add_web_providers(self) -> None:
+        """Offer the mobs left and the gquest summary as web data providers."""
+        add = self.api(WEB_PROVIDER_ADD)
+        self._web_providers = set()
+        if add(
+            self.plugin_id,
+            PROVIDER_MOBSLEFT,
+            self._provider_mobsleft,
+            MOBSLEFT_PROVIDER_COLUMNS,
+            "table",
+        ):
+            self._web_providers.add(PROVIDER_MOBSLEFT)
+        if add(self.plugin_id, PROVIDER_SUMMARY, self._provider_summary):
+            self._web_providers.add(PROVIDER_SUMMARY)
+
+    def _provider_mobsleft(self) -> list[list[Any]]:
+        """The mobs left of the gquest, one row each."""
+        return mobs_left_rows(self._mobsleft(), self._joined() != _NOT_JOINED)
+
+    def _provider_summary(self) -> dict[str, Any]:
+        """The number, level, start and kills left of the gquest joined."""
+        return gq_summary(self.gqinfo, self._mobsleft(), self._joined())
+
+    def _provider_changed(self, name: str) -> None:
+        """Tell the web plugin a provider changed, when it was accepted."""
+        if name in self._web_providers:
+            self.api(WEB_PROVIDER_CHANGED)(self.plugin_id, name)
+
+    def _targets_changed(self) -> None:
+        """The gquest changed: tell the web plugin about both providers."""
+        self._provider_changed(PROVIDER_MOBSLEFT)
+        self._provider_changed(PROVIDER_SUMMARY)
 
     def _trigger_callbacks(self) -> dict[str, Callable[[], None]]:
         """Return the callback of each trigger, by trigger name."""
@@ -244,6 +287,7 @@ class GqPlugin(BasePlugin):
         self._set("joined", _NOT_JOINED)
         self._toggle_all_groups(False)
         self._await_kill = False
+        self._targets_changed()
 
     def _gq_reset(self, gqnum: int) -> None:
         """Leave the gquest and take it off the declared ones."""
@@ -271,6 +315,7 @@ class GqPlugin(BasePlugin):
             self.gqinfo["starttime"] = self._now()
             self._toggle_group(GROUP_IN, True)
             self._queue_check()
+            self._targets_changed()
 
     # triggers
 
@@ -300,6 +345,7 @@ class GqPlugin(BasePlugin):
             self._declared.add(gqnum)
             self._start(gqnum)
         self._raise(SUFFIX_JOINED, {"gqnum": gqnum})
+        self._targets_changed()
 
     def _trigger_started(self) -> None:
         """A gquest started."""
@@ -363,12 +409,14 @@ class GqPlugin(BasePlugin):
         self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
         self._toggle_group(GROUP_CHECK, False)
         self._toggle_group(GROUP_IN, False)
+        self._targets_changed()
 
     def _trigger_wins(self) -> None:
         """The end of the check output: raise the mobs left and finish the command."""
         if not self.gqinfo.get("mobs"):
             self.gqinfo["mobs"] = copy.deepcopy(self._mobsleft())
         self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+        self._targets_changed()
         self.api("plugins.core.mudcmds:command.finish")(CMDTYPE)
         self._toggle_group(GROUP_CHECK, False)
         if self._joined() != _NOT_JOINED:
@@ -386,6 +434,7 @@ class GqPlugin(BasePlugin):
         if int(self._matches()["gqnum"]) == self._joined():
             self.gqinfo["extended"] = 1
             self.gqinfo.sync()
+            self._provider_changed(PROVIDER_SUMMARY)
 
     def _trigger_won(self) -> None:
         """The character was the first to complete the gquest: read the rewards."""
@@ -455,6 +504,7 @@ class GqPlugin(BasePlugin):
         if count_down(mobsleft, name):
             self.track["mobsleft"] = mobsleft
             self._raise(SUFFIX_MOBSLEFT, self._mobsleft_payload())
+            self._targets_changed()
             if ambiguous:
                 log_to(
                     [self.plugin_id],

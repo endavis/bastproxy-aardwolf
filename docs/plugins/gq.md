@@ -25,7 +25,7 @@ The plugin id is `plugins.aardwolf.gq`:
 #bp.core.pluginm.load plugins.aardwolf.gq
 ```
 
-It depends on the events, triggers, mudcmds, watch and settings core plugins and on the
+It depends on the events, triggers, mudcmds, watch, settings and web core plugins and on the
 [connect plugin](connect.md). The [mobk plugin](mobk.md) is optional: without it the mobs left are only
 refreshed by a new `gq check`.
 
@@ -88,6 +88,34 @@ refreshed by a new `gq check`.
 
 Each payload is a deep copy; changing it does not change the state. statdb stores the columns of its
 `gquests` table and the mobs, and ignores the keys it has no column for.
+
+## Web data providers
+
+The plugin registers two data providers with the core web plugin (`plugins.core.web:web.provider.add`), so
+the web client can show them. The web plugin removes them when this plugin unloads, and
+`#bp.core.web.status` lists them. Every change raises `web.provider.changed.raise` for the
+provider, so a page updates without polling.
+
+| Topic | Page path | Kind |
+| :--- | :--- | :--- |
+| `aardwolf.gq.mobsleft` | `/aardwolf/gq/mobsleft` | table |
+| `aardwolf.gq.summary` | `/aardwolf/gq/summary` | json |
+
+`mobsleft` has one row for each target mob and these columns:
+
+| Column | Label | Type |
+| :--- | :--- | :--- |
+| `name` | Mob | text |
+| `location` | Location | text |
+| `count` | Left | int (the kills left of this mob) |
+
+The table is empty when no global quest is joined.
+
+`summary` is json with `joined`, `gqnum`, `level` (the total level when it was joined),
+`starttime`, `extended` (true in extended time) and `mobsleft` (the sum of the kills left). The
+plugin does not know when a global quest ends, so the summary has no end time and no time left.
+When no global quest is joined `joined` and `extended` are false, the count is 0 and the other
+fields are null.
 
 ## Changes from the old plugin
 
