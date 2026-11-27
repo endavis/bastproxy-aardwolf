@@ -85,7 +85,8 @@ def test_columns_are_valid() -> None:
 
 def test_portals_match_the_command(mapped: Env) -> None:
     """The page lists the rows of the portals command; the numbers are ints."""
-    command = mapped.run("portals", filter="").message[2:]
+    assert mapped.run("portals", filter="").success
+    command = [" | ".join(cells) for cells in mapped.table_cells()]
     page = mapped.plugin._web_portals(request())
     assert page["kind"] == "table"
     assert page["total"] == 2
@@ -113,7 +114,8 @@ def test_portal_to_an_unknown_room_has_no_link(env: Env) -> None:
 
 def test_cexits_default_to_the_current_area(mapped: Env) -> None:
     """Without `area` the page lists the custom exits of the current room's area."""
-    command = mapped.run("cexits", where="here").message[2:]
+    assert mapped.run("cexits", where="here").success
+    command = [" | ".join(cells) for cells in mapped.table_cells()]
     page = mapped.plugin._web_cexits(request())
     assert page["title"] == "Custom exits in a"
     assert texts(page) == command
@@ -122,7 +124,8 @@ def test_cexits_default_to_the_current_area(mapped: Env) -> None:
 
 def test_cexits_of_a_named_area_ignore_case(mapped: Env) -> None:
     """`area` picks the area, in any case, like the command."""
-    command = mapped.run("cexits", where="b").message[2:]
+    assert mapped.run("cexits", where="b").success
+    command = [" | ".join(cells) for cells in mapped.table_cells()]
     page = mapped.plugin._web_cexits(request({"area": " B "}))
     assert texts(page) == command
     assert command == ["9 | Quest Hut | b | squeeze | 1 | 7"]
@@ -183,7 +186,10 @@ def test_cexits_errors(mapped: Env) -> None:
 @pytest.mark.parametrize("kind", ["shops", "train", "quest", "notes"])
 def test_places_match_the_command(mapped: Env, kind: str) -> None:
     """Each kind lists the rows of its text command."""
-    command = mapped.search(kind, "a").message[2:]
+    assert mapped.search(kind, "a").success
+    # a kind with no match prints no table, so there are no command rows
+    cells = mapped.table_cells() if mapped.fake.tables else []
+    command = [" | ".join(row) for row in cells]
     page = mapped.plugin._web_places(request({"kind": kind, "area": "a"}))
     assert page["kind"] == "table"
     assert texts(page) == command

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import sqlite3
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,6 +32,7 @@ from ..libs import (
     CEXIT_COLUMNS,
     CEXIT_MAX_TIMEOUT,
     CEXIT_MIN_TIMEOUT,
+    CEXIT_TEXT_COLUMNS,
     CEXIT_TIMEOUT,
     EVENT_DISCONNECT,
     EVENT_GMCP_AREA,
@@ -39,6 +40,7 @@ from ..libs import (
     EVENT_MOVE_ROOM,
     EVENT_ROOM_MISMATCH,
     EVENT_WALK_FAILED,
+    EXIT_TEXT_COLUMNS,
     FLAG_NOPORTAL,
     FLAG_NORECALL,
     GMCP_LEVEL,
@@ -52,8 +54,10 @@ from ..libs import (
     NORECALL_REGEX,
     PLACE_COLUMNS,
     PLACE_KINDS,
+    PLACE_TEXT_COLUMNS,
     PORTAL_COLUMNS,
     PORTAL_ITYPE,
+    PORTAL_TEXT_COLUMNS,
     PORTAL_WEARLOC,
     SEARCHES,
     SETTING_CEXIT_TIMEOUT,
@@ -86,9 +90,8 @@ from ..libs import (
     room_from_gmcp,
     room_link,
     room_uid,
-    search_lines,
     serial_arg,
-    table_lines,
+    table_data,
     table_view,
     to_int,
     total_wait,
@@ -710,6 +713,14 @@ class MapperPlugin(BasePlugin):
                 )
         return rows
 
+    def _text_table(
+        self, title: str, columns: list[dict[str, str]], rows: Iterable[Sequence[str]]
+    ) -> list[str]:
+        """Return a table of text lines formatted by the core ``table.format``."""
+        return list(
+            self.api("plugins.core.utils:table.format")(title, table_data(columns, rows), columns)
+        )
+
     def _search(self, kind: str) -> CommandResult:
         """List the rooms of an area that match a search, in room uid order."""
         where, failure = self._search_area(str(self._args().get("area") or "here").strip().lower())
@@ -721,7 +732,7 @@ class MapperPlugin(BasePlugin):
         if not rows:
             return CommandResult(True, [f"No {kind} found in {where}"])
         title = f"Mapper {kind} in {where}: {len(rows)} rooms"
-        return CommandResult(True, search_lines(title, rows))
+        return CommandResult(True, self._text_table(title, PLACE_TEXT_COLUMNS, rows))
 
     @AddCommand()
     @AddParser(description="list the shops and banks of an area")
@@ -898,8 +909,7 @@ class MapperPlugin(BasePlugin):
         if not rows:
             return CommandResult(True, [f"No custom exits found in {where}"])
         title = f"Mapper custom exits in {where}: {len(rows)}"
-        header = ("uid", "name", "area", "command", "to", "level")
-        return CommandResult(True, table_lines(title, header, rows))
+        return CommandResult(True, self._text_table(title, CEXIT_TEXT_COLUMNS, rows))
 
     @AddCommand()
     @AddParser(description="delete a custom exit, or all of them, of the current room")
@@ -986,7 +996,7 @@ class MapperPlugin(BasePlugin):
                 for e in exits
             ]
             return CommandResult(
-                True, table_lines(f"Mapper exits of {uid}", ("exit", "to", "level"), rows)
+                True, self._text_table(f"Mapper exits of {uid}", EXIT_TEXT_COLUMNS, rows)
             )
         found = next((e for e in exits if e["dir"] == text), None)
         if found is None:
@@ -1130,8 +1140,8 @@ class MapperPlugin(BasePlugin):
         rows = self._portal_rows(str(self._args().get("filter") or ""))
         if not rows:
             return CommandResult(True, ["No portals found"])
-        header = ("#", "kind", "area", "name", "to", "command", "level")
-        return CommandResult(True, table_lines(f"Mapper portals: {len(rows)}", header, rows))
+        title = f"Mapper portals: {len(rows)}"
+        return CommandResult(True, self._text_table(title, PORTAL_TEXT_COLUMNS, rows))
 
     def _portal_rows(self, wanted: str) -> list[tuple[str, ...]]:
         """Return the (#, kind, area, name, to, command, level) rows of the portals whose room

@@ -6,10 +6,14 @@ from typing import Any
 import pytest
 
 from aardwolf.mapper.libs import (
+    CEXIT_TEXT_COLUMNS,
+    EXIT_TEXT_COLUMNS,
     MAX_AREA_ARG,
     NORECALL_REGEX,
     PLACE_KINDS,
+    PLACE_TEXT_COLUMNS,
     PORTAL_PREFIX,
+    PORTAL_TEXT_COLUMNS,
     SEARCHES,
     PortalStep,
     area_arg,
@@ -32,11 +36,10 @@ from aardwolf.mapper.libs import (
     room_from_gmcp,
     room_link,
     room_uid,
-    search_lines,
     serial_arg,
     split_command,
     steps_to_commands,
-    table_lines,
+    table_data,
     table_view,
     to_int,
     total_wait,
@@ -289,15 +292,6 @@ def test_detail_matches(details: object, expected: list[str]) -> None:
     assert detail_matches(details, SEARCHES["shops"]) == expected
 
 
-def test_search_lines() -> None:
-    """The table has the title, the header and one line per row."""
-    assert search_lines("Mapper shops in aylor: 1 rooms", [("1", "A Bank", "aylor", "Bank")]) == [
-        "Mapper shops in aylor: 1 rooms",
-        "uid | name | area | found",
-        "1 | A Bank | aylor | Bank",
-    ]
-
-
 def test_split_command() -> None:
     """A command splits on ; into text and waits; empty parts go and long waits are capped."""
     assert split_command("open north;wait(2);north") == ["open north", 2.0, "north"]
@@ -405,10 +399,35 @@ def test_resolve_portal() -> None:
     assert resolve_portal(portals, "three") is None
 
 
-def test_table_lines() -> None:
-    """A table is a title, a header and a line per row."""
-    assert table_lines("T", ("a", "b"), [("1", "2")]) == ["T", "a | b", "1 | 2"]
-    assert search_lines("S", [("1", "n", "z", "f")])[1] == "uid | name | area | found"
+def test_table_data() -> None:
+    """Rows become dicts keyed by the column keys, in row order."""
+    assert table_data(EXIT_TEXT_COLUMNS, [("n", "1", "0"), ("s", "2", "5")]) == [
+        {"exit": "n", "to": "1", "level": "0"},
+        {"exit": "s", "to": "2", "level": "5"},
+    ]
+    assert table_data(EXIT_TEXT_COLUMNS, []) == []
+    with pytest.raises(ValueError):
+        table_data(EXIT_TEXT_COLUMNS, [("n", "1")])
+
+
+def test_text_columns() -> None:
+    """Each text column list has unique keys, today's headers and exactly name and key."""
+    headers = {
+        "PLACE": ["uid", "name", "area", "found"],
+        "CEXIT": ["uid", "name", "area", "command", "to", "level"],
+        "EXIT": ["exit", "to", "level"],
+        "PORTAL": ["#", "kind", "area", "name", "to", "command", "level"],
+    }
+    lists = {
+        "PLACE": PLACE_TEXT_COLUMNS,
+        "CEXIT": CEXIT_TEXT_COLUMNS,
+        "EXIT": EXIT_TEXT_COLUMNS,
+        "PORTAL": PORTAL_TEXT_COLUMNS,
+    }
+    for kind, columns in lists.items():
+        assert [c["name"] for c in columns] == headers[kind]
+        assert len({c["key"] for c in columns}) == len(columns)
+        assert all(set(c) == {"name", "key"} for c in columns)
 
 
 COLUMNS = [
