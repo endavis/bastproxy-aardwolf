@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795743265373,
+  "lastUpdate": 1795743736580,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3495,6 +3495,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.874138884922965e-7",
             "extra": "mean: 4.589295400604953 usec\nrounds: 113341"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e183a5a6d859398f91eda6a2871819f94f4ac4a",
+          "message": "refactor: print the statdb tables through the core table.format (merges PR #196, addresses #191)\n\n* refactor: print the statdb tables through the core table.format (part 5 of 5)\n\nThe milestone list, the milestone comparison, the quest lists, the level\nlist and the mob kill list now build rows and columns in the libs and\nprint through plugins.core.utils:table.format, which the plugin injects\nthrough Formatters.table. The libs stay free of bastproxy imports. The\nweb milestone read stays in the worker thread; formatting moves to the\nloop.\n\nCells are now left-aligned, headers use the core colour and each table\nhas a title line. Assertions that only checked the old hand-built layout\nnow check the rows and columns passed to table.format.\n\nAddresses #191\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* refactor: print the statdb cp, gq and mob report tables through table.format\n\nThe cps, gqs and mobs lists and the mob lists of show_cp and show_gq\nnow build rows and columns in the libs and print through the injected\nFormatters.table, like the other statdb tables. Colour stays in the cell\ntext; a no-exp kill colours each of its four xp cells. Assertions that\nonly checked the old hand-built layout now check the rows and columns\npassed to table.format.\n\nAddresses #191\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T01:41:44Z",
+          "tree_id": "e9e766c2468056f9e3faa765f9f7af2c51f81dc9",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/8e183a5a6d859398f91eda6a2871819f94f4ac4a"
+        },
+        "date": 1795743735903,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 5673292.2860370455,
+            "unit": "iter/sec",
+            "range": "stddev: 1.401978476428935e-8",
+            "extra": "mean: 176.26449503777079 nsec\nrounds: 58945"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 288090.0395644516,
+            "unit": "iter/sec",
+            "range": "stddev: 3.32309941307108e-7",
+            "extra": "mean: 3.471137015052128 usec\nrounds: 147929"
           }
         ]
       }
