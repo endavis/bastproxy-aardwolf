@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795792924399,
+  "lastUpdate": 1795797752218,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3723,6 +3723,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000013827779104342787",
             "extra": "mean: 6.0330688948713345 usec\nrounds: 175717"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62fc0476ffe49078bfb92c338048b7607e750eb9",
+          "message": "refactor: merge the statdb mobs and mobkills web pages into one (merges PR #206, addresses #205)\n\nThe mobs web page now has every column of a kill: time, level, mob, the\nXP columns, flags, gold and the mapper room link, newest first, with the\nmob summary above it. The separate mobkills web page and its route are\nremoved; the text commands are unchanged.\n\nA room of 0 or -1 shows blank. Unset levels show as they did on the old\n/mobs page. The single-letter S column is replaced by Flags, which lists\nevery special-kill letter.\n\nAddresses #205\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-27T16:41:55Z",
+          "tree_id": "6b8e552eac031a3124d277914a7586d5401141cb",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/62fc0476ffe49078bfb92c338048b7607e750eb9"
+        },
+        "date": 1795797751861,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 3604811.4440921433,
+            "unit": "iter/sec",
+            "range": "stddev: 3.425449160230641e-8",
+            "extra": "mean: 277.4070198980534 nsec\nrounds: 199721"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 193182.54544324588,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000013030993470742606",
+            "extra": "mean: 5.176451100722166 usec\nrounds: 106975"
           }
         ]
       }
