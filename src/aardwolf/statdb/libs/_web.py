@@ -18,6 +18,7 @@ from urllib.parse import urlencode
 from aardwolf._libs.aardu import LEVELS_PER_REMORT, LEVELS_PER_TIER, MAX_TIER, convert_level
 
 from ._report import (
+    FIELD_NAMES,
     FIELDSTOCOMP,
     SPECIAL_FLAGS,
     Formatters,
@@ -97,6 +98,7 @@ class WebColumn:
     """One column of a table page.
 
     ``expr`` is the one SQL expression the column is displayed, filtered and sorted by.
+    ``long`` is the full name of a column whose label is short, or "" when the label says it all.
     """
 
     name: str
@@ -104,6 +106,7 @@ class WebColumn:
     type: str
     expr: str
     link: str = ""
+    long: str = ""
 
 
 @dataclass(frozen=True)
@@ -132,8 +135,19 @@ class TablePage:
     newest_first: bool = True
 
     def route_columns(self) -> list[dict[str, str]]:
-        """Return the column declarations ``web.route.add`` takes."""
-        return [{"name": c.name, "label": c.label, "type": c.type} for c in self.columns]
+        """Return the column declarations ``web.route.add`` takes.
+
+        A column has a ``long`` key only when it has a long name.
+        """
+        return [
+            {
+                "name": c.name,
+                "label": c.label,
+                "type": c.type,
+                **({"long": c.long} if c.long else {}),
+            }
+            for c in self.columns
+        ]
 
 
 # fixed SQL fragments
@@ -174,12 +188,15 @@ def _utc(column: str) -> str:
     return f"strftime('{MOBKILL_DATE_FORMAT}', {column}, 'unixepoch')"
 
 
-def _col(name: str, label: str, kind: str, expr: str = "", link: str = "") -> WebColumn:
+def _col(
+    name: str, label: str, kind: str, expr: str = "", link: str = "", long: str = ""
+) -> WebColumn:
     """Return a column; a plain column is its own SQL expression.
 
-    ``link`` names the target the column's cells link to, a key of ``LINK_QUERY_KEYS``.
+    ``link`` names the target the column's cells link to, a key of ``LINK_QUERY_KEYS``;
+    ``long`` is the full name of a column with a short label.
     """
-    return WebColumn(name, label, kind, expr or name, link)
+    return WebColumn(name, label, kind, expr or name, link, long)
 
 
 _RESULT = "CASE WHEN failed = 1 THEN 'Failed' ELSE 'Done' END"
@@ -203,7 +220,7 @@ TABLE_PAGES: dict[str, TablePage] = {
                     "text",
                     f"CASE WHEN time = 0 THEN 'Now' ELSE {_utc('time')} END",
                 ),
-                *(_col(field, field, "int") for field in FIELDSTOCOMP),
+                *(_col(field, field, "int", long=FIELD_NAMES[field]) for field in FIELDSTOCOMP),
             ),
             summary="milestones",
             newest_first=False,
@@ -214,26 +231,33 @@ TABLE_PAGES: dict[str, TablePage] = {
             "quests",
             "quest_id",
             (
-                _col("id", "ID", "int", "quest_id", "quests"),
-                _col("qp", "QP", "int"),
-                _col("mc", "MC", "int", "mccp"),
-                _col("tr", "TR", "int", "tierqp"),
-                _col("lk", "LK", "int", "lucky"),
-                _col("pk", "PK", "int", "opk"),
-                _col("hc", "HC", "int", "hardcore"),
+                _col("id", "ID", "int", "quest_id", "quests", long="Quest number"),
+                _col("qp", "QP", "int", long="Base quest points"),
+                _col("mc", "MC", "int", "mccp", long="MCCP quest points"),
+                _col("tr", "TR", "int", "tierqp", long="Tier quest points"),
+                _col("lk", "LK", "int", "lucky", long="Lucky quest points"),
+                _col("pk", "PK", "int", "opk", long="Open PK quest points"),
+                _col("hc", "HC", "int", "hardcore", long="Hardcore quest points"),
                 _col(
                     "dbl",
                     "DBL",
                     "text",
                     _letters((("double", "D"), ("daily", "E"))),
+                    long="Double (D) and daily (E)",
                 ),
-                _col("tl", "TL", "int", "totqp"),
-                _col("tp", "TP", "int"),
-                _col("tn", "TN", "int", "trains"),
-                _col("pr", "PR", "int", "pracs"),
+                _col("tl", "TL", "int", "totqp", long="Total quest points"),
+                _col("tp", "TP", "int", long="Trivia points"),
+                _col("tn", "TN", "int", "trains", long="Trains"),
+                _col("pr", "PR", "int", "pracs", long="Practices"),
                 _col("gold", "Gold", "int"),
-                _col("lvl", "Lvl", "int", _level_of("level")),
-                _col("mins", "Mins", "float", "ROUND((finishtime - starttime) / 60.0, 2)"),
+                _col("lvl", "Lvl", "int", _level_of("level"), long="Level"),
+                _col(
+                    "mins",
+                    "Mins",
+                    "float",
+                    "ROUND((finishtime - starttime) / 60.0, 2)",
+                    long="Minutes taken",
+                ),
                 _col("result", "Result", "text", _RESULT),
                 _col("mob", "Mob", "text", "mobname"),
                 _col("room", "Room", "text", "mobroom"),
@@ -248,22 +272,40 @@ TABLE_PAGES: dict[str, TablePage] = {
             "(SELECT *, LEAD(starttime) OVER (ORDER BY level_id) AS nextstart FROM levels)",
             "level_id",
             (
-                _col("id", "ID", "int", "level_id", "levels"),
-                _col("lvl", "Lvl", "int", _level_of("level")),
-                _col("type", "T", "text", "CASE WHEN type = 'level' THEN 'L' ELSE 'P' END"),
-                _col("tr", "TR", "int", "trains"),
-                _col("bt", "BT", "int", "MAX(bonustrains, 0) + MAX(blessingtrains, 0)"),
-                _col("pr", "PR", "int", "pracs"),
-                _col("hp", "HP", "int"),
-                _col("mn", "MN", "int", "mp"),
-                _col("mv", "MV", "int"),
-                _col("s", "S", "int", "str"),
-                _col("i", "I", "int", "int"),
-                _col("w", "W", "int", "wis"),
-                _col("c", "C", "int", "con"),
-                _col("d", "D", "int", "dex"),
-                _col("l", "L", "int", "luc"),
-                _col("mins", "Mins", "float", _LEVEL_MINS),
+                _col("id", "ID", "int", "level_id", "levels", long="Level or powerup number"),
+                _col("lvl", "Lvl", "int", _level_of("level"), long="Level"),
+                _col(
+                    "type",
+                    "T",
+                    "text",
+                    "CASE WHEN type = 'level' THEN 'L' ELSE 'P' END",
+                    long="Type (L level, P powerup)",
+                ),
+                _col("tr", "TR", "int", "trains", long="Trains"),
+                _col(
+                    "bt",
+                    "BT",
+                    "int",
+                    "MAX(bonustrains, 0) + MAX(blessingtrains, 0)",
+                    long="Bonus trains (bonus plus blessing)",
+                ),
+                _col("pr", "PR", "int", "pracs", long="Practices"),
+                _col("hp", "HP", "int", long="Hit points"),
+                _col("mn", "MN", "int", "mp", long="Mana"),
+                _col("mv", "MV", "int", long="Moves"),
+                _col("s", "S", "int", "str", long="Bonus strength"),
+                _col("i", "I", "int", "int", long="Bonus intelligence"),
+                _col("w", "W", "int", "wis", long="Bonus wisdom"),
+                _col("c", "C", "int", "con", long="Bonus constitution"),
+                _col("d", "D", "int", "dex", long="Bonus dexterity"),
+                _col("l", "L", "int", "luc", long="Bonus luck"),
+                _col(
+                    "mins",
+                    "Mins",
+                    "float",
+                    _LEVEL_MINS,
+                    long="Minutes to the next level or powerup",
+                ),
             ),
             summary="levels",
             guard="levels",
@@ -274,13 +316,13 @@ TABLE_PAGES: dict[str, TablePage] = {
             "campaigns",
             "cp_id",
             (
-                _col("id", "ID", "int", "cp_id", "cpmobs"),
-                _col("lvl", "Lvl", "text", _level_text("level")),
-                _col("qp", "QP", "int"),
-                _col("bn", "BN", "int", "bonusqp"),
-                _col("tp", "TP", "int"),
-                _col("tn", "TN", "int", "trains"),
-                _col("pr", "PR", "int", "pracs"),
+                _col("id", "ID", "int", "cp_id", "cpmobs", long="Campaign number"),
+                _col("lvl", "Lvl", "text", _level_text("level"), long="Tier, remort and level"),
+                _col("qp", "QP", "int", long="Quest points"),
+                _col("bn", "BN", "int", "bonusqp", long="Bonus quest points"),
+                _col("tp", "TP", "int", long="Trivia points"),
+                _col("tn", "TN", "int", "trains", long="Trains"),
+                _col("pr", "PR", "int", "pracs", long="Practices"),
                 _col("gold", "Gold", "int"),
                 _col(
                     "mobs",
@@ -288,7 +330,9 @@ TABLE_PAGES: dict[str, TablePage] = {
                     "int",
                     "(SELECT COUNT(*) FROM cpmobs WHERE cpmobs.cp_id = campaigns.cp_id)",
                 ),
-                _col("mins", "Mins", "float", _mins("starttime", "finishtime")),
+                _col(
+                    "mins", "Mins", "float", _mins("starttime", "finishtime"), long="Minutes taken"
+                ),
                 _col("result", "Result", "text", _RESULT),
             ),
             summary="cps",
@@ -300,7 +344,7 @@ TABLE_PAGES: dict[str, TablePage] = {
             "cpmobs",
             "cpmob_id",
             (
-                _col("cp_id", "CP", "int"),
+                _col("cp_id", "CP", "int", long="Campaign number"),
                 _col("name", "Name", "text"),
                 _col("location", "Location", "text"),
             ),
@@ -311,13 +355,13 @@ TABLE_PAGES: dict[str, TablePage] = {
             "gquests",
             "gq_id",
             (
-                _col("id", "ID", "int", "gq_id", "gqmobs"),
-                _col("lvl", "Lvl", "text", _level_text("level")),
-                _col("qp", "QP", "int"),
-                _col("qm", "QM", "int", "qpmobs"),
-                _col("tp", "TP", "int"),
-                _col("tn", "TN", "int", "trains"),
-                _col("pr", "PR", "int", "pracs"),
+                _col("id", "ID", "int", "gq_id", "gqmobs", long="Global quest number"),
+                _col("lvl", "Lvl", "text", _level_text("level"), long="Tier, remort and level"),
+                _col("qp", "QP", "int", long="Quest points"),
+                _col("qm", "QM", "int", "qpmobs", long="Mob quest points"),
+                _col("tp", "TP", "int", long="Trivia points"),
+                _col("tn", "TN", "int", "trains", long="Trains"),
+                _col("pr", "PR", "int", "pracs", long="Practices"),
                 _col("gold", "Gold", "int"),
                 _col(
                     "mobs",
@@ -325,7 +369,9 @@ TABLE_PAGES: dict[str, TablePage] = {
                     "int",
                     "COALESCE((SELECT SUM(num) FROM gqmobs WHERE gqmobs.gq_id = gquests.gq_id), 0)",
                 ),
-                _col("mins", "Mins", "float", _mins("starttime", "finishtime")),
+                _col(
+                    "mins", "Mins", "float", _mins("starttime", "finishtime"), long="Minutes taken"
+                ),
                 _col("won", "Won", "int"),
             ),
             summary="gqs",
@@ -337,8 +383,8 @@ TABLE_PAGES: dict[str, TablePage] = {
             "gqmobs",
             "gqmob_id",
             (
-                _col("gq_id", "GQ", "int"),
-                _col("num", "Num", "int"),
+                _col("gq_id", "GQ", "int", long="Global quest number"),
+                _col("num", "Num", "int", long="Mob count"),
                 _col("name", "Name", "text"),
                 _col("location", "Location", "text"),
             ),
@@ -350,19 +396,22 @@ TABLE_PAGES: dict[str, TablePage] = {
             "mk_id",
             (
                 _col("time", "Time (UTC)", "text", f"CASE WHEN time != -1 THEN {_utc('time')} END"),
-                _col("lvl", "Lvl", "int", _level_of("level")),
+                _col("lvl", "Lvl", "int", _level_of("level"), long="Level"),
                 _col("mob", "Mob", "text", "name"),
-                _col("txp", "TXP", "int", "totalxp"),
-                _col("xp", "XP", "int"),
-                _col("rxp", "RXP", "int", "rarexp"),
+                _col("txp", "TXP", "int", "totalxp", long="Total experience"),
+                _col("xp", "XP", "int", long="Experience"),
+                _col("rxp", "RXP", "int", "rarexp", long="Rare kill bonus experience"),
                 _col(
                     "oxp",
                     "OXP",
                     "text",
                     "(CASE WHEN noexp = 0 AND bonusxp != 0 THEN 'D' ELSE '' END) "
                     "|| (CASE WHEN noexp = 0 AND blessingxp != 0 THEN 'E' ELSE '' END)",
+                    long="Bonus experience (D double, E daily blessing)",
                 ),
-                _col("tp", "TP", "int", "CASE WHEN tp = 1 THEN 1 ELSE 0 END"),
+                _col(
+                    "tp", "TP", "int", "CASE WHEN tp = 1 THEN 1 ELSE 0 END", long="Trivia point mob"
+                ),
                 _col("flags", "Flags", "text", _letters(SPECIAL_FLAGS)),
                 _col("gold", "Gold", "int"),
                 _col(

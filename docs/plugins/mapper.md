@@ -273,6 +273,9 @@ and its rows are the rows of the matching text command, built by the same code.
 | `/aardwolf/mapper/cexits` | `cexits` | `area`, `show` |
 | `/aardwolf/mapper/places` | `shops`, `train`, `quest`, `notes` | `area`, `kind` |
 
+- **Column names.** The `#` column of `portals` is the portal number, `To` is the destination room
+  and `Level` is the required level (on `portals` and `cexits`). The core web plugin shows these full
+  names in the header, with the label in brackets after them. The other labels are whole words.
 - **`area`** is an area id, in any case; it defaults to the area of the current room. An area with no
   mapped rooms, or an unknown current room, is a 404. An id over 100 characters is a 400.
 - **`show`** on `cexits` is `cexits` (the default) or `locks`. `locks` lists every exit of the area

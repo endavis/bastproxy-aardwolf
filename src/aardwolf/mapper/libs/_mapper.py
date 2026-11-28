@@ -111,21 +111,21 @@ TERRAIN_COLORS: dict[str, str] = {
 # longest `area` query value a page accepts; a real area id is far shorter
 MAX_AREA_ARG = 100
 PORTAL_COLUMNS: list[dict[str, str]] = [
-    {"name": "number", "label": "#", "type": "int"},
+    {"name": "number", "label": "#", "type": "int", "long": "Portal number"},
     {"name": "kind", "label": "Kind", "type": "text"},
     {"name": "area", "label": "Area", "type": "text"},
     {"name": "name", "label": "Name", "type": "text"},
-    {"name": "to", "label": "To", "type": "text"},
+    {"name": "to", "label": "To", "type": "text", "long": "Destination room"},
     {"name": "command", "label": "Command", "type": "text"},
-    {"name": "level", "label": "Level", "type": "int"},
+    {"name": "level", "label": "Level", "type": "int", "long": "Required level"},
 ]
 CEXIT_COLUMNS: list[dict[str, str]] = [
     {"name": "uid", "label": "Room", "type": "text"},
     {"name": "name", "label": "Name", "type": "text"},
     {"name": "area", "label": "Area", "type": "text"},
     {"name": "command", "label": "Command", "type": "text"},
-    {"name": "to", "label": "To", "type": "text"},
-    {"name": "level", "label": "Level", "type": "int"},
+    {"name": "to", "label": "To", "type": "text", "long": "Destination room"},
+    {"name": "level", "label": "Level", "type": "int", "long": "Required level"},
 ]
 PLACE_COLUMNS: list[dict[str, str]] = [
     {"name": "uid", "label": "Room", "type": "text"},
