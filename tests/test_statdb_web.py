@@ -476,6 +476,76 @@ def test_chart_with_no_data_and_zero_values() -> None:
     assert ">" + "x" * 12 + "..<" in long
 
 
+def _texts(svg: str, text: str, fill: str) -> list[ET.Element]:
+    """The <text> elements with this content and fill."""
+    return [
+        e
+        for e in ET.fromstring(svg).iter()
+        if e.tag.endswith("text") and e.text == text and e.get("fill") == fill
+    ]
+
+
+def _bar_rects(svg: str) -> list[ET.Element]:
+    """The bar rectangles (the ones with a tooltip)."""
+    return [e for e in ET.fromstring(svg).iter() if e.tag.endswith("rect") and len(e)]
+
+
+def test_chart_tall_bar_value_inside_in_white() -> None:
+    """A value that fits sits inside its bar near the top, in white."""
+    from aardwolf.statdb.libs import bar_chart_svg
+
+    svg = bar_chart_svg("T", [("a", 100), ("b", 50)], "")
+    rect = _bar_rects(svg)[1]
+    top = float(rect.get("y", "0"))
+    bottom = top + float(rect.get("height", "0"))
+    value = _texts(svg, "50", "#ffffff")
+    assert len(value) == 1
+    assert top < float(value[0].get("y", "0")) < bottom
+    assert value[0].get("transform") is None
+
+
+def test_chart_short_bar_value_above_in_dark() -> None:
+    """A bar too short for its value shows it just above the bar, in dark text."""
+    from aardwolf.statdb.libs import bar_chart_svg
+
+    svg = bar_chart_svg("T", [("a", 1000), ("b", 10)], "")
+    rect = _bar_rects(svg)[1]
+    value = _texts(svg, "10", "#333333")
+    assert len(value) == 1
+    assert float(value[0].get("y", "0")) < float(rect.get("y", "0"))
+
+
+def test_chart_long_value_is_vertical_and_inside_bar() -> None:
+    """A value too wide for the bar runs vertically and stays inside a tall bar."""
+    from aardwolf.statdb.libs import bar_chart_svg
+
+    svg = bar_chart_svg("T", [("a", 20000), ("b", 12.5)], "")
+    rect = _bar_rects(svg)[0]
+    top = float(rect.get("y", "0"))
+    bottom = top + float(rect.get("height", "0"))
+    value = _texts(svg, "20000", "#ffffff")
+    assert len(value) == 1
+    assert "rotate(-90" in (value[0].get("transform") or "")
+    y = float(value[0].get("y", "0"))
+    assert top <= y
+    assert y + len("20000") * 6 <= bottom
+    small = _texts(svg, "12.50", "#333333") + _texts(svg, "12.50", "#ffffff")
+    assert len(small) == 1
+    assert "rotate(-90" in (small[0].get("transform") or "")
+
+
+def test_chart_zero_bar_shows_zero_at_baseline() -> None:
+    """A zero-value bar shows 0 just above the baseline in dark text."""
+    from aardwolf.statdb.libs import bar_chart_svg
+
+    svg = bar_chart_svg("T", [("a", 5), ("b", 0)], "")
+    rect = _bar_rects(svg)[1]
+    base = float(rect.get("y", "0")) + float(rect.get("height", "0"))
+    zero = _texts(svg, "0", "#333333")
+    assert len(zero) == 1
+    assert base - 6 <= float(zero[0].get("y", "0")) <= base
+
+
 def test_chart_data_per_day_and_level_time(db_path: Path) -> None:
     """The day charts sum every source of a day; the level chart skips an unknown time."""
     from aardwolf.statdb.libs import read_chart
