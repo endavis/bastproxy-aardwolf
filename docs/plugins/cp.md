@@ -144,7 +144,7 @@ provider, so a page updates without polling.
 | `location` | Location | text |
 | `dead` | Dead | int (1 for a dead mob, else 0) |
 
-The table is empty when the character is not on a campaign. Cell text is plain: the core web
+The table is empty when the character is not on a campaign. Every label is a whole word, so the columns have no separate full name. Cell text is plain: the core web
 plugin escapes colour codes.
 
 `summary` is json with `oncp`, `level` (the total level when the campaign started),

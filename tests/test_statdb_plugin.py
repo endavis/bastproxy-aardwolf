@@ -792,7 +792,7 @@ def test_table_handler_returns_a_page_with_the_summary(env: Env) -> None:
     assert result["total"] == 1
     assert result["rows"][0][1] == 20
     assert result["rows"][0][0] == {"text": "1", "href": "/aardwolf/statdb/quests?f_id=1"}
-    assert any(line.startswith("@GDB Stats") for line in result["lines"])
+    assert any(line.startswith("@GDatabase Stats") for line in result["lines"])
     paged = _call(env, "mobs", {"count": "1", "page": "2"})
     assert paged["total"] == 2
     assert [row[2] for row in paged["rows"]] == ["a bat"]

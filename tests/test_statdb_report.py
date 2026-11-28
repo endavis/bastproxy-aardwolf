@@ -137,14 +137,14 @@ def test_compare_defaults_to_start_and_current(full: "StatStore") -> None:
     assert data[0]["second"] == "Now"
     assert data[0]["difference"] == "4000s"
     rows = {row["field"]: row for row in data}
-    assert rows["totallevels"] == {
-        "field": "totallevels",
+    assert rows["Total levels"] == {
+        "field": "Total levels",
         "first": "1",
         "second": "5",
         "difference": "4",
     }
-    assert rows["monsterskilled"] == {
-        "field": "monsterskilled",
+    assert rows["Monsters killed"] == {
+        "field": "Monsters killed",
         "first": "0",
         "second": "4",
         "difference": "4",
@@ -162,8 +162,8 @@ def test_compare_one_and_two_names_in_either_order(full: "StatStore") -> None:
     compare_milestones(full, "5", "3", fmt, now=5000)
     assert [c["name"] for c in rec.calls[1][2]] == ["Milestone", "3", "5", "Difference"]
     rows = {row["field"]: row for row in _recorded(rec, 1)}
-    assert rows["totallevels"] == {
-        "field": "totallevels",
+    assert rows["Total levels"] == {
+        "field": "Total levels",
         "first": "3",
         "second": "5",
         "difference": "2",
@@ -183,8 +183,8 @@ def test_compare_headers_match_the_column_data_in_either_order(full: "StatStore"
         names = [c["name"] for c in rec.calls[index][2]]
         rows = {row["field"]: row for row in _recorded(rec, index)}
         assert names[1:3] == ["3", "5"]
-        assert rows["totallevels"]["first"] == "3"
-        assert rows["totallevels"]["second"] == "5"
+        assert rows["Total levels"]["first"] == "3"
+        assert rows["Total levels"]["second"] == "5"
 
 
 def test_compare_names_a_missing_milestone(full: "StatStore") -> None:
@@ -214,9 +214,9 @@ def test_quest_report(full: "StatStore") -> None:
     from aardwolf.statdb.libs import QUEST_COLUMNS, QUEST_LIST_TITLE, quest_report
 
     text = _text(quest_report(full, 5, None, formatters()))
-    assert "Quests         : @W4            @W2" in text
+    assert "Quests                 : @W4            @W2" in text
     assert "20.000/level" in text
-    assert "Gold           : @W<300>        @W300/quest" in text
+    assert "Gold                   : @W<300>        @W300/quest" in text
     rec = TableRecorder()
     lines = quest_report(full, 5, None, formatters(table=rec))
     assert lines[-1] == QUEST_LIST_TITLE
@@ -288,9 +288,9 @@ def test_level_report(full: "StatStore") -> None:
     rec = TableRecorder()
     lines = level_report(full, 5, None, formatters(table=rec))
     text = _text(lines)
-    assert "Total Overall  : @W5            @W1" in text
-    assert "Total In DB    : @W2            @W1" in text
-    assert "Ave Bon Trains : @W0.500" in text
+    assert "Total Overall           : @W5            @W1" in text
+    assert "Total In Database       : @W2            @W1" in text
+    assert "Ave Bonus Trains        : @W0.500" in text
     assert lines[-1] == LEVEL_LIST_TITLE
     ((title, data, columns),) = rec.calls
     assert title == LEVEL_LIST_TITLE
@@ -386,8 +386,8 @@ def test_gquest_report(full: "StatStore") -> None:
     rec = TableRecorder()
     lines = gq_report(full, 5, None, formatters(table=rec))
     text = _text(lines)
-    assert "Won            : @W1            @W1" in text
-    assert "Lost           : @W             @W1" in text
+    assert "Won                     : @W1            @W1" in text
+    assert "Lost                    : @W             @W1" in text
     assert lines[-1] == GQ_LIST_TITLE
     ((title, data, columns),) = rec.calls
     assert (title, columns) == (GQ_LIST_TITLE, GQ_COLUMNS)
@@ -421,8 +421,8 @@ def test_mob_report(full: "StatStore") -> None:
     rec = TableRecorder()
     lines = mob_report(full, 5, formatters(table=rec))
     text = _text(lines)
-    assert "Overall        : @W4            @W3" in text
-    assert "Vorpal         : @W1            @W0.333/kill" in text
+    assert "Overall             : @W4            @W3" in text
+    assert "Vorpal              : @W1            @W0.333/kill" in text
     assert lines[-1] == MOB_LIST_TITLE
     ((title, data, columns),) = rec.calls
     assert (title, columns) == (MOB_LIST_TITLE, MOB_COLUMNS)
@@ -509,9 +509,9 @@ def test_reports_survive_only_failed_rows(empty: "StatStore") -> None:
     empty.save_cp({"failed": 1, "mobs": []})
     empty.save_gq({"won": 0, "mobs": []})
     fmt = formatters()
-    assert "Quests Failed  : @W1            @W1" in _text(quest_report(empty, 1, None, fmt))
+    assert "Quests Failed          : @W1            @W1" in _text(quest_report(empty, 1, None, fmt))
     assert "Failed         : @W1            @W1" in _text(cp_report(empty, 1, None, fmt))
-    assert "Lost           : @W             @W1" in _text(gq_report(empty, 1, None, fmt))
+    assert "Lost                    : @W             @W1" in _text(gq_report(empty, 1, None, fmt))
 
 
 def _save_new_style(store: "StatStore", rows: list[tuple[str, float, int]]) -> None:
@@ -533,7 +533,7 @@ def test_level_report_times_from_the_next_start(empty: "StatStore") -> None:
     rec = TableRecorder()
     lines = level_report(empty, 4, None, formatters(table=rec))
     text = _text(lines)
-    assert "Time           : @W450s" in text
+    assert "Time                    : @W450s" in text
     data = _recorded(rec)
     # newest row first in the list: no time for the current row
     assert data[0]["id"] == "4"
@@ -551,7 +551,7 @@ def test_level_report_filters_after_the_window(empty: "StatStore") -> None:
     rec = TableRecorder()
     lines = level_report(empty, 4, None, formatters(table=rec))
     # levels with trains: 1000 -> 1100 = 100s and 2000 -> 2600 = 600s
-    assert "Time           : @W350s" in _text(lines)
+    assert "Time                    : @W350s" in _text(lines)
     assert _recorded(rec)[-1]["time"] == "100s"
 
 
@@ -799,3 +799,114 @@ def test_cp_gq_and_mob_columns_have_unique_keys_and_every_cell_is_text(full: "St
         for row in _recorded(rec):
             assert list(row) == [column["key"] for column in columns]
             assert all(isinstance(value, str) for value in row.values())
+
+
+SHORT_SUMMARY_LABELS = (
+    "BaL",
+    "Bon",
+    "Bls",
+    "DB",
+    "QP",
+    "XP",
+    "TP",
+    "GQ",
+    "CP",
+    "OPK",
+    "Pracs",
+    "Comp",
+    "Pups",
+)
+
+
+def _summary_labels(lines: list[str]) -> list[str]:
+    """Return the label of each row of a summary, colors and values removed."""
+    return [line[2:].split(" : ")[0].strip() for line in lines if " : " in line]
+
+
+def test_summary_labels_are_spelled_out(full: "StatStore") -> None:
+    """No summary of a report uses a short label, and every colon lines up."""
+    from aardwolf.statdb.libs import (
+        cp_report,
+        gq_report,
+        level_report,
+        mob_report,
+        quest_report,
+    )
+
+    fmt = formatters()
+    for lines in (
+        quest_report(full, 0, None, fmt),
+        level_report(full, 0, None, fmt),
+        cp_report(full, 0, None, fmt),
+        gq_report(full, 0, None, fmt),
+        mob_report(full, 0, fmt),
+    ):
+        labels = _summary_labels(lines)
+        assert labels
+        for label in labels:
+            words = set(label.split())
+            assert not words & set(SHORT_SUMMARY_LABELS), label
+        rows = [line for line in lines if " : " in line]
+        assert len({line.index(" : ") for line in rows}) == 1
+
+
+def test_level_summary_names(full: "StatStore") -> None:
+    """The level summary says powerups and spells out the train kinds."""
+    from aardwolf.statdb.libs import level_report
+
+    labels = _summary_labels(level_report(full, 0, None, formatters()))
+    assert "Powerups" not in labels  # a header, not a row label
+    for name in (
+        "Total In Database",
+        "Ave Bonus Trains",
+        "Ave Blessing Trains",
+        "Ave Battle Learn Trains",
+        "Total Practices",
+    ):
+        assert name in labels
+
+
+def test_per_unit_suffixes_are_spelled_out(full: "StatStore") -> None:
+    """The averages of a campaign and a global quest say /campaign and /global quest."""
+    from aardwolf.statdb.libs import cp_report, gq_report
+
+    fmt = formatters()
+    cp_text = _text(cp_report(full, 0, None, fmt))
+    gq_text = _text(gq_report(full, 0, None, fmt))
+    assert "/campaign" in cp_text
+    assert "/CP" not in cp_text
+    assert "/global quest" in gq_text
+    assert "/GQ" not in gq_text
+
+
+def test_show_level_headers_are_spelled_out(full: "StatStore") -> None:
+    """The headers of one level are full names; the battle learn trains sit under theirs."""
+    from aardwolf.statdb.libs import level_report
+
+    lines = level_report(full, 0, 3, formatters())
+    assert lines[0].split("  ")[0] == "@GID"
+    assert "Total Level" in lines[0]
+    assert "Hit Points" in lines[2]
+    assert "Battle Learn Trains" in lines[4]
+    assert "Bonus Strength" in lines[6]
+    head = lines[4]
+    values = lines[5]
+    start = head.index("Battle Learn Trains") - len("@G")
+    assert values[start : start + len("Battle Learn Trains")].strip() == "0"
+
+
+def test_comparison_rows_use_the_full_names(full: "StatStore") -> None:
+    """Each comparison row is named by the full name of its field."""
+    from aardwolf.statdb.libs import FIELD_NAMES, compare_milestones
+
+    rec = TableRecorder()
+    compare_milestones(full, "", "", formatters(table=rec), now=5000)
+    fields = [row["field"] for row in _recorded(rec)]
+    assert fields == ["Date", "Time", *FIELD_NAMES.values()]
+
+
+def test_field_names_cover_the_compared_fields() -> None:
+    """FIELD_NAMES names every compared field and nothing else."""
+    from aardwolf.statdb.libs import FIELD_NAMES, FIELDSTOCOMP
+
+    assert set(FIELD_NAMES) == set(FIELDSTOCOMP)

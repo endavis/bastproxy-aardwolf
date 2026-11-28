@@ -42,6 +42,25 @@ FIELDSTOCOMP = [
     "totaltrivia",
 ]
 
+# the full name of each field a milestone comparison and the milestones page show
+FIELD_NAMES = {
+    "totallevels": "Total levels",
+    "qpearned": "Quest points earned",
+    "questscomplete": "Quests completed",
+    "questsfailed": "Quests failed",
+    "campaignsdone": "Campaigns completed",
+    "campaignsfld": "Campaigns failed",
+    "gquestswon": "Global quests won",
+    "duelswon": "Duels won",
+    "duelslost": "Duels lost",
+    "timeskilled": "Times killed",
+    "monsterskilled": "Monsters killed",
+    "combatmazewins": "Combat maze wins",
+    "combatmazedeaths": "Combat maze deaths",
+    "powerupsall": "Powerups of all kinds",
+    "totaltrivia": "Total trivia",
+}
+
 NO_STATS = "No stats available"
 NO_KILLS = "No kills recorded"
 # the message of a report whose table has no rows
@@ -65,6 +84,8 @@ SPECIAL_FLAGS = (
     ("disintegrate", "I"),
 )
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S"
+# the least width of the labels of a summary
+LABEL_WIDTH = 14
 
 
 @dataclass(frozen=True)
@@ -96,10 +117,51 @@ def format_float(item: float | None, addto: str = "") -> str | int:
 
 
 def format_row(
-    rowname: str, data1: object, data2: object, datacolor: str = "@W", headercolor: str = "@C"
+    rowname: str,
+    data1: object,
+    data2: object,
+    datacolor: str = "@W",
+    headercolor: str = "@C",
+    width: int = LABEL_WIDTH,
 ) -> str:
-    """Format a row of a report: a name and two values."""
-    return f"{headercolor}{rowname:<14} : {datacolor}{data1!s:<12} {datacolor}{data2!s:<12}"
+    """Format a row of a report: a name, padded to ``width``, and two values."""
+    return f"{headercolor}{rowname:<{width}} : {datacolor}{data1!s:<12} {datacolor}{data2!s:<12}"
+
+
+class _Rows:
+    """The rows of a summary; the labels are padded to the longest one (14 at least)."""
+
+    def __init__(self) -> None:
+        """Start with no rows."""
+        self._items: list[str | tuple[str, object, object, str, str]] = []
+
+    def row(
+        self,
+        name: str,
+        data1: object,
+        data2: object,
+        datacolor: str = "@W",
+        headercolor: str = "@C",
+    ) -> None:
+        """Add a row of a name and two values."""
+        self._items.append((name, data1, data2, datacolor, headercolor))
+
+    def head(self, name: str, data1: object, data2: object) -> None:
+        """Add a header row, all in green."""
+        self.row(name, data1, data2, "@G", "@G")
+
+    def line(self, text: str) -> None:
+        """Add a line that is not a row, such as a divider or an empty line."""
+        self._items.append(text)
+
+    def render(self) -> list[str]:
+        """Return the lines, with every label padded to the same width."""
+        names = [item[0] for item in self._items if not isinstance(item, str)]
+        width = max([LABEL_WIDTH, *(len(name) for name in names)])
+        return [
+            item if isinstance(item, str) else format_row(*item, width=width)
+            for item in self._items
+        ]
 
 
 def report_guard(db: ReadDb, table: str) -> str | None:
@@ -263,7 +325,7 @@ def format_comparison(
     for field in FIELDSTOCOMP:
         one = _n(left[field])
         two = _n(right[field])
-        data.append(_comparison_row(field, one, two, two - one))
+        data.append(_comparison_row(FIELD_NAMES[field], one, two, two - one))
     return list(fmt.table(COMPARE_TITLE, data, columns))
 
 
@@ -465,42 +527,45 @@ def quest_stats(db: ReadDb) -> dict[str, Any]:
 
 def quest_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
     """Format the numbers of ``quest_stats``."""
+    out = _Rows()
     div = _divider(fmt)
 
-    def row(name: str, total: float | None, key: str, unit: str) -> str:
-        return format_row(name, _n(total), format_float(stats[key], unit))
+    def row(name: str, total: float | None, key: str, unit: str) -> None:
+        out.row(name, _n(total), format_float(stats[key], unit))
 
-    msg = [
-        format_row("DB Stats", "Total", "In DB", "@G", "@G"),
-        div,
-        format_row("Quests", stats["questscomplete"] + stats["questsfailed"], stats["indb"]),
-        format_row("Quests Comp", stats["questscomplete"], stats["qindb"]),
-        format_row("Quests Failed", stats["questsfailed"], stats["failedindb"]),
-        "",
-        format_row("QP Stats", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("Overall QP", stats["qpearned"], format_float(stats["qplevelave"], "/level")),
-        row("Quest QP", stats["qp"], "qpquestave", "/quest"),
-        row("MCCP", stats["mccp"], "mccpave", "/quest"),
-        row("Lucky", stats["lucky"], "luckyave", "/quest"),
-        row("Tier", stats["tierqp"], "tierqpave", "/quest"),
-        row("OPK", stats["opk"], "opkave", "/quest"),
-        row("Hardcore", stats["hardcore"], "hardcoreave", "/quest"),
-        format_row("QP Per Quest", "", format_float(stats["dboverallave"], "/quest")),
-        format_row(
-            "Gold",
-            fmt.readable(_n(stats["gold"])),
-            "%d/quest" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
-        ),
-        format_row("Time", "", fmt.format_time(stats["avetime"]) if stats["avetime"] else ""),
-        "",
-        format_row("Bonus Rewards", "Total", "Average", "@G", "@G"),
-        div,
-        row("TP", stats["tp"], "tpave", "/quest"),
-        row("Trains", stats["trains"], "trainsave", "/quest"),
-        row("Pracs", stats["pracs"], "pracsave", "/quest"),
-    ]
-    return msg
+    out.head("Database Stats", "Total", "In Database")
+    out.line(div)
+    out.row("Quests", stats["questscomplete"] + stats["questsfailed"], stats["indb"])
+    out.row("Quests Completed", stats["questscomplete"], stats["qindb"])
+    out.row("Quests Failed", stats["questsfailed"], stats["failedindb"])
+    out.line("")
+    out.head("Quest Point Stats", "Total", "Average")
+    out.line(div)
+    out.row(
+        "Overall Quest Points",
+        stats["qpearned"],
+        format_float(stats["qplevelave"], "/level"),
+    )
+    row("Base Quest Points", stats["qp"], "qpquestave", "/quest")
+    row("MCCP", stats["mccp"], "mccpave", "/quest")
+    row("Lucky", stats["lucky"], "luckyave", "/quest")
+    row("Tier", stats["tierqp"], "tierqpave", "/quest")
+    row("Open PK", stats["opk"], "opkave", "/quest")
+    row("Hardcore", stats["hardcore"], "hardcoreave", "/quest")
+    out.row("Quest Points Per Quest", "", format_float(stats["dboverallave"], "/quest"))
+    out.row(
+        "Gold",
+        fmt.readable(_n(stats["gold"])),
+        "%d/quest" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
+    )
+    out.row("Time", "", fmt.format_time(stats["avetime"]) if stats["avetime"] else "")
+    out.line("")
+    out.head("Bonus Rewards", "Total", "Average")
+    out.line(div)
+    row("Trivia Points", stats["tp"], "tpave", "/quest")
+    row("Trains", stats["trains"], "trainsave", "/quest")
+    row("Practices", stats["pracs"], "pracsave", "/quest")
+    return out.render()
 
 
 # levels
@@ -585,6 +650,20 @@ def level_data(items: Sequence[dict[str, Any]], fmt: Formatters) -> list[dict[st
     return data
 
 
+def _header_lines(headers: Sequence[str], values: Sequence[object]) -> list[str]:
+    """Return a green header line over a line of values, each column as wide as its widest cell.
+
+    The first column is at least six wide, for the ID.
+    """
+    widths = [
+        max(len(header), len(str(value)), 6 if index == 0 else 0)
+        for index, (header, value) in enumerate(zip(headers, values, strict=True))
+    ]
+    head = " ".join(f"{header:<{width}}" for header, width in zip(headers, widths, strict=True))
+    data = " ".join(f"{value!s:<{width}}" for value, width in zip(values, widths, strict=True))
+    return [f"@G{head}".rstrip(), data.rstrip()]
+
+
 def show_level(
     store: StatStore, number: int, fmt: Formatters, perlevel: float | None = None
 ) -> list[str]:
@@ -601,22 +680,36 @@ def show_level(
     ltype = "lev" if item["type"] == "level" else "pup"
 
     msg = [
-        "@G%-6s %-5s %-7s %-s" % ("ID", "Type", "TotLvl", "Actual"),  # noqa: UP031  # %-formats keep the old column layout
-        "%-6s %-5s %-7s %-s" % (item["level_id"], ltype, item["level"], actual),  # noqa: UP031  # %-formats keep the old column layout
-        "@G%-6s %2s %2s %-2s %-2s " % ("", "HP", "MN", "MV", "PR"),  # noqa: UP031  # %-formats keep the old column layout
-        "%-6s %2s %2s %-2s %-2s" % ("", item["hp"], item["mp"], item["mv"], item["pracs"]),  # noqa: UP031  # %-formats keep the old column layout
-        "@G%-6s %-2s %-2s %-2s %-2s" % ("", "TR", "BO", "BL", "BT"),  # noqa: UP031  # %-formats keep the old column layout
-        "%-6s %-2s %-2s %-2s %-2s"  # noqa: UP031  # %-formats keep the old column layout
-        % (
-            "",
-            item["trains"],
-            item["bonustrains"],
-            item["blessingtrains"],
-            item["battlelearntrains"],
+        *_header_lines(
+            ("ID", "Type", "Total Level", "Actual"),
+            (item["level_id"], ltype, item["level"], actual),
         ),
-        "@G%-6s %-1s %-1s %-1s %-1s %-1s %-1s" % ("", "S", "I", "W", "C", "D", "L"),  # noqa: UP031  # %-formats keep the old column layout
-        "%-6s %-1s %-1s %-1s %-1s %-1s %-1s"  # noqa: UP031  # %-formats keep the old column layout
-        % ("", item["str"], item["int"], item["wis"], item["con"], item["dex"], item["luc"]),
+        *_header_lines(
+            ("", "Hit Points", "Mana", "Moves", "Practices"),
+            ("", item["hp"], item["mp"], item["mv"], item["pracs"]),
+        ),
+        *_header_lines(
+            ("", "Trains", "Bonus Trains", "Blessing Trains", "Battle Learn Trains"),
+            (
+                "",
+                item["trains"],
+                item["bonustrains"],
+                item["blessingtrains"],
+                item["battlelearntrains"],
+            ),
+        ),
+        *_header_lines(
+            (
+                "",
+                "Bonus Strength",
+                "Bonus Intelligence",
+                "Bonus Wisdom",
+                "Bonus Constitution",
+                "Bonus Dexterity",
+                "Bonus Luck",
+            ),
+            ("", item["str"], item["int"], item["wis"], item["con"], item["dex"], item["luc"]),
+        ),
     ]
 
     count = 0
@@ -730,40 +823,36 @@ def level_stats(db: ReadDb) -> dict[str, dict[str, Any]]:
 
 def level_summary(stats: dict[str, dict[str, Any]], fmt: Formatters) -> list[str]:
     """Format the numbers of ``level_stats``."""
-    div = _divider(fmt)
+    out = _Rows()
     levels = stats["levels"]
     pups = stats["pups"]
 
-    msg = [
-        format_row("Type", "Levels", "Pups", "@G", "@G"),
-        div,
-        format_row("Total Overall", levels["totallevels"], pups["powerupsall"]),
-        format_row("Total In DB", levels["indb"], pups["indb"]),
-        format_row("Total Trains", _n(levels["totaltrains"]), _n(pups["totaltrains"])),
-    ]
+    out.head("Type", "Levels", "Powerups")
+    out.line(_divider(fmt))
+    out.row("Total Overall", levels["totallevels"], pups["powerupsall"])
+    out.row("Total In Database", levels["indb"], pups["indb"])
+    out.row("Total Trains", _n(levels["totaltrains"]), _n(pups["totaltrains"]))
     level_sum = 0.0
     pup_sum = 0.0
     for title, key in (
         ("Ave Trains", "avetrains"),
-        ("Ave Bon Trains", "avebonustrains"),
-        ("Ave Bls Trains", "aveblessingtrains"),
-        ("Ave BaL Trains", "avebattlelearntrains"),
+        ("Ave Bonus Trains", "avebonustrains"),
+        ("Ave Blessing Trains", "aveblessingtrains"),
+        ("Ave Battle Learn Trains", "avebattlelearntrains"),
     ):
         level_ave = format_float(levels[key])
         pup_ave = format_float(pups[key])
         level_sum += float(level_ave)
         pup_sum += float(pup_ave)
-        msg.append(format_row(title, level_ave or 0, pup_ave or 0))
-    msg.append(format_row("Ave Overall", level_sum or 0, pup_sum or 0))
-    msg.append(format_row("Total Pracs", _n(levels["totalpracs"]), ""))
-    msg.append(
-        format_row(
-            "Time",
-            fmt.format_time(levels["avetime"]) if levels["avetime"] else "",
-            fmt.format_time(pups["avetime"]) if pups["avetime"] else "",
-        )
+        out.row(title, level_ave or 0, pup_ave or 0)
+    out.row("Ave Overall", level_sum or 0, pup_sum or 0)
+    out.row("Total Practices", _n(levels["totalpracs"]), "")
+    out.row(
+        "Time",
+        fmt.format_time(levels["avetime"]) if levels["avetime"] else "",
+        fmt.format_time(pups["avetime"]) if pups["avetime"] else "",
     )
-    return msg
+    return out.render()
 
 
 # campaigns
@@ -888,34 +977,33 @@ def cp_stats(db: ReadDb) -> dict[str, Any]:
 
 def cp_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
     """Format the numbers of ``cp_stats``."""
+    out = _Rows()
     div = _divider(fmt)
     indb = int(stats["cindb"]) + int(stats["failedindb"])
     total = int(_n(stats["campaignsdone"])) + int(_n(stats["campaignsfld"]))
 
-    msg = [
-        format_row("DB Stats", "Total", "In DB", "@G", "@G"),
-        div,
-        format_row("Overall", total, indb),
-        format_row("Completed", stats["campaignsdone"], stats["cindb"]),
-        format_row("Failed", stats["campaignsfld"], stats["failedindb"]),
-        "",
-        format_row("CP Stats", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("QP", _n(stats["totalqp"]), format_float(stats["aveqp"], "/CP")),
-        format_row(
-            "Gold",
-            fmt.readable(stats["totalgold"]) if stats["totalgold"] else 0,
-            "%d/CP" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
-        ),
-        format_row("Time", "", fmt.format_time(stats["avetime"]) if stats["avetime"] else ""),
-        "",
-        format_row("Bonus Rewards", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("TP", _n(stats["totaltp"]), format_float(stats["avetp"], "/CP")),
-        format_row("Trains", _n(stats["totaltrains"]), format_float(stats["avetrains"], "/CP")),
-        format_row("Pracs", _n(stats["totalpracs"]), format_float(stats["avepracs"], "/CP")),
-    ]
-    return msg
+    out.head("Database Stats", "Total", "In Database")
+    out.line(div)
+    out.row("Overall", total, indb)
+    out.row("Completed", stats["campaignsdone"], stats["cindb"])
+    out.row("Failed", stats["campaignsfld"], stats["failedindb"])
+    out.line("")
+    out.head("Campaign Stats", "Total", "Average")
+    out.line(div)
+    out.row("Quest Points", _n(stats["totalqp"]), format_float(stats["aveqp"], "/campaign"))
+    out.row(
+        "Gold",
+        fmt.readable(stats["totalgold"]) if stats["totalgold"] else 0,
+        "%d/campaign" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
+    )
+    out.row("Time", "", fmt.format_time(stats["avetime"]) if stats["avetime"] else "")
+    out.line("")
+    out.head("Bonus Rewards", "Total", "Average")
+    out.line(div)
+    out.row("Trivia Points", _n(stats["totaltp"]), format_float(stats["avetp"], "/campaign"))
+    out.row("Trains", _n(stats["totaltrains"]), format_float(stats["avetrains"], "/campaign"))
+    out.row("Practices", _n(stats["totalpracs"]), format_float(stats["avepracs"], "/campaign"))
+    return out.render()
 
 
 # global quests
@@ -1047,40 +1135,40 @@ def gq_stats(db: ReadDb) -> dict[str, Any]:
 
 def gq_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
     """Format the numbers of ``gq_stats``."""
+    out = _Rows()
     div = _divider(fmt)
     won = stats["won"]
     lost = stats["lost"]
     overall = stats["overall"]
     gquestswon = stats["gquestswon"]
     indb = won["indb"] + lost["indb"]
+    each = "/global quest"
 
-    msg = [
-        format_row("GQ Stats", "Total", "In DB", "@G", "@G"),
-        div,
-        format_row("Won", gquestswon, won["indb"]),
-        format_row("Lost", "", lost["indb"]),
-        format_row("Overall", gquestswon + lost["indb"], indb),
-        format_row("QP", _n(overall["overallqp"]), format_float(overall["aveoverallqp"], "/GQ")),
-        "",
-        format_row("GQ Won Stats", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("GQ QP", _n(won["qp"]), format_float(won["qpave"], "/GQ")),
-        format_row("GQ MOB QP", _n(won["qpmobs"]), format_float(won["qpmobsave"], "/GQ")),
-        format_row("Time", "", fmt.format_time(won["avetime"]) if won["avetime"] else ""),
-        format_row(
-            "Gold",
-            fmt.readable(_n(won["gold"])),
-            "%d/GQ" % _n(won["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
-        ),
-        format_row("TP", _n(won["tp"]), format_float(won["tpave"], "/GQ")),
-        format_row("Trains", _n(won["trains"]), format_float(won["trainsave"], "/GQ")),
-        format_row("Pracs", _n(won["pracs"]), format_float(won["pracsave"], "/GQ")),
-        "",
-        format_row("GQ Lost Stats", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("GQ MOB QP", _n(lost["totalqp"]), format_float(lost["aveqp"], "/GQ")),
-    ]
-    return msg
+    out.head("Global Quest Stats", "Total", "In Database")
+    out.line(div)
+    out.row("Won", gquestswon, won["indb"])
+    out.row("Lost", "", lost["indb"])
+    out.row("Overall", gquestswon + lost["indb"], indb)
+    out.row("Quest Points", _n(overall["overallqp"]), format_float(overall["aveoverallqp"], each))
+    out.line("")
+    out.head("Global Quest Won Stats", "Total", "Average")
+    out.line(div)
+    out.row("Quest Points", _n(won["qp"]), format_float(won["qpave"], each))
+    out.row("Mob Quest Points", _n(won["qpmobs"]), format_float(won["qpmobsave"], each))
+    out.row("Time", "", fmt.format_time(won["avetime"]) if won["avetime"] else "")
+    out.row(
+        "Gold",
+        fmt.readable(_n(won["gold"])),
+        "%d%s" % (_n(won["avegold"]), each),  # noqa: UP031  # %-formats keep the old column layout
+    )
+    out.row("Trivia Points", _n(won["tp"]), format_float(won["tpave"], each))
+    out.row("Trains", _n(won["trains"]), format_float(won["trainsave"], each))
+    out.row("Practices", _n(won["pracs"]), format_float(won["pracsave"], each))
+    out.line("")
+    out.head("Global Quest Lost Stats", "Total", "Average")
+    out.line(div)
+    out.row("Mob Quest Points", _n(lost["totalqp"]), format_float(lost["aveqp"], each))
+    return out.render()
 
 
 # mob kills
@@ -1204,33 +1292,32 @@ def mob_stats(db: ReadDb) -> dict[str, Any]:
 
 def mob_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
     """Format the numbers of ``mob_stats``."""
+    out = _Rows()
     div = _divider(fmt)
     kills = float(stats["indb"])
 
-    msg = [
-        format_row("DB Stats", "Total", "In DB", "@G", "@G"),
-        div,
-        format_row("Overall", stats["monsterskilled"], stats["indb"]),
-        format_row("Rare Mobs", "", stats["raremobsindb"]),
-        format_row("Bonus Mobs", "", stats["bonusmobsindb"]),
-        format_row("Blessing Mobs", "", stats["blessmobsindb"]),
-        "",
-        format_row("Stats", "Total", "Average", "@G", "@G"),
-        div,
-        format_row("XP", _n(stats["xp"]), format_float(stats["avexp"], "/kill")),
-        format_row("Rare XP", _n(stats["rarexp"]), format_float(stats["averarexp"], "/kill")),
-        format_row("Double XP", _n(stats["bonusxp"]), format_float(stats["avebonusxp"], "/kill")),
-        format_row(
-            "Blessing XP", _n(stats["blessingxp"]), format_float(stats["aveblessxp"], "/kill")
-        ),
-        format_row("Total XP", _n(stats["totalxp"]), format_float(stats["avetotalxp"], "/kill")),
-        format_row(
-            "Gold",
-            fmt.readable(_n(stats["gold"])),
-            "%d/kill" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
-        ),
-        format_row("TP", _n(stats["tp"]), format_float(_n(stats["tp"]) / kills, "/kill")),
-    ]
+    out.head("Database Stats", "Total", "In Database")
+    out.line(div)
+    out.row("Overall", stats["monsterskilled"], stats["indb"])
+    out.row("Rare Mobs", "", stats["raremobsindb"])
+    out.row("Bonus Mobs", "", stats["bonusmobsindb"])
+    out.row("Blessing Mobs", "", stats["blessmobsindb"])
+    out.line("")
+    out.head("Stats", "Total", "Average")
+    out.line(div)
+    out.row("Experience", _n(stats["xp"]), format_float(stats["avexp"], "/kill"))
+    out.row("Rare Experience", _n(stats["rarexp"]), format_float(stats["averarexp"], "/kill"))
+    out.row("Double Experience", _n(stats["bonusxp"]), format_float(stats["avebonusxp"], "/kill"))
+    out.row(
+        "Blessing Experience", _n(stats["blessingxp"]), format_float(stats["aveblessxp"], "/kill")
+    )
+    out.row("Total Experience", _n(stats["totalxp"]), format_float(stats["avetotalxp"], "/kill"))
+    out.row(
+        "Gold",
+        fmt.readable(_n(stats["gold"])),
+        "%d/kill" % _n(stats["avegold"]),  # noqa: UP031  # %-formats keep the old column layout
+    )
+    out.row("Trivia Points", _n(stats["tp"]), format_float(_n(stats["tp"]) / kills, "/kill"))
     for title, key in (
         ("Vorpal", "vorpal"),
         ("Assassinate", "assassinate"),
@@ -1240,8 +1327,8 @@ def mob_summary(stats: dict[str, Any], fmt: Formatters) -> list[str]:
         ("Disintegrate", "disintegrate"),
     ):
         total = _n(stats[key])
-        msg.append(format_row(title, total, format_float(total / kills, "/kill") or ""))
-    return msg
+        out.row(title, total, format_float(total / kills, "/kill") or "")
+    return out.render()
 
 
 def _flags(item: dict[str, Any]) -> str:

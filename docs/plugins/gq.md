@@ -109,7 +109,7 @@ provider, so a page updates without polling.
 | `location` | Location | text |
 | `count` | Left | int (the kills left of this mob) |
 
-The table is empty when no global quest is joined.
+The table is empty when no global quest is joined. Every label is a whole word, so the columns have no separate full name.
 
 `summary` is json with `joined`, `gqnum`, `level` (the total level when it was joined),
 `starttime`, `extended` (true in extended time) and `mobsleft` (the sum of the kills left). The

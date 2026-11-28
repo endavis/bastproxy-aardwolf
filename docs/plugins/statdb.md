@@ -157,6 +157,26 @@ because it needs a query; `/aardwolf/statdb/` still lists it.
 | `chart/level-time` | | minutes per level, the last `chartlevels` timed levels (50) |
 | `chart/area-kills` | | kills per area, the top `chartareas` areas (20) |
 
+**Column names.** A column whose label is short also carries its full name (the core web plugin
+shows the full name in the header, with the label in brackets after it). Every column not listed
+here has a label that is a whole word already.
+
+| Page | Label: full name |
+| :--- | :--- |
+| `milestones` | totallevels: Total levels; qpearned: Quest points earned; questscomplete: Quests completed; questsfailed: Quests failed; campaignsdone: Campaigns completed; campaignsfld: Campaigns failed; gquestswon: Global quests won; duelswon: Duels won; duelslost: Duels lost; timeskilled: Times killed; monsterskilled: Monsters killed; combatmazewins: Combat maze wins; combatmazedeaths: Combat maze deaths; powerupsall: Powerups of all kinds; totaltrivia: Total trivia |
+| `quests` | ID: Quest number; QP: Base quest points; MC: MCCP quest points; TR: Tier quest points; LK: Lucky quest points; PK: Open PK quest points; HC: Hardcore quest points; DBL: Double (D) and daily (E); TL: Total quest points; TP: Trivia points; TN: Trains; PR: Practices; Lvl: Level; Mins: Minutes taken |
+| `levels` | ID: Level or powerup number; Lvl: Level; T: Type (L level, P powerup); TR: Trains; BT: Bonus trains (bonus plus blessing); PR: Practices; HP: Hit points; MN: Mana; MV: Moves; S, I, W, C, D, L: Bonus strength, intelligence, wisdom, constitution, dexterity, luck; Mins: Minutes to the next level or powerup |
+| `cps` | ID: Campaign number; Lvl: Tier, remort and level; QP: Quest points; BN: Bonus quest points; TP: Trivia points; TN: Trains; PR: Practices; Mins: Minutes taken |
+| `cpmobs` | CP: Campaign number |
+| `gqs` | ID: Global quest number; Lvl: Tier, remort and level; QP: Quest points; QM: Mob quest points; TP: Trivia points; TN: Trains; PR: Practices; Mins: Minutes taken |
+| `gqmobs` | GQ: Global quest number; Num: Mob count |
+| `mobs` | Lvl: Level; TXP: Total experience; XP: Experience; RXP: Rare kill bonus experience; OXP: Bonus experience (D double, E daily blessing); TP: Trivia point mob |
+
+The text reports spell the same names out: the summaries use full words (`Database Stats`,
+`Quests Completed`, `Open PK`, `Powerups`, `/campaign`, `/global quest`), `levels -n` has spelled-out
+headers, and `comp` names each row by the full name of its stat. The column headers of the text
+tables stay short (`QP`, `TN` and the like); the names above give their meanings.
+
 **Tables.** `quests`, `levels`, `cps`, `gqs` and `mobs` show the summary of their text command above
 the table. Without a sort a table lists the newest row first, so page 1 with `count=N` is the rows
 of `<command> N` (the `mobs` page lists the newest kills first, as the `mobkills` command does). The table parameters are the web plugin's: `sort`, `dir`, `page`, `count` and one

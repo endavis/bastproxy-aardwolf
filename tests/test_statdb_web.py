@@ -705,7 +705,7 @@ def test_linked_columns_keep_names_and_types() -> None:
         ("mobs", "room"),
     ):
         columns = {column["name"]: column for column in TABLE_PAGES[route].route_columns()}
-        assert set(columns[name]) == {"name", "label", "type"}
+        assert set(columns[name]) <= {"name", "label", "type", "long"}
         assert columns[name]["type"] == "int"
 
 
