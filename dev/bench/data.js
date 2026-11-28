@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795818523065,
+  "lastUpdate": 1795864182447,
   "repoUrl": "https://github.com/endavis/bastproxy-aardwolf",
   "entries": {
     "Benchmark": [
@@ -3913,6 +3913,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 5.650493833827863e-7",
             "extra": "mean: 3.771224438960012 usec\nrounds: 141925"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd0edfab4eb640dae8232467471feb276762e1e7",
+          "message": "feat: show each bar's value on the statdb charts (merges PR #216, addresses #208)\n\nWrite each bar's value in the bar near its top in white, running\nvertically when it is too wide for the bar. A bar too short to hold its\nvalue, including a zero bar, shows it just above the bar in dark text.\nThe tooltip stays.\n\nAddresses #208\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-28T11:09:10Z",
+          "tree_id": "3445650d5da14665c6ebd1cc2e24ee1628f03126",
+          "url": "https://github.com/endavis/bastproxy-aardwolf/commit/dd0edfab4eb640dae8232467471feb276762e1e7"
+        },
+        "date": 1795864181905,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_convert_level",
+            "value": 2979585.2041151985,
+            "unit": "iter/sec",
+            "range": "stddev: 4.7016128187396176e-8",
+            "extra": "mean: 335.6171854454334 nsec\nrounds: 197668"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_aardu.py::test_bench_parse_damage_line",
+            "value": 163044.10597602566,
+            "unit": "iter/sec",
+            "range": "stddev: 9.992812138028035e-7",
+            "extra": "mean: 6.133309720174994 usec\nrounds: 173011"
           }
         ]
       }
