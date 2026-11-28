@@ -16,6 +16,45 @@ PLOT_HEIGHT = 220
 MARGIN_BOTTOM = 80
 MIN_WIDTH = 360
 MAX_LABEL = 14
+VALUE_FONT = 10
+CHAR_WIDTH = 6  # estimated width of one character at VALUE_FONT
+VALUE_PAD = 4
+
+
+def _value_text(value: float, left: int, top: float, bar_height: float) -> str:
+    """Draw a bar's value: inside the bar near its top, or above it when it does not fit.
+
+    A value that fits across the bar runs horizontally, a longer one vertically (rotated like
+    the labels). Inside the bar the text is white; above it, dark.
+    """
+    shown = _number(value)
+    text = escape(shown, quote=True)
+    length = len(shown) * CHAR_WIDTH
+    centre = left + BAR_WIDTH // 2
+    horizontal = length <= BAR_WIDTH - 2
+    needed = (VALUE_FONT + 2 * VALUE_PAD) if horizontal else (length + 2 * VALUE_PAD)
+    if bar_height >= needed:
+        if horizontal:
+            return (
+                f'<text x="{centre}" y="{top + VALUE_FONT + VALUE_PAD:.1f}" '
+                f'font-size="{VALUE_FONT}" text-anchor="middle" fill="#ffffff">{text}</text>'
+            )
+        x, y = centre + 4, top + VALUE_PAD
+        return (
+            f'<text x="{x}" y="{y:.1f}" font-size="{VALUE_FONT}" text-anchor="end" '
+            f'fill="#ffffff" transform="rotate(-90 {x} {y:.1f})">{text}</text>'
+        )
+    y = top - 3
+    if horizontal:
+        return (
+            f'<text x="{centre}" y="{y:.1f}" font-size="{VALUE_FONT}" text-anchor="middle" '
+            f'fill="#333333">{text}</text>'
+        )
+    x = centre + 4
+    return (
+        f'<text x="{x}" y="{y:.1f}" font-size="{VALUE_FONT}" text-anchor="start" '
+        f'fill="#333333" transform="rotate(-90 {x} {y:.1f})">{text}</text>'
+    )
 
 
 def _number(value: float) -> str:
@@ -87,6 +126,7 @@ def bar_chart_svg(title: str, bars: Sequence[tuple[str, float]], unit: str) -> s
             f'<rect x="{left}" y="{top:.1f}" width="{BAR_WIDTH}" height="{bar_height:.1f}" '
             f'fill="#3b78c4"><title>{tip}</title></rect>'
         )
+        parts.append(_value_text(value, left, top, bar_height))
         centre = left + BAR_WIDTH // 2
         parts.append(
             f'<text x="{centre}" y="{base + 14}" font-size="10" text-anchor="end" '

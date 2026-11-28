@@ -186,7 +186,8 @@ A name that does not exist is answered with 404 and the text "milestone X does n
 text as the command. Two names that exist give the comparison.
 
 **Charts.** Each chart is an SVG bar chart with every label escaped; it holds no script and no
-link. With no rows it says "No data". `chart/area-kills` has to map each room to an area: it asks
+link. Each bar shows its value: inside the bar near the top in white (vertically when the number
+is too wide for the bar), or just above the bar in dark text when the bar is too short. With no rows it says "No data". `chart/area-kills` has to map each room to an area: it asks
 the core mapper (`plugins.client.mapper:room.get` and `area.get`) on the event loop, a room the
 mapper does not know counts under "Unknown", and with no mapper loaded every kill does.
 
